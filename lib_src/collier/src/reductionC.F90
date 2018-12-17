@@ -27,7 +27,7 @@
 !#define CritPointsCOLI
 #define PVEST2                  ! default
 
-#define PVSHIFT 
+#define PVSHIFT                 ! default
 !#define TEST
 !#define Cgntest
 
@@ -74,6 +74,9 @@ module reductionC
 
   use coli_stat
   use reductionAB
+#ifdef DETTEST
+  use coli_aux3
+#endif
 
   implicit none
 
@@ -335,15 +338,13 @@ contains
     double complex :: Cuv_alt(0:rmax,0:rmax,0:rmax)
     double precision ::  Cerr(0:rmax),Cerr_alt(0:rmax),Cerr1_alt(0:rmax),Cerr2_alt(0:rmax)
     double precision :: C0est,Ctyp
-#ifdef USEC0
-    double complex :: C0_coli
-#endif
     double complex :: C0_coli
 !    double complex :: detX,chdet
     double complex :: chdet
 
     double complex :: elimminf2_coli
     integer :: r,rid,n0,n1,n2,g,gy,gp,gr,gpf,i,rdef,iexp
+    logical :: use_C0
     logical :: use_pv,use_pv2,use_g,use_gy,use_gp,use_gr,use_gpf,use_pvs
 
     integer :: r_alt,Crmethod(0:rmax),Crmethod_alt(0:rmax),CrCalc(0:rmax),CCalc
@@ -375,12 +376,15 @@ contains
 #endif
     integer, save :: CritPointCntC
 
-    data CritPointCntC /0/
+#ifdef DETTEST
+!    double complex :: detZ_sv,det_la,det_lasv,det_lasvo,det_lasvn,det_sv
+    double complex :: det_sv,det_dd
+    double precision :: acc_det
 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! choose reduction scheme
-    ! by estimating expected errors
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    external det_lasv
+#endif
+
+    data CritPointCntC /0/
 
 #ifdef Credtest
      write(*,*) 'CalcCred in ',rmax,id,p10,p21,p20
@@ -388,6 +392,76 @@ contains
 #ifdef TRACECin
      write(*,*) 'CalcCred in ',rmax,id
 #endif
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! for rank = 0 calculate C0 directly 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    use_C0 = .false.  
+    if (rmax.eq.0d0) then
+    ! rough estimate for C0 to set the scale, to be improved
+      Cscale = max(abs(p10),abs(p21),abs(p20),abs(m02),abs(m12),abs(m22))
+      if(Cscale.ne.0d0) then 
+        Cerr1 = acc_inf/Cscale
+      else
+        C0est = acc_inf
+      end if
+      Cerr2 = Cerr1
+
+      Z(1,1) = 2d0*p10
+      Z(2,1) = p10+p20-p21
+      Z(1,2) = Z(2,1)
+      Z(2,2) = 2d0*p20
+      
+      adetZ = abs(chdet(2,Z))
+
+#ifdef DETTEST
+      write(*,*) 'CalcCred z12^2  = ',Z(2,1)**2
+      write(*,*) 'CalcCred detad  = ',chdet(2,Z)
+      det_sv= det_la(Z)
+     write(*,*) 'CalcCred detsd  = ',det_sv
+      write(*,*) 'CalcCred detla1 = ',det_la(Z)
+!      write(*,*) 'CalcCred detla2 = ',det_lasv(Z)         comp error
+!      write(*,*) 'CalcCred detla3 = ',det_lasvn(Z,2,2)    infinite loop?
+!      write(*,*) 'CalcCred detla4 = ',det_lasvo(Z,2,2)     infinite loop?
+      call det_lasvd(Z,det_sv)
+      write(*,*) 'CalcCred detlasvd = ',det_sv
+      write(*,*) 'CalcCred Z  = ',Z
+      call det_svd(2,Z,det_sv,acc_det)
+      write(*,*) 'CalcCred detsvd = ',det_sv,acc_det
+#endif
+
+
+#ifdef Credtest
+      write(*,*) 'CalcCred Z  = ',Z
+      write(*,*) 'CalcCred C0branch adetZ= ',adetZ
+      write(*,*) 'CalcCred C0branch ',dprec_cll,maxval(abs(Z))**2,dprec_cll*maxval(abs(Z))**2
+      write(*,*) 'CalcCred C0branch ',dprec_cll,maxval(abs(Z(1,:)))*maxval(abs(Z(2,:))),   &
+          dprec_cll*maxval(abs(Z(1,:)))*maxval(abs(Z(2,:)))
+#endif
+
+! changed 16.08.18
+!      if (adetZ.gt.dprec_cll*maxval(abs(Z))**2) then
+      if (adetZ.gt.dprec_cll*maxval(abs(Z(1,:)))*maxval(abs(Z(2,:)))) then
+        C(0,0,0) = C0_coli(p10,p21,p20,m02,m12,m22)
+        Cuv(0,0,0) = 0d0
+        if (C(0,0,0).ne.undefined_C) then         
+          Cerr1(0) = acc_def_C0*max( abs(C(0,0,0)), 1d0/sqrt(adetZ) )
+        else
+          Cerr1(0) = acc_inf*abs(C(0,0,0))
+        end if
+        Cerr2(0) = Cerr1(0)
+        if (Cerr1(0).lt.acc_req_C*abs(C(0,0,0))) then 
+          return
+        else
+          use_C0 = .true.
+        endif
+      end if 
+    end if
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! choose reduction scheme
+    ! by estimating expected errors
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     if (present(rbasic)) then
       rdef = rbasic
@@ -430,17 +504,33 @@ contains
 
     maxZ = maxval(abs(Z))
 
-    detZ = chdet(2,Z)
+! changed 21.06.2018
+    call chinv(2,Z,Zinv,detZ)
+!    detZ = chdet(2,Z)
 
-    if (detZ.ne.0d0) then
-      call chinv(2,Z,Zinv)
-      Zadj = Zinv * detZ
-    else
+! added 16.08.18
+!    if (abs(detZ).lt.dprec_cll*maxval(abs(Z(1,:)))*maxval(abs(Z(2,:)))) then
+    if (abs(detZ).lt.dprec_cll*max(  &
+        abs(Z(1,1)*Z(2,2)),abs(Z(1,2)*Z(2,1))) ) then 
+#ifdef Credtest
+    write(*,*) 'detZ set to 0  ',abs(detZ),  &
+        dprec_cll*maxval(abs(Z(1,:)))*maxval(abs(Z(2,:))),  &
+        dprec_cll*max(abs(Z(1,1)*Z(2,2)),abs(Z(1,2)*Z(2,1)) )
+#endif
+      detZ = 0d0
+    end if
+
+! changed 16.08.18 more stable for PV, but implies less expansions
+! and larger Derr1=Derrout in Ds  (local estimates based on err2!)
+!    if (detZ.ne.0d0) then
+!!      call chinv(2,Z,Zinv)
+!      Zadj = Zinv * detZ
+!    else
       Zadj(1,1) = Z(2,2)
       Zadj(2,1) = -Z(2,1)
       Zadj(1,2) = -Z(2,1)
       Zadj(2,2) = Z(1,1)
-    end if
+!    end if
 
     Zadjs(1) = q21 + q20 - q10 
     Zadjs(2) = q21 + q10 - q20 
@@ -480,13 +570,32 @@ contains
     mx(0,2) = mx(2,0)
     mx(1:2,1:2) = Z(1:2,1:2)
 
-    detX = chdet(3,mx)
+! changed 21.06.2018
+    call chinv(3,mx,mxinv,detX)
+!    detX = chdet(3,mx)
+
+! added 16.08.18
+!    if (abs(detX).lt.dprec_cll*maxval(abs(mx(0,:)))*maxval(abs(mx(1,:)))*maxval(abs(mx(2,:)))) then
+    if (abs(detX).lt.dprec_cll*max(  &
+        abs(mx(0,0)*mx(1,1)*mx(2,2)),abs(mx(0,1)*mx(1,2)*mx(2,0)),   &
+        abs(mx(0,0)*mx(1,2)*mx(2,1)),abs(mx(1,1)*mx(0,2)*mx(2,0)),   &    
+        abs(mx(2,2)*mx(0,1)*mx(1,0)) ) ) then 
+#ifdef Credtest
+      write(*,*) 'detX set to 0  ',abs(detX),   &  
+          dprec_cll*maxval(abs(mx(0,:)))*maxval(abs(mx(1,:)))*maxval(abs(mx(2,:))),  &
+          dprec_cll*max(  &
+          abs(mx(0,0)*mx(1,1)*mx(2,2)),abs(mx(0,1)*mx(1,2)*mx(2,0)),   &
+          abs(mx(0,0)*mx(1,2)*mx(2,1)),abs(mx(1,1)*mx(0,2)*mx(2,0)),   &    
+          abs(mx(2,2)*mx(0,1)*mx(1,0))  )   
+#endif
+      detX = 0d0
+    end if
 
     if (detX.ne.0d0.and.maxZ.ne.0d0) then
 
-!     write(*,*) 'CalcCred mx=',mx
+!      write(*,*) 'CalcCred mx=',mx
 
-      call chinv(3,mx,mxinv)
+!      call chinv(3,mx,mxinv)
 
 !     write(*,*) 'CalcCred mxinv=',mxinv
 
@@ -518,11 +627,11 @@ contains
     end if
 
 #ifdef Credtest
-!    write(*,*) 'fi ',f(1),f(2)
+     write(*,*) 'fi ',f(1),f(2)
 !    write(*,*) 'm02 ',m02,2*q10,2*q20,2*Z(2,1)
-!    write(*,*) 'Xadj11 ',4d0*mm02*q20 - f(1)*f(1),Xadj(1,1)
-!    write(*,*) 'Xadj21 ',2d0*mm02*Z(2,1) - f(1)*f(2),Xadj(1,2)
-!    write(*,*) 'Xadj22 ',4d0*mm02*q10 - f(2)*f(2),Xadj(2,2)
+     write(*,*) 'Xadj11 ',4d0*mm02*q20 - f(1)*f(1),Xadj(1,1)
+     write(*,*) 'Xadj21 ',2d0*mm02*Z(2,1) - f(1)*f(2),Xadj(1,2)
+     write(*,*) 'Xadj22 ',4d0*mm02*q10 - f(2)*f(2),Xadj(2,2)
 !    write(*,*) 'detXn ',detX
 !    write(*,*) 'Zadjf1',Zadjf(1),Zadj(1,1)*f(1)+Zadj(2,1)*f(2)
 !    write(*,*) 'Zadjf2',Zadjf(2),Zadj(1,2)*f(1)+Zadj(2,2)*f(2)
@@ -532,7 +641,9 @@ contains
     maxZadjfd = max(maxZadjf,adetZ)
 
     aZadjff = abs(Zadjf(1)*f(1) + Zadjf(2)*f(2))
-    adetX = abs(2d0*mm02*detZ - Zadjf(1)*f(1) - Zadjf(2)*f(2))
+! changed 16.08.18
+!    adetX = abs(2d0*mm02*detZ - Zadjf(1)*f(1) - Zadjf(2)*f(2))
+    adetX = abs(detX)
     maxXadj = max(abs(Xadj(1,1)),abs(Xadj(2,1)),abs(Xadj(2,2)))
 
 #ifdef Credtest
@@ -569,8 +680,7 @@ contains
 
 
     ! rough estimate for C0 to set the scale, to be improved
-    Cscale = max(abs(p10),abs(p21),abs(p20),abs(m02), \
-              abs(m12),abs(m22))
+    Cscale = max(abs(p10),abs(p21),abs(p20),abs(m02),abs(m12),abs(m22))
 #ifdef USEC0
     C0est = max(abs(C0_coli(p10,p21,p20,m02,m12,m22)),1d0/Cscale)
     lerr_C0 = .true.
@@ -610,8 +720,8 @@ contains
     CrCalc = 0
     Crmethod = 0
     Cerr = err_inf
-    Cerr1 = err_inf
-    Cerr2 = err_inf
+!    Cerr1 = err_inf       !  shifted above C0
+!    Cerr2 = err_inf
     acc_C = acc_inf
     CCount(0) = CCount(0)+1
 
@@ -626,15 +736,14 @@ contains
      
 
     ! estimate accuracy of PV-reduction
-!    if (adetZ.eq.0d0) then
-!    if (adetZ.lt.dprec_cll*maxZ**2) then
     h_pv = real(undefined_C)
     w_pv = real(undefined_C)
     v_pv = real(undefined_C)
     z_pv = real(undefined_C)
-!    if (adetZ.lt.dprec_cll*maxZadjf.or.adetZ.eq.0d0) then
 !   14.07.2017
-    if (adetZ.lt.dprec_cll*maxZadjf.or.adetZ.lt.dprec_cll*maxZ**2.or.adetZ.eq.0d0) then
+!   16.08.2018 changed back, since detZ=0 set above if too small
+    if (adetZ.lt.dprec_cll*maxZadjf.or.adetZ.eq.0d0) then
+!    if (adetZ.lt.dprec_cll*maxZadjf.or.adetZ.lt.dprec_cll*maxZ**2.or.adetZ.eq.0d0) then
       use_pv = .false.
       err_pv = err_inf
     else
@@ -682,16 +791,15 @@ contains
     end if
 
     ! estimate accuracy of alternative PV-reduction
-!    if ((adetZ.eq.0).or.(adetX.eq.0)) then
-!    if ((adetZ.lt.dprec_cll*maxZ**2).or.(adetX.lt.dprec_cll*maxval(abs(mx))**3)) then
     z_pv2 = real(undefined_C)
     v_pv2 = real(undefined_C)
     w_pv2 = real(undefined_C)
     hw_pv2 = real(undefined_C)
-!    if ((adetZ.lt.dprec_cll*maxZadjf).or.(adetX.lt.dprec_cll*maxval(abs(mx))*adetZ).or.adetZ.eq.0d0) then
-!    14.07.2017   
-    if ((adetZ.lt.dprec_cll*maxZadjf).or.(adetX.lt.dprec_cll*maxval(abs(mx))*adetZ).or.  &
-         (adetZ.lt.dprec_cll*maxZ**2).or.(adetX.lt.dprec_cll*fmax**2*maxZ).or.adetZ.eq.0d0.or.adetX.eq.0d0) then
+!   14.07.2017   
+!   16.08.2018 changed back, since detZ=0 set above if too small
+    if ((adetZ.lt.dprec_cll*maxZadjf).or.(adetX.lt.dprec_cll*maxval(abs(mx))*adetZ).or.adetZ.eq.0d0.or.adetX.eq.0d0) then
+!    if ((adetZ.lt.dprec_cll*maxZadjf).or.(adetX.lt.dprec_cll*maxval(abs(mx))*adetZ).or.  &
+!         (adetZ.lt.dprec_cll*maxZ**2).or.(adetX.lt.dprec_cll*fmax**2*maxZ).or.adetZ.eq.0d0.or.adetX.eq.0d0) then
       use_pv2 = .false.
       err_pv2 = err_inf
     else
@@ -747,7 +855,7 @@ contains
     err_pv2(rdef) = err_pv2(rdef)/impest_C     
 
 #ifdef TEST
-!   use_pv = .false.     ! TEST switch off PV
+   use_pv = .false.     ! TEST switch off PV
    use_pv2 = .false.
 !    use_pv = .true.
 !    use_pv2 = .true.
@@ -843,7 +951,9 @@ contains
 
 #ifdef Credtest
       write(*,*) 'CalcCred C0est after PV=',abs(C(0,0,0)),Ctyp
-      write(*,*) 'CalcCred Cerr after PV =',Cerr
+      write(*,*) 'CalcCred Cerr1 after PV =',Cerr1
+      write(*,*) 'CalcCred Cerr2 after PV =',Cerr2
+      write(*,*) 'CalcCred Cerr  after PV =',Cerr
       write(*,*) 'CalcCred Cacc after PV =',Cerr/Ctyp
       write(*,*) 'CalcCred err_req =',err_req_Cr
       write(*,*) 'CalcCred Cerr1-req=',Cerr1-err_req_Cr
@@ -856,7 +966,7 @@ contains
         CCount(CCalc+CCountoffset0) = CCount(CCalc+CCountoffset0)+1
         return
       end if      
-    else   !  added 14.07.2017
+    else if (.not.use_C0) then  !  added 14.07.2017 adapted 12.4.2018
       C = 0d0
       Cuv = 0d0
       Cerr1 = err_inf
@@ -866,12 +976,12 @@ contains
 #ifdef TEST
 !    return          ! use only PV
 #endif
-
         
     ! choose most promising expansion scheme
     ! Gram expansion
 !    if (maxZadjf.ne.0d0) then
-    if (maxZadjf.gt.m2scale**2*dprec_cll) then   !  10.07.2017
+!    if (maxZadjf.gt.m2scale**2*dprec_cll) then   !  10.07.2017
+    if (maxZadjf.gt.m2scale**2*1d1*dprec_cll) then   !  12.04.2018
       x_g = adetZ/maxZadjf
 !      u_g = max(1d0,m2scale*m2scale/maxZadjf/6d0,abs(mm02)*q2max/maxZadjf/6d0)
 !      u_g = max(1d0,fmax*fmax/maxZadjf/6d0,abs(mm02)*maxZ/maxZadjf/6d0)
@@ -1061,7 +1171,11 @@ contains
 
 
 ! no method works
-    if(use_pv.or.use_pv2.or.use_g.or.use_gy.or.use_gp.or.use_gr.or.use_gpf.eqv..false.) then
+    if(use_C0.or.use_pv.or.use_pv2.or.use_g.or.use_gy.or.use_gp.or.use_gr.or.use_gpf.eqv..false.) then
+
+! added 16.08.18
+      goto 200   !  try pv with shift
+
       call SetErrFlag_coli(-6)
       call ErrOut_coli('CalcCred',' no reduction method works', &
            errorwriteflag)
@@ -1267,7 +1381,7 @@ contains
         call CopyCimp3(C,C_alt,Cerr,Cerr_alt,Cerr1,Cerr1_alt,Cerr2,Cerr2_alt,Crmethod,Crmethod_alt,rmax,rmax)
         
 #ifdef Credtest
-        write(*,*) 'CalcCred Cerr after exp =',Cerr
+        write(*,*) 'CalcCred Cerr after expgn =',Cerr
         write(*,*) 'CalcCred Cacc=',Cerr/Ctyp
         write(*,*) 'CalcCred method=',Crmethod
 #endif
@@ -1297,7 +1411,7 @@ contains
         call CopyCimp3(C,C_alt,Cerr,Cerr_alt,Cerr1,Cerr1_alt,Cerr2,Cerr2_alt,Crmethod,Crmethod_alt,rmax,rmax)
         
 #ifdef Credtest
-        write(*,*) 'CalcCred Cerr after exp =',Cerr
+        write(*,*) 'CalcCred Cerr after expg =',Cerr
         write(*,*) 'CalcCred Cacc=',Cerr/Ctyp
         write(*,*) 'CalcCred method=',Crmethod
 #endif
@@ -1327,7 +1441,7 @@ contains
         call CopyCimp3(C,C_alt,Cerr,Cerr_alt,Cerr1,Cerr1_alt,Cerr2,Cerr2_alt,Crmethod,Crmethod_alt,rmax,rmax)
 
 #ifdef Credtest
-        write(*,*) 'CalcCred Cerr after exp =',Cerr
+        write(*,*) 'CalcCred Cerr after expgy =',Cerr
         write(*,*) 'CalcCred Cacc=',Cerr/Ctyp
         write(*,*) 'CalcCred method=',Crmethod
 #endif
@@ -1356,7 +1470,7 @@ contains
         call CopyCimp3(C,C_alt,Cerr,Cerr_alt,Cerr1,Cerr1_alt,Cerr2,Cerr2_alt,Crmethod,Crmethod_alt,rmax,rmax)
 
 #ifdef Credtest
-        write(*,*) 'CalcCred Cerr after exp =',Cerr
+        write(*,*) 'CalcCred Cerr after expgp =',Cerr
         write(*,*) 'CalcCred Cacc=',Cerr/Ctyp
         write(*,*) 'CalcCred method=',Crmethod
 #endif
@@ -1385,7 +1499,7 @@ contains
         call CopyCimp3(C,C_alt,Cerr,Cerr_alt,Cerr1,Cerr1_alt,Cerr2,Cerr2_alt,Crmethod,Crmethod_alt,rmax,rmax)
 
 #ifdef Credtest
-        write(*,*) 'CalcCred Cerr after exp =',Cerr
+        write(*,*) 'CalcCred Cerr after expgr =',Cerr
         write(*,*) 'CalcCred Cacc=',Cerr/Ctyp
         write(*,*) 'CalcCred method=',Crmethod
 #endif
@@ -1415,7 +1529,7 @@ contains
         call CopyCimp3(C,C_alt,Cerr,Cerr_alt,Cerr1,Cerr1_alt,Cerr2,Cerr2_alt,Crmethod,Crmethod_alt,rmax,rmax)
 
 #ifdef Credtest
-        write(*,*) 'CalcCred Cerr after exp =',Cerr
+        write(*,*) 'CalcCred Cerr after expgpf =',Cerr
         write(*,*) 'CalcCred Cacc=',Cerr/Ctyp
         write(*,*) 'CalcCred method=',Crmethod
 #endif
@@ -1460,6 +1574,8 @@ contains
 #endif
 
 #ifdef PVSHIFT 
+200 continue
+
     ! try PV with shifted momentum
     shiftloop: do i=1,2
 
@@ -1491,6 +1607,13 @@ contains
       maxZshift = maxval(abs(Zshift))
 
       detZshift = chdet(2,Zshift)
+! added 16.08.18
+    if (abs(detZshift).lt.dprec_cll*maxval(abs(Zshift(1,:)))*maxval(abs(Zshift(2,:)))) then
+#ifdef Credtest
+    write(*,*) 'detZshift set to 0  ',abs(detZshift),dprec_cll*maxval(abs(Zshift(1,:)))*maxval(abs(Zshift(2,:)))
+#endif
+      detZshift = 0d0
+    end if
 
 !      if (detZshift.ne.0d0) then
 !        call chinv(2,Zshift,Zinvshift)
@@ -1513,7 +1636,8 @@ contains
       fshift(1) = q10shift+mm02shift-mm12shift 
       fshift(2) = q20shift+mm02shift-mm22shift
 
-#ifdef Credtestshift
+#ifdef Credtest
+      write(*,*) 'Zshift ',Zshift(1,1), Zshift(1,2),Zshift(2,1),Zshift(2,2),detZshift
       write(*,*) 'fshift1',q10shift+mm02shift-mm12shift,q10shift,mm02shift,-mm12shift
       write(*,*) 'fshift2',q20shift+mm02shift-mm22shift,q20shift,mm02shift,-mm22shift
 #endif
@@ -1530,13 +1654,25 @@ contains
 
       mxshift(1:2,1:2) = Zshift(1:2,1:2)
 
-      detXshift = chdet(3,mxshift)
+! changed 21.06.2018
+      call chinv(3,mxshift,mxinvshift,detXshift)
+!      detXshift = chdet(3,mxshift)
+
+! added 16.08.18
+      if (abs(detXshift).lt.dprec_cll*maxval(abs(mxshift(0,:)))  &
+          *maxval(abs(mxshift(1,:)))*maxval(abs(mxshift(2,:)))) then
+#ifdef Credtest
+        write(*,*) 'detXshift set to 0  ',abs(detXshift),  &
+            dprec_cll*maxval(abs(mxshift(0,:)))*maxval(abs(mxshift(1,:)))*maxval(abs(mxshift(2,:)))
+#endif
+        detXshift = 0d0
+      end if
 
       if (detXshift.ne.0d0.and.maxZshift.ne.0d0) then
 
 !     write(*,*) 'CalcCred mxshift=',mxshift
 
-        call chinv(3,mxshift,mxinvshift)
+!        call chinv(3,mxshift,mxinvshift)
 
 !     write(*,*) 'CalcCred mxinvshift=',mxinvshift
 
@@ -1555,7 +1691,7 @@ contains
         Xadjshift(1,2) = Xadjshift(2,1)
       end if
 
-#ifdef Credtestshift
+#ifdef Credtest
       write(*,*) 'fishift ',fshift(1),fshift(2)
       write(*,*) 'm02shift ',mm02shift,mxshift(1,1),mxshift(2,2),mxshift(1,2)
       write(*,*) 'Xadjshift11 ', 2d0*mm02shift*mxshift(1,1) - fshift(2)*fshift(2),Xadjshift(1,1)
@@ -1579,7 +1715,9 @@ contains
       w_pvs = real(undefined_C)
       v_pvs = real(undefined_C)
       z_pvs = real(undefined_C)
-      if (adetZshift.lt.dprec_cll*maxZadjfshift.or.adetZshift.lt.dprec_cll*maxZshift**2.or.adetZshift.eq.0d0) then
+!   16.08.2018 changed, since detZ=0 set above if too small
+!      if (adetZshift.lt.dprec_cll*maxZadjfshift.or.adetZshift.lt.dprec_cll*maxZshift**2.or.adetZshift.eq.0d0) then
+      if (adetZshift.lt.dprec_cll*maxZadjfshift.or.adetZshift.eq.0d0) then
         use_pvs = .false.
         err_pvs = err_inf
       else
@@ -1600,30 +1738,30 @@ contains
 #endif
 
 #ifdef Credtest
-          write(*,*) 'CalcCred w_pvs',(maxZadjfshift/adetZ)**2, abs(mm02shift)*maxZ/adetZ, maxZ*aZadjffshift/adetZ**2
-          write(*,*) 'CalcCred w_pvs',w_pvs,v_pvs,z_pv,h_pv
+          write(*,*) 'CalcCred w_pvs',(maxZadjfshift/adetZshift)**2, abs(mm02shift)*maxZ/adetZshift, maxZ*aZadjffshift/adetZshift**2
+          write(*,*) 'CalcCred w_pvs',w_pvs,v_pvs,z_pvs,h_pv
 #endif
 
           if (mod(rdef,2).eq.1) then
             err_pvs(rdef) = max( w_pvs**((rdef-1)/2) * v_pvs * err_C0,  &
-                max(w_pvs**((rdef-1)/2),1d0) * z_pv * err_B )
+                max(w_pvs**((rdef-1)/2),1d0) * z_pvs * err_B )
             
 #ifdef Credtest
             write(*,*) 'CalcCred err_pvs', w_pvs**((rdef-1)/2)* v_pvs* err_C0, &
-                w_pvs**((rdef-1)/2) * z_pv * err_B, err_C0,err_B
+                w_pvs**((rdef-1)/2) * z_pvs * err_B, err_C0,err_B
             write(*,*) 'CalcCred err_pvs', w_pvs**((rdef-1)/2),v_pvs, err_C0
 #endif
             
           else
             err_pvs(rdef) = max( w_pvs**(rdef/2) * err_C0,  &
-                max(w_pvs**(rdef/2-1) * v_pvs, 1d0) * z_pv * err_B )
+                max(w_pvs**(rdef/2-1) * v_pvs, 1d0) * z_pvs * err_B )
             
 #ifdef Credtest      
             write(*,*) 'CalcCred w_pvs', w_pvs,err_C0,sqrt(w_pvs)
             write(*,*) 'CalcCred w_pvs', (maxZadjfshift/adetZshift)**2,  &
                 abs(mm02shift)*maxZshift/adetZshift, maxZshift*aZadjffshift/adetZshift**2
             write(*,*) 'CalcCred err_pvs', w_pvs**(rdef/2) * err_C0, &
-                w_pvs**(rdef/2-1) * v_pvs * z_pv * err_B, z_pv * err_B, err_C0,err_B
+                w_pvs**(rdef/2-1) * v_pvs * z_pvs * err_B, z_pvs * err_B, err_C0,err_B
 #endif
             
           end if
@@ -1705,7 +1843,9 @@ contains
       
 #ifdef Credtest
         write(*,*) 'CalcCred C0est after PVS=',abs(C(0,0,0)),Ctyp
-        write(*,*) 'CalcCred Cerr after PVS =',Cerr
+        write(*,*) 'CalcCred Cerr1 after PVS =',Cerr1
+        write(*,*) 'CalcCred Cerr2 after PVS =',Cerr2
+        write(*,*) 'CalcCred Cerr  after PVS =',Cerr
         write(*,*) 'CalcCred Cacc after PVS =',Cerr/Ctyp
         write(*,*) 'CalcCred err_req =',err_req_Cr
         write(*,*) 'CalcCred Cerr1-req=',Cerr1-err_req_Cr
@@ -1733,6 +1873,37 @@ contains
 #ifdef TEST
     return      !  TEST: no improvement by other methods
 #endif
+
+! no method works
+    if(use_C0.or.use_pv.or.use_pv2.or.use_g.or.use_gy.or.use_gp.or.use_gr.or.use_gpf.or.use_pvs.eqv..false.) then
+
+      call SetErrFlag_coli(-6)
+      call ErrOut_coli('CalcCred',' no reduction method works', &
+           errorwriteflag)
+!      write(nerrout_coli,'((a))')  '  no reduction method works'
+      if (errorwriteflag) then
+        write(nerrout_coli,fmt10) ' CalcCred: p10 = ',p10
+        write(nerrout_coli,fmt10) ' CalcCred: p21 = ',p21
+        write(nerrout_coli,fmt10) ' CalcCred: p20 = ',p20
+        write(nerrout_coli,fmt10) ' CalcCred: m02 = ',m02
+        write(nerrout_coli,fmt10) ' CalcCred: m12 = ',m12
+        write(nerrout_coli,fmt10) ' CalcCred: m22 = ',m22   
+      end if
+      C = 0d0
+      Cuv = 0d0
+      Cerr = err_inf
+      Cerr2 = err_inf
+
+#ifdef Credtest
+      write(*,*) 'CalcCred: exit'
+#endif
+
+      return
+    endif
+
+
+
+
 
     ! no method does work optimal
     ! use the least problematic (for each rank)
@@ -3550,6 +3721,7 @@ contains
     ! alternative PV-like reduction
     do r=1,rmax
 
+    ! calculate C n0>1 using (5.14)
       do n0=2,r/2
         do n1=0,r-2*n0
           n2 = r-2*n0-n1
@@ -3588,8 +3760,8 @@ contains
       end do
 
       
-
-      ! calculate C and determine error from symmetry for n0=0 and n1>0, n2>0 
+      ! calculate C for n0=0 and n1>0, n2>0 from (5.15) with (5.14) inserted 
+      ! and determine error from symmetry  
       Cerr(r)=Cerr(r-1)
       Cerr2(r)=Cerr2(r-1)
 
@@ -4528,7 +4700,9 @@ contains
 !              end if
           
           if (g.eq.1.and.abs(Cexpg(0,n1,n2,g)).gt.                     &
-              truncfacexp*max(1/m2max,maxCexpg(0,rg-1,g-1))    .or.    &
+!     corrected 02.07.2018      
+              truncfacexp*max(1/m2scale,maxCexpg(0,rg-1,g-1))    .or.    &
+!              truncfacexp*max(1/m2max,maxCexpg(0,rg-1,g-1))    .or.    &
               g.ge.2.and.abs(Cexpg(0,n1,n2,g)).gt.                     &
               truncfacexp*maxCexpg(0,rg-1,g-1)) then
             
@@ -5104,7 +5278,9 @@ contains
           maxCexpg(0,rg-1,g) =  maxCexpg(0,rg-1,g) + abs(Cexpg(0,n1,n2,g))
 
           if (g.eq.1.and.abs(Cexpg(0,n1,n2,g)).gt.                     &
-              truncfacexp*max(1/m2max,maxCexpg(0,rg-1,g-1))    .or.    &
+!     corrected 02.07.2018
+              truncfacexp*max(1/m2scale,maxCexpg(0,rg-1,g-1))    .or.    &
+!              truncfacexp*max(1/m2max,maxCexpg(0,rg-1,g-1))    .or.    &
               g.ge.2.and.abs(Cexpg(0,n1,n2,g)).gt.                     &
               truncfacexp*maxCexpg(0,rg-1,g-1)) then
 
@@ -7582,7 +7758,9 @@ contains
           maxCexpgp(0,rg-1,g) =  maxCexpgp(0,rg-1,g) + abs(Cexpgp(0,n1,n2,g))
           
           if (g.eq.1.and.abs(Cexpgp(0,n1,n2,g)).gt.                     &
-              truncfacexp*max(1/m2max,maxCexpgp(0,rg-1,g-1))    .or.    &
+!     corrected 02.07.2018
+              truncfacexp*max(1/m2scale,maxCexpgp(0,rg-1,g-1))   .or.    &
+!              truncfacexp*max(1/m2max,maxCexpgp(0,rg-1,g-1))    .or.    &
               g.ge.2.and.abs(Cexpgp(0,n1,n2,g)).gt.                     &
               truncfacexp*maxCexpgp(0,rg-1,g-1)) then
 

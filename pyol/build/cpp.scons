@@ -71,8 +71,22 @@ revision       = ARGUMENTS.get('revision',       'none'    )
 target         = ARGUMENTS.get('target',         'cpp'     )
 target_prefix  = ARGUMENTS.get('prefix',         ''        )
 
+install_path = '""'
+for cppdef in cpp_defs:
+    if cppdef.startswith('OL_INSTALL_PATH='):
+        install_path = cppdef[16:].replace('\\"', '"')
+cpp_defs = [cppdef for cppdef in cpp_defs if not cppdef.startswith('OL_INSTALL_PATH=')]
+installpath_split = (['  character(len=max_parameter_length) :: install_path = &'] +
+    ['&' + install_path[i:i+100] + '&' for i in range(0, len(install_path), 100)])
+installpath_split[-1] = installpath_split[-1][:-1]
+installpath_split.append('')
+
 cpp_defs = [cpp_def.split('=', 1) for cpp_def in cpp_defs] + [[kind_parameter, '$PRECISION']]
-cpp_defs += ['USE_' + prec for prec in mp]
+if 'qp_rescue' in mp:
+    cpp_defs += ['USE_qp']
+if 'qp_checks' in mp:
+    cpp_defs += ['USE_CHECK_qp']
+mp = [prec for prec in mp if not prec.startswith('qp_')]
 cpp_defs_version = cpp_defs + [[version_macro, '\\"' + version + '\\"'], [revision_macro, '\\"' + revision + '\\"']]
 
 
@@ -83,7 +97,10 @@ def target_rename(target, source, env):
     path, tgt = os.path.split(str(target[0]))
     suffix = env.subst('$PRECISION')
     if suffix:
-        suffix = '_' + suffix
+        if suffix == 'dp':
+            suffix = ''
+        else:
+            suffix = '_' + suffix
     return os.path.join(path, target_prefix + tgt + suffix + ext.lower()), source
 
 
@@ -91,8 +108,8 @@ cpp_builder = Builder(action = '$CPP $CPPFLAGS $_CPPDEFFLAGS $SOURCE $TARGET',
                       emitter = target_rename,
                       single_source = 1)
 copy_builder = Builder(action = Copy('$TARGET', '$SOURCE'),
-                     emitter = target_rename,
-                     single_source = 1)
+                       emitter = target_rename,
+                       single_source = 1)
 
 if '@all' in config['import_env']:
     imported_env = os.environ
@@ -101,33 +118,41 @@ else:
     for envvar in config['import_env']:
         imported_env[envvar] = os.environ.get(envvar, '')
 
-env = Environment(CPP = cpp_cmd,
+env = Environment(tools = ['default', 'textfile'],
+                  CPP = cpp_cmd,
                   ENV = imported_env,
                   BUILDERS = {'CPP': cpp_builder, 'COPY': copy_builder},
                   CPPFLAGS = cpp_flags,
-                  CPPDEFINES = cpp_defs,
+                  CPPDEFINES = cpp_defs + ['PRECISION_' + mp[0]],
                   PRECISION = mp[0])
 
 cpp_out = []
 
-if mp_src:
-    for precision in mp:
-        cpp_out.extend(env.CPP(source = mp_src,
+for precision in mp:
+    if precision == 'dp':
+        dp_fsrc = [fs for fs in dp_src if not fs.endswith('.c')]
+        src = mp_src + dp_fsrc
+    else:
+        src = mp_src
+    if src:
+        cpp_out.extend(env.CPP(source = src,
                                PRECISION = precision,
                                CPPDEFINES = cpp_defs + ['PRECISION_' + precision]))
 
 if dp_src:
-    dp_fsrc = [fs for fs in dp_src if not fs.endswith('.c')]
     dp_csrc = [cs for cs in dp_src if cs.endswith('.c')]
-    if dp_fsrc:
-        cpp_out.extend(env.CPP(source = dp_fsrc, PRECISION = ''))
     if dp_csrc:
         cpp_out.extend(env.COPY(source = dp_csrc, PRECISION = ''))
 
 if version_src:
-    cpp_out.extend(env.CPP(source = version_src,
+    version_node = env.CPP(source = version_src,
                            CPPDEFINES = cpp_defs_version,
-                           PRECISION = ''))
+                           PRECISION = '')
+    cpp_out.extend(version_node)
+    installpath_file = os.path.join(os.path.split(str(version_node[0]))[0],
+                                    'install_path.inc')
+    cpp_out.extend(env.Textfile(installpath_file,
+                                installpath_split))
 
 # rename default target, displayed as 'scons: `target' is up to date'
 env.Alias(target, cpp_out)

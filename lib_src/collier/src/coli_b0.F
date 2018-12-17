@@ -1975,7 +1975,8 @@ c---->  zero momentum
           x2 = mm12/(mm12-mm22)
           y2 = mm22/(mm22-mm12)
           if (abs(x2).lt.10d0) then
-            DBn_coli = (-1)**n*(1d0/(n+2) + yfpve_coli(np,x2,y2,real(mm22-mm12)))
+            DBn_coli = (-1)**n*(1d0/(n+2)
+     &                 + yfpve_coli(np,x2,y2,real(mm22-mm12)))
      &          /(mm12-mm22)
 
           else

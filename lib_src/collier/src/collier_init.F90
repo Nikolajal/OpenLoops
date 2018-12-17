@@ -43,7 +43,7 @@ module collier_init
   end interface SetMaxCritPoints_cll
   
   
-  character(len=80) :: foldername_cll
+  character(len=230) :: foldername_cll
 !  logical :: qopened_critcoli,qopened_crit,qopened_crit2,qopened_statscoli
 
 contains
@@ -463,12 +463,15 @@ contains
     if(allocated(PointsCntTN_cll)) deallocate(PointsCntTN_cll)
     if(allocated(CritPointsCntTN_cll)) deallocate(CritPointsCntTN_cll)
     if(allocated(AccPointsCntTN_cll)) deallocate(AccPointsCntTN_cll)
+    if(allocated(sAccPointsCntTN_cll)) deallocate(sAccPointsCntTN_cll)
     if(allocated(PointsCntTN2_cll)) deallocate(PointsCntTN2_cll)
     if(allocated(CritPointsCntTN2_cll)) deallocate(CritPointsCntTN2_cll)
     if(allocated(AccPointsCntTN2_cll)) deallocate(AccPointsCntTN2_cll)
+    if(allocated(sAccPointsCntTN2_cll)) deallocate(sAccPointsCntTN2_cll)
     if(allocated(PointsCntTNten_cll)) deallocate(PointsCntTNten_cll)
     if(allocated(CritPointsCntTNten_cll)) deallocate(CritPointsCntTNten_cll)
     if(allocated(AccPointsCntTNten_cll)) deallocate(AccPointsCntTNten_cll)
+    if(allocated(sAccPointsCntTNten_cll)) deallocate(sAccPointsCntTNten_cll)
     if(allocated(PointsCntTN_coli)) deallocate(PointsCntTN_coli)
     if(allocated(PointsCntTN_dd)) deallocate(PointsCntTN_dd)
     if(allocated(PointsCntTNten_coli)) deallocate(PointsCntTNten_coli)
@@ -478,7 +481,6 @@ contains
     if(allocated(DiffCnt_cll)) deallocate(DiffCnt_cll)
     if(allocated(CheckCntten_cll)) deallocate(CheckCntten_cll)
     if(allocated(DiffCntten_cll)) deallocate(DiffCntten_cll)
-
 
   end subroutine Reset_cll
 
@@ -1736,6 +1738,7 @@ contains
     character(len=*),parameter :: fmt45 = "(A45,Es17.10)"
     
     reqacc_cll = acc0
+    sreqacc_cll = sqrt(acc0)
     critacc_cll = acc1
     checkacc_cll = acc2
 
@@ -1831,6 +1834,7 @@ contains
     character(len=*),parameter :: fmt48 = "(A48,Es17.10)"
 
     reqacc_cll = acc
+    sreqacc_cll = sqrt(acc)
 
     call DDgetmode(cacc_dd,dacc_dd,mode34_dd,mode5_dd,mode6_dd,outlevel_dd,outchannel_dd)
     call DDsetmode(reqacc_cll,reqacc_cll,mode34_dd,mode5_dd,mode6_dd,outlevel_dd,outchannel_dd)
@@ -2537,6 +2541,12 @@ contains
         AccPointsCntTN_cll(1:Nold) = saveCnt
         AccPointsCntTN_cll(Nold+1:Nmax_cll) = 0
 
+        saveCnt = sAccPointsCntTN_cll  
+        deallocate(sAccPointsCntTN_cll)
+        allocate(sAccPointsCntTN_cll(Nmax_cll))      
+        sAccPointsCntTN_cll(1:Nold) = saveCnt
+        sAccPointsCntTN_cll(Nold+1:Nmax_cll) = 0
+
         saveCnt = CritPointsCntTN_cll  
         deallocate(CritPointsCntTN_cll)
         allocate(CritPointsCntTN_cll(Nmax_cll))      
@@ -2548,6 +2558,12 @@ contains
         allocate(AccPointsCntTN2_cll(Nmax_cll))      
         AccPointsCntTN2_cll(1:Nold) = saveCnt
         AccPointsCntTN2_cll(Nold+1:Nmax_cll) = 0
+
+        saveCnt = sAccPointsCntTN2_cll  
+        deallocate(sAccPointsCntTN2_cll)
+        allocate(sAccPointsCntTN2_cll(Nmax_cll))      
+        sAccPointsCntTN2_cll(1:Nold) = saveCnt
+        sAccPointsCntTN2_cll(Nold+1:Nmax_cll) = 0
 
         saveCnt = CritPointsCntTN2_cll  
         deallocate(CritPointsCntTN2_cll)
@@ -2579,6 +2595,12 @@ contains
         AccPointsCntTN_cll(1:Nold) = saveCnt
         AccPointsCntTN_cll(Nold+1:Nmax_cll) = 0
 
+        saveCnt = sAccPointsCntTNten_cll  
+        deallocate(sAccPointsCntTNten_cll)
+        allocate(sAccPointsCntTN_cll(Nmax_cll))      
+        sAccPointsCntTN_cll(1:Nold) = saveCnt
+        sAccPointsCntTN_cll(Nold+1:Nmax_cll) = 0
+
         saveCnt = CritPointsCntTNten_cll  
         deallocate(CritPointsCntTNten_cll)
         allocate(CritPointsCntTNten_cll(Nmax_cll))      
@@ -2602,13 +2624,16 @@ contains
     else
       if(allocated(PointsCntTN_cll)) deallocate(PointsCntTN_cll)
       if(allocated(AccPointsCntTN_cll)) deallocate(AccPointsCntTN_cll)
+      if(allocated(sAccPointsCntTN_cll)) deallocate(sAccPointsCntTN_cll)
       if(allocated(CritPointsCntTN_cll)) deallocate(CritPointsCntTN_cll)
       if(allocated(AccPointsCntTN2_cll)) deallocate(AccPointsCntTN2_cll)
+      if(allocated(sAccPointsCntTN2_cll)) deallocate(sAccPointsCntTN2_cll)
       if(allocated(CritPointsCntTN2_cll)) deallocate(CritPointsCntTN2_cll)
       if(allocated(PointsCntTN_coli)) deallocate(PointsCntTN_coli)
       if(allocated(PointsCntTN_dd)) deallocate(PointsCntTN_dd)
       if(allocated(PointsCntTNten_cll)) deallocate(PointsCntTNten_cll)
       if(allocated(AccPointsCntTNten_cll)) deallocate(AccPointsCntTNten_cll)
+      if(allocated(sAccPointsCntTNten_cll)) deallocate(sAccPointsCntTNten_cll)
       if(allocated(CritPointsCntTNten_cll)) deallocate(CritPointsCntTNten_cll)
       if(allocated(PointsCntTNten_coli)) deallocate(PointsCntTNten_coli)
       if(allocated(PointsCntTNten_dd)) deallocate(PointsCntTNten_dd)
@@ -2616,13 +2641,16 @@ contains
       ! re-allocate Counters for Critical Points
       allocate(PointsCntTN_cll(Nmax_cll))
       allocate(AccPointsCntTN_cll(Nmax_cll))
+      allocate(sAccPointsCntTN_cll(Nmax_cll))
       allocate(CritPointsCntTN_cll(Nmax_cll))
       allocate(AccPointsCntTN2_cll(Nmax_cll))
+      allocate(sAccPointsCntTN2_cll(Nmax_cll))
       allocate(CritPointsCntTN2_cll(Nmax_cll))
       allocate(PointsCntTN_coli(Nmax_cll))
       allocate(PointsCntTN_dd(Nmax_cll))
       allocate(PointsCntTNten_cll(Nmax_cll))
       allocate(AccPointsCntTNten_cll(Nmax_cll))
+      allocate(sAccPointsCntTNten_cll(Nmax_cll))
       allocate(CritPointsCntTNten_cll(Nmax_cll))
       allocate(PointsCntTNten_coli(Nmax_cll))
       allocate(PointsCntTNten_dd(Nmax_cll))
@@ -2645,6 +2673,15 @@ contains
       AccPointsCntG_cll = 0
       AccPointsCntTN_cll = 0
       AccPointsCntDB_cll = 0
+      sAccPointsCntA_cll = 0
+      sAccPointsCntB_cll = 0
+      sAccPointsCntC_cll = 0
+      sAccPointsCntD_cll = 0
+      sAccPointsCntE_cll = 0
+      sAccPointsCntF_cll = 0
+      sAccPointsCntG_cll = 0
+      sAccPointsCntTN_cll = 0
+      sAccPointsCntDB_cll = 0
       CritPointsCntA_cll = 0
       CritPointsCntB_cll = 0
       CritPointsCntC_cll = 0
@@ -2664,6 +2701,15 @@ contains
       AccPointsCntG2_cll = 0
       AccPointsCntTN2_cll = 0
       AccPointsCntDB2_cll = 0
+      sAccPointsCntA2_cll = 0
+      sAccPointsCntB2_cll = 0
+      sAccPointsCntC2_cll = 0
+      sAccPointsCntD2_cll = 0
+      sAccPointsCntE2_cll = 0
+      sAccPointsCntF2_cll = 0
+      sAccPointsCntG2_cll = 0
+      sAccPointsCntTN2_cll = 0
+      sAccPointsCntDB2_cll = 0
       CritPointsCntA2_cll = 0
       CritPointsCntB2_cll = 0
       CritPointsCntC2_cll = 0
@@ -2712,6 +2758,15 @@ contains
       AccPointsCntGten_cll = 0
       AccPointsCntTNten_cll = 0
       AccPointsCntDBten_cll = 0
+      sAccPointsCntAten_cll = 0
+      sAccPointsCntBten_cll = 0
+      sAccPointsCntCten_cll = 0
+      sAccPointsCntDten_cll = 0
+      sAccPointsCntEten_cll = 0
+      sAccPointsCntFten_cll = 0
+      sAccPointsCntGten_cll = 0
+      sAccPointsCntTNten_cll = 0
+      sAccPointsCntDBten_cll = 0
       CritPointsCntAten_cll = 0
       CritPointsCntBten_cll = 0
       CritPointsCntCten_cll = 0

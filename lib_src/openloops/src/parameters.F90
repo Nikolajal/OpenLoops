@@ -18,10 +18,14 @@
 !******************************************************************************!
 
 module ol_data_types_/**/REALKIND
-  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use KIND_TYPES, only: REALKIND, QREALKIND, intkind1, intkind2
   type wfun
     ! four complex components for the wave function
      complex(REALKIND) :: j(4)
+#ifdef PRECISION_dp
+     complex(QREALKIND) :: j_qp(4)
+#endif
+    complex(REALKIND), pointer :: j_prev(:)
     ! indicator if left- or right components of of-shell line vanish
     !                             j= (0,0,0,0) (0,0,j3,j4) (j1,j2,0,0) (j1,j2,j3,j4)
     integer(intkind1) :: h      ! B"00"      B"01"       B"10"        B"11"
@@ -40,10 +44,40 @@ module ol_data_types_/**/REALKIND
   ! open-loop derived data type used in the optimezed helicity summation
   type hol
     ! OpenLoops Coefficient: (alpha,rank,beta,helicity_state)
-    complex(REALKIND), dimension(:,:,:,:), pointer :: j
+    complex(REALKIND), dimension(:,:,:,:), allocatable :: j
+#ifdef PRECISION_dp
+    complex(QREALKIND), dimension(:,:,:,:), allocatable :: j_qp
+#endif
     ! Helicity configurations array
-    integer(intkind2), dimension(:)      , pointer :: hf
+    integer(intkind2), dimension(:)      , allocatable :: hf
+    integer :: mode = 1
+    real(REALKIND) :: error
+    integer :: hit = 0
+    integer :: npoint = 0
   end type hol
+
+  ! derived tensor data type for closed-loop
+  type hcl
+    complex(REALKIND) , dimension(:), allocatable :: cmp
+#ifdef PRECISION_dp
+    complex(QREALKIND) , dimension(:), allocatable :: cmp_qp
+#endif
+    integer :: mode = 1
+    real(REALKIND) :: error
+    integer :: hit = 0
+  end type hcl
+
+  type met
+    real(REALKIND) :: cmp
+#ifdef PRECISION_dp
+    real(QREALKIND) :: cmp_qp
+#endif
+    integer :: mode = 1
+    real(REALKIND) :: error
+    integer :: hit = 0
+    integer :: sicount = 0
+    integer :: sicount_qp = 0
+  end type met
 
   ! equivalent to polcont, with the addition of an extra hf label for
   ! the global helicity state
@@ -69,8 +103,6 @@ module ol_data_types_/**/REALKIND
     complex(REALKIND) :: alpha(2)
     integer           :: mom1
     integer           :: mom2
-    complex(REALKIND) :: p1mom(5)
-    complex(REALKIND) :: p2mom(5)
     complex(REALKIND) :: li(4,4)
   end type basis
 
@@ -79,12 +111,36 @@ module ol_data_types_/**/REALKIND
     type(basis) :: redbasis
     complex(REALKIND) :: p3scalars(0:4)
     integer :: perm(3)
+    integer :: mom3
+    real(REALKIND) :: gd2,gd3
   end type redset4
+
+  type redset5
+    type(basis) :: redbasis
+    complex(REALKIND) :: p3scalars(0:4)
+    integer :: perm(4)
+    integer :: mom3
+    integer :: mom4
+    real(REALKIND) :: gd2,gd3
+  end type redset5
 
   !! Scalar Box
   type scalarbox
     complex(REALKIND) :: poles(0:2)         ! finite, eps^(-1), eps^(-2)
     complex(REALKIND) :: onshell_cuts(2,5)  ! on-shell cuts of the box
+    real(REALKIND) :: error
+#ifdef PRECISION_dp
+    integer :: mom_ind(3)
+    integer :: mom1
+    integer :: mom2
+    integer :: mom3
+    integer :: perm(3)
+    real(REALKIND)     :: gd3
+    integer            :: masses2(0:3)
+    logical            :: qp_computed = .false.
+    complex(QREALKIND) :: poles_qp(0:2)         ! finite, eps^(-1), eps^(-2)
+    complex(QREALKIND) :: onshell_cuts_qp(2,5)  ! on-shell cuts of the box
+#endif
   end type scalarbox
 
 
@@ -133,7 +189,7 @@ end module ol_data_types_/**/REALKIND
 
 
 module ol_momenta_decl_/**/REALKIND
-  use KIND_TYPES, only: REALKIND
+  use KIND_TYPES, only: REALKIND, QREALKIND
   use ol_debug, only: ol_msg
   implicit none
   ! Internal momenta for external particles
@@ -142,6 +198,14 @@ module ol_momenta_decl_/**/REALKIND
   complex(REALKIND), allocatable, save :: QInvariantsMatrix(:,:) ! QInvariantsMatrix(Nparticle,Nparticle)
   ! Components 1:4 = light cone representation; component 5 = squared masses, component 6 = scalar products
   complex(REALKIND), allocatable, save :: L(:,:) ! L(6,0:2**Nparticle-1)
+
+  complex(QREALKIND), allocatable, save :: Q_qp(:,:) ! Q(5,0:2**Nparticle-1)
+  complex(QREALKIND), allocatable, save :: QInvariantsMatrix_qp(:,:) ! QInvariantsMatrix(Nparticle,Nparticle)
+  complex(QREALKIND), allocatable, save :: L_qp(:,:) ! L(6,0:2**Nparticle-1)
+
+  integer, save :: collconf = 0
+  integer, save :: softconf = 0
+
   contains
 
   function momenta_nan_check(P)
@@ -225,12 +289,71 @@ module ol_parameters_decl_/**/REALKIND
   implicit none
   ! Counted up by 1 each time parameters_init() is called
   integer, save :: parameters_status = 0
+
+  ! flag of hybrid baseline mode
+  integer, save :: hp_mode = 1
+
+  ! QP trigger threshold on large \alpha parameters (\propto 1/GD3) in on-the-fly reduction
+  real(REALKIND), save :: hp_step_thres = 1.5_/**/REALKIND
+  real(REALKIND), save :: hp_gd3_thres = 4._/**/REALKIND
+  real(REALKIND), save :: hp_err_thres = 4.5_/**/REALKIND  ! accumulated error threshold
+
+  real(REALKIND), save :: max_error = 0._/**/REALKIND
+
+  ! merging dp and qp channel the dp channel is upgraded to qp (which comes at zero cost.)
+  logical, save :: hp_automerge = .true.
+
+  ! QP trigger on small rank2 GD in on-the-fly reduction (threshold: hybrid_threshold)
+  logical, save :: hp_gamma_trig = .false.
+
+  ! QP trigger on small rank3 GD for scalar boxes.
+  logical, save :: hp_gd3_trig = .true.
+
+  ! QP trigger for missing triangle expansions.
+  logical, save :: hp_metri_trig = .true.
+
+  ! QP trigger on unstable IR triangles in reduction.
+  logical, save :: hp_irtri_trig = .false.
+
+  ! QP trigger for ir triangle diagrams
+  logical, save :: hp_ir_trig = .false.
+
+  ! Fake QP trigger: computes the loop (not trees) in QP
+  logical, save :: hp_fake_trig = .false.
+
+  ! Allocation mode for QP channel
+  ! 0: allocate all OL/CL and initialize to zero
+  ! 1: allocate all OL/CL and initialize to zero only when needed
+  ! 2: allocate OL/CL on demand and initialize to zero only when needed,
+  !    deallocate whenever possible
+  ! 3: allocate OL/CL on demand and initialize to zero only when needed
+  integer, save :: hp_alloc_mode = 3
+
+  ! do not change.
+  integer, parameter :: hybrid_zero_mode = 0
+  integer, parameter :: hybrid_dp_mode = 1
+  integer, parameter :: hybrid_qp_mode = 2
+  integer, parameter :: hybrid_dp_qp_mode = 3
+
+  !  compute real bubble diagrams in counterterms.
 #ifdef PRECISION_dp
+  integer, save :: bubble_vertex = 0
+#endif
+  !  use some hacks to stabilize ir events
+#ifdef PRECISION_dp
+  logical, save :: ir_hacks = .false.
+#endif
+
+#ifdef PRECISION_dp
+  ! use quad-precision definition of momenta to compute invariants
+  ! -> stable rescaling for collinear configurations
+  integer, save :: use_qp_invariants = 1
+
   integer, save :: parameters_verbose = 0
   integer, parameter :: procname_length = 80
   character(procname_length) :: current_processname = 'none' ! set by vamp2generic()
-  integer, parameter :: max_parameter_length = 255 ! used for stability_logdir, install_path,
-                                                   ! contract_file, printparameter file
+  integer, parameter :: max_parameter_length = MAXSTRLEN ! used for stability_logdir, install_path,
+                                                         ! contract_file, printparameter file
   integer, parameter :: max_parameter_name_length = 30 ! maximal length of parameter names in init routines
   ! 0: never, 1: on finish() call, 2: adaptive, 3: always
   integer, save :: stability_log = 0
@@ -244,6 +367,7 @@ module ol_parameters_decl_/**/REALKIND
   character(len=max_parameter_length) :: approximation = ""
   character(len=max_parameter_length) :: model = "sm"
   character(len=max_parameter_length) :: shopping_list = "OL_shopping.m"
+  logical, save :: partial_normal_order = .false.
   logical, save :: write_shopping_list = .false.
   logical, save :: write_params_at_start = .false.
   logical, save :: stability_logdir_not_created = .true.
@@ -251,8 +375,8 @@ module ol_parameters_decl_/**/REALKIND
   character(16) :: pid_string ! 11 for pid, "-", 4 random characters
   ! OpenLoops installation path; used to locate info files and process libraries
   ! character(len=:), allocatable :: install_path ! gfortran 4.7: doesn't work in modules and type (though it does in subroutines)
-  character(len=255) :: &
-    & install_path = OL_INSTALL_PATH
+  ! character(len=max_parameter_length) :: install_path = "path"
+  include "install_path.inc"
   ! Mode for check_last_[...] in laststep and tensor integral routine in looproutines
   integer, save :: l_switch = 1, a_switch = 1, a_switch_rescue = 7, redlib_qp = 5
   ! switchers for checking Ward identities at tree/loop level
@@ -267,7 +391,8 @@ module ol_parameters_decl_/**/REALKIND
   ! Running number of the next partonic channel which is initialised (by get_externel_<proc>)
   ! in the tensor library cache system
   integer, save :: next_channel_number = 1
-  integer, save :: coli_cache_use = 1
+! TODO disable coli cache when using hybrid mode
+  integer, save :: coli_cache_use = 0
   logical, save :: no_collier_stop = .false.
   ! select alpha_QED input scheme: 0 = on-shell = alpha(0), 1 = G_mu, 2 = alpha(MZ)
   integer, save :: ew_scheme = 2
@@ -299,6 +424,8 @@ module ol_parameters_decl_/**/REALKIND
   integer, save :: OLmode = -1
   ! Auto-preset: preset=2 for OLmode=1,2 and preset=5 for OLmode=2, preset=3 for loop-induced
   logical, save :: auto_preset = .true.
+  ! expert_mode: allows to set stability options manually
+  logical, save :: expert_mode = .false.
 #endif
 
   ! Numerical constants
@@ -322,6 +449,7 @@ module ol_parameters_decl_/**/REALKIND
   integer,        save :: scaling_mode = 1 ! 1: reduction only, 3: everything
   real(REALKIND), save :: psp_tolerance = 1.e-9
 
+#ifdef PRECISION_dp
   ! Particle masses and widths
   real(REALKIND), save :: rME_unscaled = 0,                    wME_unscaled = 0 ! electron mass and width
   real(REALKIND), save :: rMM_unscaled = 0,                    wMM_unscaled = 0 ! muon mass and width
@@ -348,15 +476,17 @@ module ol_parameters_decl_/**/REALKIND
   real(REALKIND), save :: rMH_unscaled = 125._/**/REALKIND,    wMH_unscaled = 0 ! higgs boson mass and width
   real(REALKIND), save :: MREG_unscaled = 1._/**/REALKIND                       ! collinear mass regulator for photon WF CT
   ! Coupling constants
+#endif
   real(REALKIND), save :: alpha_QCD = 0.1258086856923967_/**/REALKIND ! LO MRST
   real(REALKIND), save :: alpha_QED_MZ = 1/128._/**/REALKIND          ! alpha(MZ) derived from PDG 2014
   real(REALKIND), save :: alpha_QED_0  = 1/137.035999074_/**/REALKIND  ! alpha(0) from PDG 2014
   real(REALKIND), save :: alpha_QED
+#ifdef PRECISION_dp
   real(REALKIND), save :: Gmu_unscaled = 0.0000116637_/**/REALKIND    ! G_mu
+#endif
   real(REALKIND), save :: Gmu
   ! Everything beyond this line is derived from the values given above and initialised by parameters_init().
   real(REALKIND), save :: rescalefactor = 1.1_/**/REALKIND
-  real(REALKIND), save :: rescalefactor_qp = 1.1_/**/REALKIND
   ! scaled masses, widths and yukawas
   real(REALKIND), save :: rME, wME, rYE
   real(REALKIND), save :: rMM, wMM, rYM
@@ -372,6 +502,21 @@ module ol_parameters_decl_/**/REALKIND
   real(REALKIND), save :: rMH, wMH
   real(REALKIND), save :: rMX, wMX
   real(REALKIND), save :: rMY, wMY
+  ! Masses ids
+  integer, parameter :: nME = 1
+  integer, parameter :: nMM = 2
+  integer, parameter :: nML = 3
+  integer, parameter :: nMU = 4
+  integer, parameter :: nMD = 5
+  integer, parameter :: nMS = 6
+  integer, parameter :: nMC = 7
+  integer, parameter :: nMB = 8
+  integer, parameter :: nMT = 9
+  integer, parameter :: nMW = 10
+  integer, parameter :: nMZ = 11
+  integer, parameter :: nMH = 12
+  integer, parameter :: nMX = 13
+  integer, parameter :: nMY = 14
   ! Complex masses, complex and real squared masses
   complex(REALKIND), save ::  ME,   MM,   ML,   MU,   MD,   MS,   MC,   MB,   MT,   MW,   MZ,   MH,   MX,   MY
   complex(REALKIND), save ::  ME2,  MM2,  ML2,  MU2,  MD2,  MS2,  MC2,  MB2,  MT2,  MW2,  MZ2,  MH2,  MX2,  MY2
@@ -400,6 +545,23 @@ module ol_parameters_decl_/**/REALKIND
   complex(REALKIND), save :: gPsu(2), gPsc(2), gPst(2)
   complex(REALKIND), save :: gPbu(2), gPbc(2), gPbt(2)
   complex(REALKIND) :: gZRH, gZLH
+  ! Right/left couplings ids
+  integer, parameter :: ngZn = 1
+  integer, parameter :: ngZl = 2
+  integer, parameter :: ngZu = 3
+  integer, parameter :: ngZd = 4
+  integer, parameter :: ngH = 5
+  integer, parameter :: ngX = 6
+  integer, parameter :: ngPnl = 7
+  integer, parameter :: ngPln = 8
+  integer, parameter :: ngPud = 9,  ngPus = 15, ngPub = 21
+  integer, parameter :: ngPcd = 10, ngPcs = 16, ngPcb = 22
+  integer, parameter :: ngPtd = 11, ngPts = 17, ngPtb = 23
+  integer, parameter :: ngPdu = 12, ngPdc = 18, ngPdt = 24
+  integer, parameter :: ngPsu = 13, ngPsc = 19, ngPst = 25
+  integer, parameter :: ngPbu = 14, ngPbc = 20, ngPbt = 26
+  integer, parameter :: ngZRH = 27, ngZLH = 28
+
   ! Vertex scale factors for naive deviations from the Standard Model (changes don't affect CT/R2)
   real(REALKIND), save :: lambdaHHH = 1, lambdaHHHH = 1,lambdaHWW = 1, lambdaHZZ = 1
   ! CKM Matrix, default: VCKM = diag(1,1,1)
@@ -417,7 +579,9 @@ module ol_parameters_decl_/**/REALKIND
   real(REALKIND), save :: ThetaCabi = 0.2274_/**/REALKIND
   real(REALKIND), save :: cCabi, sCabi
   ! Higgs vev
+#ifdef PRECISION_dp
   real(REALKIND), save :: HPOvev_unscaled  = 246.22_/**/REALKIND
+#endif
   real(REALKIND), save :: HPOvev
   ! Z/W-Pole
   real(REALKIND), save :: HPOgZeL = -0.2696_/**/REALKIND
@@ -461,9 +625,11 @@ module ol_parameters_decl_/**/REALKIND
   ! thdm_a ("alpha") is the (h0, H0) mixing angle,
   ! thdmTB is the ratio of the VEVs of the two Higgs doublets
   integer, save :: thdm_type = 2 ! 2HDM Type I or Type II
+#ifdef PRECISION_dp
   real(REALKIND), save :: rMA0_unscaled = 130, wMA0_unscaled = 0 ! pseudoscalar Higgs mass and width
   real(REALKIND), save :: rMHH_unscaled = 140, wMHH_unscaled = 0 ! heavy higgs mass and width
   real(REALKIND), save :: rMHp_unscaled = 150, wMHp_unscaled = 0 ! charged Higgs mass and width
+#endif
   real(REALKIND), save :: rMA0, wMA0, rMA02
   real(REALKIND), save :: rMHH, wMHH, rMHH2
   real(REALKIND), save :: rMHp, wMHp, rMHp2
@@ -545,7 +711,9 @@ module ol_loop_parameters_decl_/**/REALKIND
   integer,           save :: olo_verbose = 0 ! OneLOop verbosity level, 0..4
   integer,           save :: olo_outunit = output_unit
   ! CutTools parameters
+#ifdef PRECISION_dp
   real(REALKIND),    save :: opprootsvalue_unscaled = 1000
+#endif
   real(REALKIND),    save :: opprootsvalue
   real(REALKIND),    save :: opplimitvalue = 0.01_/**/REALKIND
   real(REALKIND),    save :: oppthrs       = 1.e-6_/**/REALKIND
@@ -595,16 +763,20 @@ module ol_loop_parameters_decl_/**/REALKIND
   real(REALKIND), save      :: de1_IR      = 0 ! numerical value of single IR pole (independent of norm-convention)
   real(REALKIND), save      :: de2_i_IR    = 0 ! numerical value of double IR pole using actual norm-convention
   real(REALKIND), save      :: de2_i_shift = 0 ! double pole shift defining actual norm convention
+#ifdef PRECISION_dp
   real(REALKIND), save      :: muren_unscaled = 100    ! renormalisation scale
   real(REALKIND), save      :: mureg_unscaled = 100    ! regularization scale
+#endif
   real(REALKIND), save      :: muren
   real(REALKIND), save      :: mureg
   real(REALKIND), save      :: x_UV  = 1       ! rescaling factor for dim-reg scale in UV-divergent quantities
   real(REALKIND), save      :: x_IR  = 1       ! rescaling factor for dim-reg scale in IR-divergent quantities
   real(REALKIND), parameter :: kappa = 2/3._/**/REALKIND ! kappa parameter used in dipole subtraction
+#ifdef PRECISION_dp
   real(REALKIND), save :: muyc_unscaled = 0 ! yukawa renormalization scale for c quark
   real(REALKIND), save :: muyb_unscaled = 0 ! yukawa renormalization scale for b quark
   real(REALKIND), save :: muyt_unscaled = 0 ! yukawa renormalization scale for t quark
+#endif
   real(REALKIND), save :: muyc
   real(REALKIND), save :: muyb
   real(REALKIND), save :: muyt

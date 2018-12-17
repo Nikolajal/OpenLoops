@@ -27,7 +27,7 @@ module master
 
   integer :: masterN_cll, masterR_cll
   double complex, allocatable :: masterArgs_cll(:)
-  character(len=99) :: masterFName_cll
+  character(len=250) :: masterFName_cll
 
 contains
 
@@ -113,7 +113,7 @@ contains
 
     integer, intent(out) :: N
     double complex, allocatable, intent(out) :: args(:)
-    character(len=99), intent(out) :: fname
+    character(len=250), intent(out) :: fname
 
     N = masterN_cll
 
@@ -134,7 +134,7 @@ contains
 
   subroutine getMasterFname_cll(fname)
 
-    character(len=99), intent(out) :: fname
+    character(len=250), intent(out) :: fname
 
     fname = masterFname_cll
 

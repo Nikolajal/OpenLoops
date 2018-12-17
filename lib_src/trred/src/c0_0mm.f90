@@ -5,13 +5,11 @@
 !    Copyright (C) 2017-2018 Federico Buccioni, Jean-Nicolas Lang,             !
 !                            Stefano Pozzorini, Hantian Zhang and Max Zoller   !
 !                                                                              !
-!    trred has been developed by Jean-Nicolas Lang and Hantian Zhang           !
+!    trred has been developed by J.-N. Lang, H. Zhang and F. Buccioni          !
 !    trred is licenced under the GNU GPL version 3,                            !
 !    see COPYING for details.                                                  !
 !                                                                              !
 !******************************************************************************!
-
-!Last Modified: February 07, 2018
 
 ! Implements the n-th derivative of C0(-p^2,-p^2(1+\delta),0,m^2,m^2)
 ! (C0_n_0mm_small_z). For large values of z = m^2/p^2 the formula is
@@ -27,11 +25,11 @@ module c0_0mm_DP
   contains
 
   function C0_n_0mm(p2,m2,muUV2,muIR2,n) result(C0)
-    complex(dp), intent(in) :: p2,m2,muUV2,muIR2
+    complex(dp), intent(in) :: p2,m2(:),muUV2,muIR2
     integer,       intent(in) :: n
     complex(dp)             :: z,C0,loss
 
-    z = m2/p2
+    z = m2(1)/p2
     if (abs(z) .gt. C_0mm_exp_thr) then
       C0 = C0_n_exp_0mm(z,p2,n,loss)
     else
@@ -121,11 +119,11 @@ module c0_0mm_QP
   contains
 
   function C0_n_0mm(p2,m2,muUV2,muIR2,n) result(C0)
-    complex(qp), intent(in) :: p2,m2,muUV2,muIR2
+    complex(qp), intent(in) :: p2,m2(:),muUV2,muIR2
     integer,       intent(in) :: n
     complex(qp)             :: z,C0,loss
 
-    z = m2/p2
+    z = m2(1)/p2
     if (abs(z) .gt. C_0mm_exp_thr) then
       C0 = C0_n_exp_0mm(z,p2,n,loss)
     else

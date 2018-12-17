@@ -66,9 +66,15 @@ class CPPContainer:
 
         src_list = []
         for precision in self.mp:
+            if precision.startswith('qp_'):
+                continue
+            if precision == 'dp':
+                suffix = ''
+            else:
+                suffix = '_' + precision
             src_list.extend([CPPContainer.src_path_mod(srcfile,
                                self.target_prefix,
-                               '_' + precision + os.path.splitext(srcfile)[1].lower())
+                               suffix + os.path.splitext(srcfile)[1].lower())
                                for srcfile in mp_src])
         src_list.extend([CPPContainer.src_path_mod(srcfile,
                            self.target_prefix,

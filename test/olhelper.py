@@ -203,7 +203,7 @@ def read_timon(filename):
 #                                                                           ###
 ###############################################################################
 
-def read_procs(pointsfile, process, verbose=1):
+def read_procs(pointsfile, process, verbose=False):
     perm_set = set()
     with open(pointsfile, 'r') as fh:
         for line in fh:
@@ -219,12 +219,12 @@ def read_procs(pointsfile, process, verbose=1):
     return procs
 
 
-def stabilitymode(mode, verbose=1):
+def stabilitymode(mode, verbose=False):
     """Sets the stability mode in OL"""
     set_parameter('stability_mode', mode)
 
 
-def run_point(pt, procs, verbose=1):
+def run_point(pt, procs, verbose=False):
     """Calculate the matrix element(s) for point 'pt'
     and return it as a tuple."""
     if pt.mu:
@@ -237,7 +237,7 @@ def run_point(pt, procs, verbose=1):
     return me
 
 
-def run_file(pointsfile, procs, nstart=1, npoints=None, verbose=1):
+def run_file(pointsfile, procs, nstart=1, npoints=None, verbose=False):
     """Calculate the matrix elements for all points in the file 'pointsfile'
     and return them as a list of tuples."""
     mes = []

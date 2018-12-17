@@ -27,7 +27,7 @@
 
 !#define TEST
 !#define CritPointsCOLI 
-#define PVEST2
+#define PVEST2             !   default
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -329,13 +329,12 @@ contains
     double complex :: elimminf2_coli
     double precision, intent(out)  :: Derr1(0:rmax),Derr2(0:rmax)
     double precision :: D0est,Dtyp
-#ifdef USED0
     double complex :: D0_coli
-#endif
 !    double complex :: detX
     double complex :: chdet
     integer :: rmaxC,r,rid,n0,n1,n2,n3,g,gy,gp,gr,gm,gpf,i,iexp
     integer :: bin,k,nid(0:3)
+    logical :: use_D0
     logical :: use_pv,use_pv2,use_g,use_gy,use_gp,use_gr,use_gm,use_gpf
 
     integer :: r_alt,Drmethod(0:rmax),DrCalc(0:rmax),DCalc
@@ -376,6 +375,62 @@ contains
     write(*,*) 'CalcDred acc_req',acc_req_D,reqacc_coli
     write(*,*) 'CalcDred in',p10,p21,p32,p30,p20,p31,m02,m12,m22,m32
 #endif
+ 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! for rank = 0 calculate D0 directly 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    use_D0 = .false.  
+    if (rmax.eq.0d0) then
+
+    ! rough estimate for D0 to set the scale, to be improved
+      Dscale2 = max(abs(p10*p32),abs(p20*p31),abs(p30*p21), &
+          abs(m02*m12),abs(m02*m22),abs(m02*m32),           &
+          abs(m12*m22),abs(m12*m32),abs(m22*m32))
+      if(Dscale2.ne.0d0) then 
+        Derr1 = acc_inf/Dscale2
+      else
+        Derr1 = acc_inf
+      end if
+      Derr2 = Derr1
+
+      Z(1,1) = 2d0*p10
+      Z(2,1) = p10+p20-p21
+      Z(3,1) = p10+p30-p31
+      Z(1,2) = Z(2,1)
+      Z(2,2) = 2d0*p20
+      Z(3,2) = p20+p30-p32
+      Z(1,3) = Z(3,1)
+      Z(2,3) = Z(3,2)
+      Z(3,3) = 2d0*p30
+      mx(0,0) = 2d0*m02
+      mx(1,0) = p10 - m12 + m02
+      mx(2,0) = p20 - m22 + m02
+      mx(3,0) = p30 - m32 + m02
+      mx(0,1) = mx(1,0)
+      mx(0,2) = mx(2,0)
+      mx(0,3) = mx(3,0)
+      mx(1:3,1:3) = Z(1:3,1:3)
+      
+      adetX = abs(chdet(4,mx))
+
+! changed 16.08.18
+!      if (adetX.gt.dprec_cll*Dscale2**2) then
+      if (adetX.gt.dprec_cll*maxval(abs(mx(0,:)))*maxval(abs(mx(1,:)))*maxval(abs(mx(2,:)))*maxval(abs(mx(3,:)))) then
+        D(0,0,0,0) = D0_coli(p10,p21,p32,p30,p20,p31,m02,m12,m22,m32)
+        Duv(0,0,0,0) = 0d0
+        if (D(0,0,0,0).ne.undefined_D) then         
+          Derr1(0) = acc_def_D0*max( abs(D(0,0,0,0)), 1d0/sqrt(adetX) )
+        else
+          Derr1(0) = acc_inf*abs(D(0,0,0,0))
+        end if
+        Derr2(0) = Derr1(0)
+        if (Derr1(0).lt.acc_req_D*abs(D(0,0,0,0))) then 
+          return
+        else
+          use_D0 = .true.
+        endif
+      end if 
+    end if
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! calculate 3-point functions for rank < rmax 
@@ -451,10 +506,6 @@ contains
     write(*,*) 'CalcDred Cerr   =', err_C(0:rmax_C)
 #endif
 
-    
-
-
-
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! choose reduction scheme
     ! by estimating expected errors
@@ -495,9 +546,29 @@ contains
 
     maxZ = maxval(abs(Z))
 
-    detZ = chdet(3,Z)
+! changed 21.06.2018
+    call chinv(3,Z,Zinv,detZ)
+!    detZ = chdet(3,Z)
+
+! added 16.08.18
+!    if (abs(detZ).lt.dprec_cll*maxval(abs(Z(1,:)))*maxval(abs(Z(2,:)))*maxval(abs(Z(3,:)))) then
+    if (abs(detZ).lt.dprec_cll*max(  &
+        abs(Z(1,1)*Z(2,2)*Z(3,3)),abs(Z(1,2)*Z(2,3)*Z(3,1)),   &
+        abs(Z(1,1)*Z(2,3)*Z(3,2)),abs(Z(2,2)*Z(1,3)*Z(3,1)),   &
+        abs(Z(3,3)*Z(1,2)*Z(2,1))) ) then 
+#ifdef Dredtest
+    write(*,*) 'detZ set to 0  ',abs(detZ),   &  
+        dprec_cll*maxval(abs(Z(1,:)))*maxval(abs(Z(2,:))*maxval(abs(Z(3,:)))),  &
+        dprec_cll*max(  &
+        abs(Z(1,1)*Z(2,2)*Z(3,3)),abs(Z(1,2)*Z(2,3)*Z(3,1)),   &
+        abs(Z(1,1)*Z(2,3)*Z(3,2)),abs(Z(2,2)*Z(1,3)*Z(3,1)),   &
+        abs(Z(3,3)*Z(1,2)*Z(2,1))) 
+#endif
+      detZ = 0d0
+    end if
+
     if (detZ.ne.0d0) then
-      call chinv(3,Z,Zinv)
+!      call chinv(3,Z,Zinv)
       Zadj = Zinv * detZ
     else
 !     Zadj(1,1) = 4d0*(q30*q20-q2q3*q2q3)
@@ -566,10 +637,29 @@ contains
     mx(0,3) = mx(3,0)
     mx(1:3,1:3) = Z(1:3,1:3)
 
-    detX = chdet(4,mx)
+! changed 21.06.2018
+    call chinv(4,mx,mxinv,detX)
+!    detX = chdet(4,mx)
+
+! added 16.08.18   to unprecise!
+!    if (abs(detX).lt.dprec_cll*maxval(abs(mx(0,:)))*maxval(abs(mx(1,:)))*maxval(abs(mx(2,:)))*maxval(abs(mx(3,:)))) then
+    if (abs(detX).lt.dprec_cll*max(  &
+        abs(mx(0,0)*mx(1,1)*mx(2,2)*mx(3,3)),abs(mx(0,1)*mx(1,2)*mx(2,3)*mx(3,0)),   &
+        abs(mx(0,2)*mx(1,3)*mx(2,0)*mx(3,1)),abs(mx(0,3)*mx(1,0)*mx(2,1)*mx(3,2)))   &    
+        ) then 
+#ifdef Dredtest
+      write(*,*) 'detX set to 0  ',abs(detX),     &
+          dprec_cll*maxval(abs(mx(0,:)))*maxval(abs(mx(1,:)))    &
+          *maxval(abs(mx(2,:))*maxval(abs(mx(3,:)))),  &
+      max(  &
+        abs(mx(0,0)*mx(1,1)*mx(2,2)*mx(3,3)),abs(mx(0,1)*mx(1,2)*mx(2,3)*mx(3,0)),   &
+        abs(mx(0,2)*mx(1,3)*mx(2,0)*mx(3,1)),abs(mx(0,3)*mx(1,0)*mx(2,1)*mx(3,2)))
+#endif
+      detX = 0d0
+    end if
 
     if (detX.ne.0d0.and.maxZ.ne.0d0) then
-      call chinv(4,mx,mxinv)
+!      call chinv(4,mx,mxinv)
       Xadj = mxinv * detX
 
       Zadjf(1:3) = -Xadj(0,1:3)
@@ -607,7 +697,6 @@ contains
       Xadj(3,3) = 2d0*mm02*Zadj(3,3) + Zadj2ff(3,3)
     endif
 
-
 !   write(*,*) 'Xadjn ',Xadj
 !   write(*,*) 'detXn ',detX
 !   write(*,*) 'Zadjfn',Zadjf
@@ -619,8 +708,10 @@ contains
     maxZadjfd = max(maxZadjf,adetZ)
     Zadjff = Zadjf(1)*f(1)+Zadjf(2)*f(2)+Zadjf(3)*f(3)
     aZadjff = abs(Zadjff)
-    adetX = abs(2d0*mm02*detZ-Zadjf(1)*f(1)-Zadjf(2)*f(2)-Zadjf(3)*f(3))
-    
+! changed 16.08.18
+!    adetX = abs(2d0*mm02*detZ-Zadjf(1)*f(1)-Zadjf(2)*f(2)-Zadjf(3)*f(3))
+    adetX = abs(detX)    
+
 !    write(*,*) 'fs', f(1), f(2), f(3)
 !    write(*,*) aZadjff, maxZadjf*fmax
 
@@ -630,12 +721,14 @@ contains
 !    write(*,*) 'CalcDred acc_inf=',acc_inf
 !    write(*,*) 'CalcDred Derr=',Derr
 
-!    write(*,*) 'CalcDred adetX ',adetX,maxZadjf,maxXadj,adetZ
-!    write(*,*) 'CalcDred Zadj2ff',maxZadj2ff
-!    write(*,*) 'CalcDred maxZadj',maxZadj
-!    write(*,*) 'CalcDred Zadjf',Zadjf
-!    write(*,*) 'CalcDred f',f
-!    write(*,*) 'CalcDred Zadjff',Zadjff
+#ifdef Dredtest
+    write(*,*) 'CalcDred adetX ',adetX,maxZadjf,maxXadj,adetZ
+    write(*,*) 'CalcDred Zadj2ff',maxZadj2ff
+    write(*,*) 'CalcDred maxZadj',maxZadj
+    write(*,*) 'CalcDred Zadjf',Zadjf
+    write(*,*) 'CalcDred f',f
+    write(*,*) 'CalcDred Zadjff',Zadjff
+#endif
 
     Zadj2f = 0d0
     Zadj2f(1,2,1) =  Z(3,2)*f(3) - Z(3,3)*f(2)
@@ -705,10 +798,10 @@ contains
 !    write(*,*) 'CalcDred wmaxZadjf',maxXadj,wmaxXadj
 
     ! rough estimate for D0 to set the scale, to be improved
-     Dscale2 = max(abs(p10*p32),abs(p21*p30),abs(p20*p31),abs(m02*m02), \
+     Dscale2 = max(abs(p10*p32),abs(p21*p30),abs(p20*p31),abs(m02*m02), &
               abs(m12*m12),abs(m22*m22),abs(m32*m32))
 #ifdef USED0
-    D0est = max(abs(D0_coli(p10,p21,p32,p30,p20,p31,m02,m12,m22,m32)),  \
+    D0est = max(abs(D0_coli(p10,p21,p32,p30,p20,p31,m02,m12,m22,m32)),  &
              1d0/Dscale2)
     lerr_D0 = .true.
 #else
@@ -742,8 +835,8 @@ contains
     DCalc = 0
     DrCalc = 0
     Drmethod = 0
-    Derr1 = err_inf
-    Derr2 = err_inf
+!    Derr1 = err_inf    !  shifted above D0
+!    Derr2 = err_inf
     Derr  = err_inf
     acc_D = acc_inf
     DCount(0) = DCount(0)+1
@@ -755,23 +848,20 @@ contains
       err_D0 = acc_def_D0*D0est
     endif     
 
-
-
     err_req_D = acc_req_D * D0est
 
 !   write(*,*) 'CalcDred err_req ',err_req_D,acc_req_D , D0est
 
     ! estimate accuracy of PV-reduction
-!    if (adetZ.eq.0d0) then
-!    if (adetZ.lt.dprec_cll*maxZ**3) then
     h_pv = real(undefined_D)
     w_pv = real(undefined_D)
     v_pv = real(undefined_D)
     z_pv = real(undefined_D)
 
-!    if (adetZ.lt.dprec_cll*maxZadjf.or.adetZ.eq.0d0) then
 !   14.07.2017
-    if (adetZ.lt.dprec_cll*maxZadjf.or.adetZ.lt.dprec_cll*maxZ**3.or.adetZ.eq.0d0) then
+!   16.08.2018 changed back, since detZ=0 set above if too small
+    if (adetZ.lt.dprec_cll*maxZadjf.or.adetZ.eq.0d0) then
+!    if (adetZ.lt.dprec_cll*maxZadjf.or.adetZ.lt.dprec_cll*maxZ**3.or.adetZ.eq.0d0) then
       use_pv = .false.
       err_pv = err_inf
     else
@@ -814,18 +904,17 @@ contains
 
 
     ! estimate accuracy of alternative PV-reduction
-!    if ((adetZ.eq.0).or.(adetX.eq.0)) then
-!    if ((adetZ.lt.dprec_cll*maxZ**3).or.(adetX.lt.dprec_cll*maxval(abs(mx))**4)) then
     w_pv2 = real(undefined_D)
     h_pv2 = real(undefined_D)
     hw_pv2 = real(undefined_D)
     v_pv2 = real(undefined_D)
     z_pv2 = real(undefined_D)
 
-!    if ((adetZ.lt.dprec_cll*maxZadjf).or.(adetX.lt.dprec_cll*maxval(abs(mx))*adetZ).or.adetZ.eq.0d0.or.adetX.eq.0d0) then
-!    14.07.2017   
-    if ((adetZ.lt.dprec_cll*maxZadjf).or.(adetX.lt.dprec_cll*maxval(abs(mx))*adetZ).or.  &
-         (adetZ.lt.dprec_cll*maxZ**3).or.adetZ.eq.0d0.or.adetX.eq.0d0) then
+!   14.07.2017   
+!   16.08.2018 changed back, since detZ=0 set above if too small
+    if ((adetZ.lt.dprec_cll*maxZadjf).or.(adetX.lt.dprec_cll*maxval(abs(mx))*adetZ).or.adetZ.eq.0d0.or.adetX.eq.0d0) then
+!    if ((adetZ.lt.dprec_cll*maxZadjf).or.(adetX.lt.dprec_cll*maxval(abs(mx))*adetZ).or.  &
+!         (adetZ.lt.dprec_cll*maxZ**3).or.adetZ.eq.0d0.or.adetX.eq.0d0) then
       use_pv2 = .false.
       err_pv2 = err_inf
     else
@@ -1030,7 +1119,7 @@ contains
         return
       end if
 
-    else   !  added 14.07.2017
+    else if (.not.use_D0) then  !  added 14.07.2017 adapted 12.4.2018
       D = 0d0
       Duv = 0d0
       Derr1 = err_inf
@@ -1302,7 +1391,7 @@ contains
 #endif
 
 ! no method works
-    if(use_pv.or.use_pv2.or.use_g.or.use_gy.or.use_gp.or.use_gr.or.use_gm.or.use_gpf.eqv..false.) then
+    if(use_D0.or.use_pv.or.use_pv2.or.use_g.or.use_gy.or.use_gp.or.use_gr.or.use_gm.or.use_gpf.eqv..false.) then
       call SetErrFlag_coli(-6)
       call ErrOut_coli('CalcDred',' no reduction method works',  &
          errorwriteflag)
@@ -1598,10 +1687,10 @@ contains
               
 
 #ifdef Dredtest
-      write(*,*) 'CalcDred after exp Derr=',Derr,err_req_D
-!     write(*,*) 'CalcDred after exp Dacc=',Derr/abs(D(0,0,0,0))
-      write(*,*) 'CalcDred after exp Dacc=',Derr/Dtyp
-      write(*,*) 'CalcDred after exp method=',Drmethod
+      write(*,*) 'CalcDred after exp g Derr=',Derr,err_req_D
+!     write(*,*) 'CalcDred after exp   Dacc=',Derr/abs(D(0,0,0,0))
+      write(*,*) 'CalcDred after exp   Dacc=',Derr/Dtyp
+      write(*,*) 'CalcDred after exp   method=',Drmethod
 #endif
 
     case (2)
@@ -1627,9 +1716,9 @@ contains
       call CopyDimp3(D,D_alt,Derr,Derr_alt,Derr1,Derr1_alt,Derr2,Derr2_alt,Drmethod,Drmethod_alt,rmax,rmax)
 
 #ifdef Dredtest
-      write(*,*) 'CalcDred after exp Derr=',Derr,err_req_D
-      write(*,*) 'CalcDred after exp Dacc=',Derr/Dtyp
-      write(*,*) 'CalcDred after exp method=',Drmethod
+      write(*,*) 'CalcDred after exp gy Derr=',Derr,err_req_D
+      write(*,*) 'CalcDred after exp    Dacc=',Derr/Dtyp
+      write(*,*) 'CalcDred after exp    method=',Drmethod
 #endif
 #ifdef Dredtest
 !      write(*,*) 'after CalcDgy D(1,0,1,0)',D_alt(1,0,1,0),D(1,0,1,0)
@@ -1659,9 +1748,9 @@ contains
       call CopyDimp3(D,D_alt,Derr,Derr_alt,Derr1,Derr1_alt,Derr2,Derr2_alt,Drmethod,Drmethod_alt,rmax,rmax)
 
 #ifdef Dredtest
-      write(*,*) 'CalcDred after exp Derr=',Derr,err_req_D
-      write(*,*) 'CalcDred after exp Dacc=',Derr/Dtyp
-      write(*,*) 'CalcDred after exp method=',Drmethod
+      write(*,*) 'CalcDred after exp gp Derr=',Derr,err_req_D
+      write(*,*) 'CalcDred after exp    Dacc=',Derr/Dtyp
+      write(*,*) 'CalcDred after exp    method=',Drmethod
 #endif
 
     case (4)
@@ -1687,9 +1776,9 @@ contains
       call CopyDimp3(D,D_alt,Derr,Derr_alt,Derr1,Derr1_alt,Derr2,Derr2_alt,Drmethod,Drmethod_alt,rmax,rmax)
 
 #ifdef Dredtest
-      write(*,*) 'CalcDred after exp Derr=',Derr,err_req_D
-      write(*,*) 'CalcDred after exp Dacc=',Derr/Dtyp
-      write(*,*) 'CalcDred after exp method=',Drmethod
+      write(*,*) 'CalcDred after exp gr Derr=',Derr,err_req_D
+      write(*,*) 'CalcDred after exp    Dacc=',Derr/Dtyp
+      write(*,*) 'CalcDred after exp    method=',Drmethod
 #endif
 
 #ifdef USEGM
@@ -1716,9 +1805,9 @@ contains
       call CopyDimp3(D,D_alt,Derr,Derr_alt,Derr1,Derr1_alt,Derr2,Derr2_alt,Drmethod,Drmethod_alt,rmax,rmax)
 
 #ifdef Dredtest
-      write(*,*) 'CalcDred after exp Derr=',Derr,err_req_D
-      write(*,*) 'CalcDred after exp Dacc=',Derr/Dtyp
-      write(*,*) 'CalcDred after exp method=',Drmethod
+      write(*,*) 'CalcDred after exp gm Derr=',Derr,err_req_D
+      write(*,*) 'CalcDred after exp    Dacc=',Derr/Dtyp
+      write(*,*) 'CalcDred after exp    method=',Drmethod
 #endif
 #endif
 
@@ -1745,9 +1834,9 @@ contains
       call CopyDimp3(D,D_alt,Derr,Derr_alt,Derr1,Derr1_alt,Derr2,Derr2_alt,Drmethod,Drmethod_alt,rmax,rmax)
 
 #ifdef Dredtest
-      write(*,*) 'CalcDred after exp Derr=',Derr,err_req_D
-      write(*,*) 'CalcDred after exp Dacc=',Derr/Dtyp
-      write(*,*) 'CalcDred after exp method=',Drmethod
+      write(*,*) 'CalcDred after exp gpf Derr=',Derr,err_req_D
+      write(*,*) 'CalcDred after exp     Dacc=',Derr/Dtyp
+      write(*,*) 'CalcDred after exp     method=',Drmethod
 #endif
 
     end select
@@ -2767,8 +2856,13 @@ contains
     Duv(0,0,0,0) = 0d0
 
     ! accuracy estimate for D0 function
-    Derr(0) = acc_def_D0*max( abs(D(0,0,0,0)), 1d0/sqrt(adetX) )
-    Derr2(0) = acc_def_D0*max( abs(D(0,0,0,0)), 1d0/sqrt(adetX) )
+    ! detX=0 implemented 16.08.18
+    if(adetX.ne.0d0) then
+      Derr(0) = acc_def_D0*max( abs(D(0,0,0,0)), 1d0/sqrt(adetX) )
+    else
+      Derr(0) = acc_def_D0* abs(D(0,0,0,0))
+    end if
+    Derr2(0) = Derr(0)
 
     if (rmax.eq.0) return
 
@@ -3154,8 +3248,13 @@ contains
     Duv(0,0,0,0) = 0d0
 
     ! accuracy estimate for D0 function
-    Derr(0) = acc_def_D0*max( abs(D(0,0,0,0)), 1d0/sqrt(adetX) )
-    Derr2(0) = acc_def_D0*max( abs(D(0,0,0,0)), 1d0/sqrt(adetX) )
+    ! detX=0 implemented 16.08.18
+    if(adetX.ne.0d0) then
+      Derr(0) = acc_def_D0*max( abs(D(0,0,0,0)), 1d0/sqrt(adetX) )
+    else
+      Derr(0) = acc_def_D0* abs(D(0,0,0,0))
+    end if
+    Derr2(0) = Derr(0)
 
     if (rmax.eq.0) return
 
@@ -3555,8 +3654,13 @@ contains
     Duv(0,0,0,0) = 0d0
 
     ! accuracy estimate for D0 function
-    Derr(0) = acc_def_D0*max( abs(D(0,0,0,0)), 1d0/sqrt(adetX) )
-    Derr2(0) = acc_def_D0*max( abs(D(0,0,0,0)), 1d0/sqrt(adetX) )
+    ! detX=0 implemented 16.08.18
+    if(adetX.ne.0d0) then
+      Derr(0) = acc_def_D0*max( abs(D(0,0,0,0)), 1d0/sqrt(adetX) )
+    else
+      Derr(0) = acc_def_D0* abs(D(0,0,0,0))
+    end if
+    Derr2(0) = Derr(0)
 
     if (rmax.eq.0) return
 

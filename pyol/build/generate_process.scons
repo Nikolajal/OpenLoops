@@ -114,7 +114,8 @@ for sub_process in subprocesses:
                 force_loops = line
             break
 
-    subprocess_src = OLToolbox.get_subprocess_src(force_loops, sub_process, processlib_src_dir, nvirtualfiles = 1)
+    subprocess_src = OLToolbox.get_subprocess_src(
+        force_loops, sub_process, processlib_src_dir, config, nvirtualfiles=1)
     subprocess_src = sum(subprocess_src, [])
     if save_log:
         create_log_dir = '$( mkdir -p ' + log_dir + '; $) '

@@ -91,7 +91,6 @@ module ol_qcdloop_interface
       real(DREALKIND), intent(in) :: mu2
       integer, intent(in) :: ep
     end function qli4c
-#ifdef USE_qp
     function qli1q(m1, mu2, ep)
       use KIND_TYPES, only: QREALKIND
       implicit none
@@ -160,7 +159,6 @@ module ol_qcdloop_interface
       real(QREALKIND), intent(in) :: mu2
       integer, intent(in) :: ep
     end function qli4qc
-#endif
   end interface ol_qcdloop
 end module ol_qcdloop_interface
 ! #ifdef PRECISION_dp
@@ -187,14 +185,8 @@ subroutine tensor_integral(rank, momenta, masses_2, TI)
   use ol_tensor_bookkeeping, only: rank_to_size, tensor_size
   use ol_Std2LC_converter_/**/REALKIND, only: lorentz2lc_tensor
   use ol_kinematics_/**/REALKIND, only: LC2Std_Rep_cmplx, momenta_invariants
-#ifdef COLLIER_LEGACY
-  use bt_Interface, only: CalcTensorTNr, CalcTensorFr ! direct reduction routines
-  use bt_TI_lib_switch, only: TI_library
-  use dd_interface, only: dd_get_error_code
-#else
   use collier, only: tnten_cll
   use collier_init, only: GetErrFlag_cll
-#endif
 #endif
   implicit none
   integer,           intent(in)  :: rank
@@ -210,45 +202,6 @@ subroutine tensor_integral(rank, momenta, masses_2, TI)
     call LC2Std_Rep_cmplx(momenta(:,l), momenta_TI(:,l))
   end do
 
-#ifdef COLLIER_LEGACY
-  allocate(T2dim(rank_to_size(rank),0:rank))
-  if (size(masses_2) == 6 .and. rank >= 6) then
-    T2dim = CalcTensorFr(rank, momenta_TI, masses_2, momenta_invariants(momenta_TI))
-  else
-    T2dim = CalcTensorTNr(size(masses_2), rank, momenta_TI, masses_2, momenta_invariants(momenta_TI))
-  end if
-
-  if (TI_library == 1) then
-    tensor_reduction_error = coli_get_error_code()
-  else if (TI_library == 2) then
-    tensor_reduction_error = dd_get_error_code()
-  end if
-  ! Error handling should be in a separate routine which handles errors from all reduction libraries.
-  ! Call might be moved to the process code.
-  if (tensor_reduction_error > 0) then
-    call ol_error("Tensor Integral Reduction with COLLIER yields error: " // to_string(tensor_reduction_error))
-    if (TI_library == 1) then
-      call ol_msg(1,"library: Coli")
-    else if (TI_library == 2) then
-      call ol_msg(1,"library: DD")
-    end if
-    call ol_msg(1,"process: " // current_processname )
-    call ol_msg(1,"phase space point:")
-    do l = 1, nParticles
-      print*, P_ex(:,l)
-      crossing(inverse_crossing(l)) = l
-    end do
-    call ol_msg(1,"crossing:" // to_string(crossing(1:nParticles)))
-    T2dim = 0
-  end if
-
-  do r = 0, rank
-    do l = 1, rank_to_size(r)
-      T_Lor(l+tensor_size(r-1)) = T2dim(l,r)
-    end do
-  end do
-  deallocate(T2dim)
-#else
 #ifdef PRECISION_dp
   call tnten_cll(T_Lor, TI, momenta_TI, momenta_invariants(momenta_TI), masses_2, size(masses_2), rank)
   call GetErrFlag_cll(tensor_reduction_error) ! Get overall error code from COLLIER
@@ -266,7 +219,7 @@ subroutine tensor_integral(rank, momenta, masses_2, TI)
   end if
 #else
   T_Lor = 0
-#endif
+  call ol_fatal('in tensor_integral: Collier is not available in quad precision')
 #endif
   call lorentz2lc_tensor(rank, T_Lor, TI)
 #else
@@ -298,11 +251,7 @@ subroutine scalar_integral(momenta, masses_2)
   use KIND_TYPES, only: REALKIND
 #ifdef USE_COLLIER
   use ol_kinematics_/**/REALKIND, only: LC2Std_Rep, momenta_invariants
-#ifdef COLLIER_LEGACY
-  use bt_Interface, only: CalcTensorTNr
-#else
   use collier, only: tnten_cll
-#endif
 #endif
   implicit none
   complex(REALKIND), intent(in)  :: momenta(:,:), masses_2(:)
@@ -316,53 +265,14 @@ subroutine scalar_integral(momenta, masses_2)
     momenta_TI(:,l) = mom
   end do
 
-#ifdef COLLIER_LEGACY
-  T2dim = CalcTensorTNr(size(masses_2), 0, momenta_TI, masses_2, momenta_invariants(momenta_TI))
-#else
 #ifdef PRECISION_dp
   call tnten_cll(T2dim(1,:), tuv, momenta_TI, momenta_invariants(momenta_TI), masses_2, size(masses_2), 0)
-#endif
 #endif
 
 #else
   call ol_fatal('in scalar_integral: Collier is not available')
 #endif
 end subroutine scalar_integral
-
-
-
-! ****************************************************
-subroutine covariant_coefficients(rank, momenta, masses_2)
-! ****************************************************
-  use KIND_TYPES, only: REALKIND
-#if defined(COLLIER_LEGACY) && defined(USE_COLLIER)
-  use ol_kinematics_/**/REALKIND, only: LC2Std_Rep, momenta_invariants
-  use bt_ColiCombinatorics, only: BinomTable
-  use bt_Interface, only: CalcTNrPVco
-#endif
-  implicit none
-  integer,           intent(in)  :: rank
-  complex(REALKIND), intent(in)  :: momenta(:,:), masses_2(:)
-#if defined(COLLIER_LEGACY) && defined(USE_COLLIER)
-  complex(REALKIND), allocatable :: Coefs(:,:,:)
-  complex(REALKIND) :: momenta_TI(0:3,size(momenta,2))
-  real(REALKIND)    :: mom(0:3)
-  integer           :: l
-
-  do l = 1, size(momenta,2)
-    call LC2Std_Rep(momenta(:,l), mom)
-    momenta_TI(:,l) = mom
-  end do
-
-  allocate(Coefs(BinomTable(rank,rank+size(masses_2)-2),0:rank/2,0:rank))
-
-  Coefs = CalcTNrPVco(size(masses_2),rank,masses_2, momenta_invariants(momenta_TI))
-
-  deallocate(Coefs)
-#else
-  call ol_fatal('in covariant_coefficients: Collier (legacy) is not available')
-#endif
-end subroutine covariant_coefficients
 
 
 
@@ -435,10 +345,6 @@ subroutine TI_call(rank, momenta, masses_2, Gsum, M2)
       call ol_fatal("rank > #loop-propagators not supported by TI library DD (part of COLLIER).")
     end if
     call tensor_integral_contract(rank, momenta, masses_2, Gsum, M2add)
-  else if (a_switch == 2) then
-    ! COLI/DD: only covariant coefficients, no tensor contruction
-    call covariant_coefficients(rank, momenta, masses_2)
-    M2add = sum(Gsum)
   else if (a_switch == 3) then
     ! COLI/DD: only scalar integrals
     call scalar_integral(momenta, masses_2)
@@ -473,7 +379,7 @@ end subroutine TI_call
 
 
 !************************************************************************************
-subroutine TI_call_OL(qt_pow, rank, momenta, masses2, Gsum, M2, scboxes, all_scboxes)
+subroutine TI_call_OL(qt_pow, rank, momenta, masses, Gsum_hcl, M2, scboxes, all_scboxes)
 !************************************************************************************
 ! Calculation of closed one-loop integrals in the on-the-fly reduction mode.
 !------------------------------------------------------------------------------------
@@ -481,34 +387,73 @@ subroutine TI_call_OL(qt_pow, rank, momenta, masses2, Gsum, M2, scboxes, all_scb
 ! rank        : tensor integral rank
 ! momenta     : set of indices used to read out the momenta from the array
 !               of internal momenta L
-! masses2     : internal masses squared. Complex values
+! masses      : internal masses ids
 ! Gsum        : coefficient of the tensor integral
 ! M2          : squared matrix element
 ! scboxes     : indices of the scalar boxes used for the final OPP-like reduction
 ! all_scboxes : values of already computed scalar boxes
 !************************************************************************************
-  use KIND_TYPES, only: REALKIND
-  use ol_data_types_/**/REALKIND, only: scalarbox
-  use ol_parameters_decl_/**/DREALKIND, only: a_switch
-  use ol_loop_parameters_decl_/**/REALKIND, only: de1_UV, de1_IR, de2_i_IR
+  use KIND_TYPES, only: REALKIND, QREALKIND
+  use ol_data_types_/**/REALKIND, only: scalarbox, hcl, met
+  use ol_parameters_decl_/**/DREALKIND, only: a_switch,zero
+  use ol_loop_parameters_decl_/**/REALKIND, only: de1_IR, de2_i_IR
   use ol_momenta_decl_/**/REALKIND, only: L
   use ol_loop_reduction_/**/REALKIND, only: TI_reduction, scalar_MIs
+  use ol_kinematics_/**/REALKIND, only: get_mass2
+#ifdef PRECISION_dp
+  use ol_loop_handling_/**/REALKIND, only: req_qp_cmp, upgrade_qp
+  use ol_parameters_decl_/**/DREALKIND, only: a_switch, coli_cache_use
+  use ol_data_types_/**/QREALKIND, only: scalarbox_qp=>scalarbox, hcl_qp=>hcl
+  use ol_loop_reduction_/**/QREALKIND, only: TI_reduction_qp=>TI_reduction, &
+                                             scalar_MIs_qp=>scalar_MIs
+  use ol_loop_routines_/**/QREALKIND, only: TI_call_qt2_qp=>TI_call_qt2, &
+                                            TI_call_qp=>TI_call
+  use ol_data_types_/**/QREALKIND, only: basis_qp=>basis, redset4_qp=>redset4
+  use ofred_basis_construction_/**/QREALKIND, only: construct_RedBasis_qp => construct_RedBasis, &
+                                                    construct_p3scalars_qp=>construct_p3scalars
+  use ol_loop_reduction_/**/QREALKIND, only: compute_scalar_box_qp=>compute_scalar_box
+  use ofred_basis_construction_/**/REALKIND, only: GramDeterminant3
+  use ol_kinematics_/**/REALKIND, only: cont_LC_cntrv, LC2Std_Rep_cmplx
+  use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
+  use ol_parameters_decl_/**/REALKIND, only: hybrid_zero_mode,hp_gd3_thres, &
+                                             hp_mode,hybrid_dp_mode,hp_gd3_trig
   implicit none
-  integer,           intent(in)    :: qt_pow, rank, momenta(:)
-  complex(REALKIND), intent(in)    :: masses2(:), Gsum(:)
-  real(REALKIND),    intent(inout) :: M2
-  integer,           intent(in), optional :: scboxes(:)
-  type(scalarbox),   intent(in), optional :: all_scboxes(:)
-
-  complex(REALKIND) :: TI(size(Gsum)), p(1:5,1:size(momenta)-1)
+  integer,                   intent(in)    :: qt_pow,rank,momenta(:),masses(:)
+  type(met),                 intent(inout) :: M2
+  type(hcl),                 intent(inout) :: Gsum_hcl
+  integer, optional,         intent(in)    :: scboxes(:)
+  type(scalarbox), optional, intent(inout) :: all_scboxes(:)
+  complex(QREALKIND) :: p(1:5,1:size(momenta)-1)
+  complex(QREALKIND) :: q(1:5,1:size(momenta)-1)
+  complex(REALKIND) :: TI(size(Gsum_hcl%cmp)), p_std(0:3,1:size(momenta)-1)
   complex(REALKIND) :: M2add, box(0:2)
   integer :: i, k
+#ifdef PRECISION_dp
+  integer :: u
+  type(redset4_qp) :: RedSet_qp
+  type(basis_qp)  :: Redbasis_qp
+  complex(QREALKIND) :: scalars(0:4)
+  real(QREALKIND)    :: gd2,gd3
+  real(REALKIND)    :: GD3_min
+  complex(REALKIND)    :: GD3_tmp
+  integer, allocatable :: scboxes_qp(:)
+  type(scalarbox_qp), allocatable :: all_scboxes_qp(:)
+  complex(QREALKIND) :: M2add_qp,box_qp(0:2)
+  type(hcl_qp) :: Gsum_hcl_qp
+#endif
 
+  if (Gsum_hcl%mode .eq. hybrid_zero_mode) return
   M2add = 0
+#ifdef PRECISION_dp
+  if (hp_mode .eq. 1) then
+    M2add_qp = 0
+  end if
+#endif
 
   i = momenta(1)
   p(1:4,1) = L(1:4,i)
-  p(5,1) = L(5,i) + L(6,i) 
+  p(5,1) = L(5,i) + L(6,i)
   do k = 2, size(momenta) - 1
     i = i + momenta(k)
     p(1:4,k) = L(1:4,i)
@@ -517,42 +462,234 @@ subroutine TI_call_OL(qt_pow, rank, momenta, masses2, Gsum, M2, scboxes, all_scb
 
   !! R1 rational term integral
   if(qt_pow > 0) then
-    call TI_call_qt2(qt_pow, rank, p, masses2, Gsum, M2)
+    call TI_call_qt2(qt_pow,rank,cmplx(p,kind=REALKIND), &
+                     get_mass2(masses),Gsum_hcl%cmp,M2%cmp)
+#ifdef PRECISION_dp
+    if (req_qp_cmp(Gsum_hcl)) then
+      call TI_call_qt2_qp(qt_pow,rank,p,get_mass2_qp(masses),Gsum_hcl%cmp_qp,M2%cmp_qp)
+    end if
+#endif
     return
   end if
 
   !! Reduction of 8-point functions not available yet.
   !! The chosen external reduction library is called for this purpose
-  if(size(masses2) .ge. 8) then
+
+  if(size(masses) .ge. 8) then
     call ol_msg(1,"Reduction of N-point integral with N >= 8 not available. Using external library")
-    call TI_call(rank, p(1:4,1:size(momenta)-1), masses2, Gsum, M2)
+
+#ifdef PRECISION_dp
+  if (iand(Gsum_hcl%mode, hybrid_dp_mode) .ne. 0 .or. coli_cache_use .eq. 1) then
+#endif
+    call TI_call(rank, cmplx(p(1:4,1:size(momenta)-1),kind=REALKIND), &
+                 get_mass2(masses), Gsum_hcl%cmp, M2%cmp)
+    M2%sicount = M2%sicount + 1
+#ifdef PRECISION_dp
+  end if
+#endif
+#ifdef PRECISION_dp
+    if (req_qp_cmp(Gsum_hcl)) then
+      call TI_call_qp(rank,p(1:4,1:size(momenta)-1),get_mass2_qp(masses), &
+                      Gsum_hcl%cmp_qp,M2%cmp_qp)
+      M2%sicount_qp = M2%sicount_qp + 1
+    end if
+#endif
     return
   end if
 
   !! Single scalar box that has already been computed
-  if (present(scboxes) .AND. size(scboxes)==1) then
+  if (present(scboxes) .and. size(scboxes)==1) then
+#ifdef PRECISION_dp
+    if (hp_mode .eq. 1 .and. (.not. req_qp_cmp(Gsum_hcl)) .and. hp_gd3_trig) then
+      if (log10(abs(all_scboxes(scboxes(1))%gd3)) < -hp_gd3_thres) then
+        call upgrade_qp(Gsum_hcl)
+      end if
+    end if
+#endif
+
+#ifdef PRECISION_dp
+  if (iand(Gsum_hcl%mode, hybrid_dp_mode) .ne. 0 .or. coli_cache_use .eq. 1) then
+#endif
     box = all_scboxes(scboxes(1))%poles
     if(a_switch == 1 .or. a_switch == 7) then
-      M2add = Gsum(1)*box(0)
-      M2 = M2 + real(M2add)
+      M2add = Gsum_hcl%cmp(1)*box(0)
     else if(a_switch == 5) then
-      M2add = Gsum(1)*(box(0) + box(1)*de1_IR + box(2)*de2_i_IR)
-      M2 = M2 + real(M2add)
+      M2add = Gsum_hcl%cmp(1)*(box(0) + box(1)*de1_IR + box(2)*de2_i_IR)
     end if
+    M2%cmp = M2%cmp + real(M2add)
+    M2%sicount = M2%sicount + 1
+#ifdef PRECISION_dp
+  end if
+#endif
+
+#ifdef PRECISION_dp
+    if (req_qp_cmp(Gsum_hcl)) then
+      if (all_scboxes(scboxes(1))%qp_computed) then
+        box_qp = all_scboxes(scboxes(1))%poles_qp
+      else
+        allocate(all_scboxes_qp(1))
+        call construct_RedBasis_qp(all_scboxes(scboxes(1))%mom1, &
+                                   all_scboxes(scboxes(1))%mom2, &
+                                   Redbasis_qp)
+
+        call construct_p3scalars_qp(all_scboxes(scboxes(1))%mom3, &
+                                    Redbasis_qp,scalars,gd2,gd3)
+        RedSet_qp = redset4_qp(redbasis=Redbasis_qp, &
+                               p3scalars=scalars, &
+                               perm=all_scboxes(scboxes(1))%perm, &
+                               mom3=all_scboxes(scboxes(1))%mom3, &
+                               gd2=gd2,gd3=gd3)
+        call compute_scalar_box_qp(all_scboxes(scboxes(1))%mom_ind, &
+                                   all_scboxes(scboxes(1))%masses2, &
+                                   RedSet_qp, &
+                                   all_scboxes_qp(1))
+        all_scboxes(scboxes(1))%qp_computed = .TRUE.
+        all_scboxes(scboxes(1))%poles_qp = all_scboxes_qp(1)%poles
+        all_scboxes(scboxes(1))%onshell_cuts_qp = all_scboxes_qp(1)%onshell_cuts
+        box_qp = all_scboxes_qp(1)%poles
+        deallocate(all_scboxes_qp)
+      end if
+
+      ! TODO:  <22-08-18, Jean-Nicolas Lang> !
+      ! Assumes OLO as SI provider
+      M2add_qp = Gsum_hcl%cmp_qp(1)*(box_qp(0) + box_qp(1)*de1_IR + box_qp(2)*de2_i_IR)
+      M2%cmp_qp = M2%cmp_qp + real(M2add_qp,kind=qp)
+      M2%sicount_qp = M2%sicount_qp + 1
+    end if
+#endif
     return
   end if
 
   !! Integration of N-point integrals with N <= 4 and reduction of N-point with N > 4.
-  if(size(masses2) .le. 4) then
+  if(size(masses) .le. 4) then
+
+#ifdef PRECISION_dp
+    if (hp_mode .eq. 1 .and. (.not. req_qp_cmp(Gsum_hcl)) .and. hp_gd3_trig &
+        .and. size(masses) .eq. 4) then
+      GD3_min = 1
+      call GramDeterminant3( &
+                cmplx(p(:,1),kind=REALKIND), &
+                cmplx(p(:,2),kind=REALKIND), &
+                cmplx(p(:,3),kind=REALKIND), &
+                GD3_tmp)
+      if (abs(GD3_tmp) < GD3_min) then
+        GD3_min = abs(GD3_tmp)
+      end if
+      if (log10(GD3_min) < -hp_gd3_thres) then
+        call upgrade_qp(Gsum_hcl)
+      end if
+    end if
+#endif
+
     if(rank > 0) then
-      call TI_call(rank, p(1:4,1:size(momenta)-1), masses2, Gsum, M2)
+#ifdef PRECISION_dp
+  if (iand(Gsum_hcl%mode, hybrid_dp_mode) .ne. 0 .or. coli_cache_use .eq. 1) then
+#endif
+      call TI_call(rank, cmplx(p(1:4,1:size(momenta)-1),kind=REALKIND), &
+                   get_mass2(masses), Gsum_hcl%cmp, M2%cmp)
+      M2%sicount = M2%sicount + 1
+#ifdef PRECISION_dp
+  end if
+#endif
+#ifdef PRECISION_dp
+      if (req_qp_cmp(Gsum_hcl)) then
+        call TI_call_qp(rank,p(1:4,1:size(momenta)-1),get_mass2_qp(masses), &
+                        Gsum_hcl%cmp_qp, M2%cmp_qp)
+        M2%sicount_qp = M2%sicount_qp + 1
+      end if
+#endif
     else
-      call scalar_MIs(momenta, masses2, Gsum, M2add)
-      M2 = M2 + real(M2add)
+
+#ifdef PRECISION_dp
+  if (iand(Gsum_hcl%mode, hybrid_dp_mode) .ne. 0 .or. coli_cache_use .eq. 1) then
+#endif
+      call scalar_MIs(momenta,get_mass2(masses),Gsum_hcl%cmp,M2add)
+      M2%cmp = M2%cmp + real(M2add)
+      M2%sicount = M2%sicount + 1
+#ifdef PRECISION_dp
+  end if
+#endif
+
+#ifdef PRECISION_dp
+      if (req_qp_cmp(Gsum_hcl)) then
+        call scalar_MIs_qp(momenta,get_mass2_qp(masses),Gsum_hcl%cmp_qp,M2add_qp)
+        M2%cmp_qp = M2%cmp_qp + real(M2add_qp)
+        M2%sicount_qp = M2%sicount_qp + 1
+      end if
+#endif
     end if
   else
-    call TI_reduction(rank, p, masses2, Gsum, M2add, scboxes, all_scboxes)
-    M2 = M2 + real(M2add)
+
+#ifdef PRECISION_dp
+    if (hp_mode .eq. 1 .and. (.not. req_qp_cmp(Gsum_hcl)) .and. hp_gd3_trig) then
+      do u = 1, size(scboxes)
+        if (log10(abs(all_scboxes(scboxes(u))%gd3)) < -hp_gd3_thres) then
+          call upgrade_qp(Gsum_hcl)
+        end if
+      end do
+    end if
+#endif
+
+#ifdef PRECISION_dp
+  if (iand(Gsum_hcl%mode, hybrid_dp_mode) .ne. 0 .or. coli_cache_use .eq. 1) then
+#endif
+    call TI_reduction(rank,cmplx(p,kind=REALKIND), &
+                      get_mass2(masses),Gsum_hcl,M2add,scboxes,all_scboxes)
+    M2%cmp = M2%cmp + real(M2add)
+    M2%sicount = M2%sicount + 1
+#ifdef PRECISION_dp
+  end if
+#endif
+
+#ifdef PRECISION_dp
+      if (req_qp_cmp(Gsum_hcl)) then
+        if (.not. present(scboxes)) then
+          write(*,*) "Case not handled"
+          stop
+        end if
+        allocate(scboxes_qp(size(scboxes)),all_scboxes_qp(size(scboxes)))
+        do u = 1, size(scboxes)
+          scboxes_qp(u) = u
+          if (all_scboxes(scboxes(u))%qp_computed) then
+            all_scboxes_qp(u)%poles = all_scboxes(scboxes(u))%poles_qp
+            all_scboxes_qp(u)%onshell_cuts = all_scboxes(scboxes(u))%onshell_cuts_qp
+            all_scboxes_qp(u)%error = all_scboxes(scboxes(u))%error
+          else
+            call construct_RedBasis_qp(all_scboxes(scboxes(u))%mom1, &
+                                       all_scboxes(scboxes(u))%mom2, &
+                                       Redbasis_qp)
+            call construct_p3scalars_qp(all_scboxes(scboxes(u))%mom3, &
+                                        Redbasis_qp,scalars,gd2,gd3)
+
+            RedSet_qp = redset4_qp(redbasis=Redbasis_qp,              &
+                                   p3scalars=scalars,                 &
+                                   perm=all_scboxes(scboxes(u))%perm, &
+                                   mom3=all_scboxes(scboxes(u))%mom3, &
+                                   gd2=gd2,gd3=gd3)
+            call compute_scalar_box_qp(all_scboxes(scboxes(u))%mom_ind, &
+                                       all_scboxes(scboxes(u))%masses2, &
+                                       RedSet_qp,                       &
+                                       all_scboxes_qp(u))
+            all_scboxes(scboxes(u))%qp_computed = .TRUE.
+            all_scboxes(scboxes(u))%poles_qp = all_scboxes_qp(u)%poles
+            all_scboxes(scboxes(u))%onshell_cuts_qp = all_scboxes_qp(u)%onshell_cuts
+          end if
+        end do
+
+        allocate(Gsum_hcl_qp%cmp(size(Gsum_hcl%cmp)))
+        Gsum_hcl_qp%cmp(:) = Gsum_hcl%cmp_qp(:)
+        Gsum_hcl_qp%mode = Gsum_hcl%mode
+        Gsum_hcl_qp%hit = Gsum_hcl%hit
+        Gsum_hcl_qp%error = real(Gsum_hcl%error,kind=QREALKIND)
+        call TI_reduction_qp(rank,p,get_mass2_qp(masses),Gsum_hcl_qp,M2add_qp, &
+                             scboxes_qp,all_scboxes_qp)
+        M2%cmp_qp = M2%cmp_qp + real(M2add_qp)
+        M2%sicount_qp = M2%sicount_qp + 1
+        deallocate(Gsum_hcl_qp%cmp,scboxes_qp,all_scboxes_qp)
+      end if
+#endif
+
+
   end if
 
 end subroutine TI_call_OL
@@ -572,32 +709,32 @@ subroutine TI_call_qt2(qt2power, rank, momenta, masses_2, Gsum, M2)
   complex(REALKIND), intent(in)    :: momenta(:,:), masses_2(:), Gsum(:)
   real(REALKIND),    intent(inout) :: M2
   complex(REALKIND) :: M2add
-  complex(REALKIND) :: p1p1, p12(4), zero
+  complex(REALKIND) :: p1p1, p12(5), zero
 
   zero = 0._/**/REALKIND
 
   if(rank==0) then
     if(qt2power==1) then
       if (size(momenta,2)==1) then
-	p1p1 = momenta(1,1)*momenta(2,1) - momenta(3,1)*momenta(4,1)
-	M2add = - 0.5_/**/REALKIND*(masses_2(1) + masses_2(2) - p1p1/3._/**/REALKIND)*Gsum(1)
+        p1p1 = momenta(1,1)*momenta(2,1) - momenta(3,1)*momenta(4,1)
+        M2add = - 0.5_/**/REALKIND*(masses_2(1) + masses_2(2) - p1p1/3._/**/REALKIND)*Gsum(1)
       else if(size(momenta,2)==2) then
-	M2add = - Gsum(1)/2
+        M2add = - Gsum(1)/2
       else
-	call ol_error('in TI_call_qt2: rank=0, qt2power=1, number of propagators !=2,3')
-	M2add = zero
+        call ol_error('in TI_call_qt2: rank=0, qt2power=1, number of propagators !=2,3')
+        M2add = zero
       end if
     else if (qt2power==2) then
       if(size(momenta,2)==3) then
-	M2add = - Gsum(1)/6._/**/REALKIND
+        M2add = - Gsum(1)/6._/**/REALKIND
       else
-	call ol_error('in TI_call_qt2: rank=0, qt2power=2, number of propagators !=4')
-	M2add = zero
+        call ol_error('in TI_call_qt2: rank=0, qt2power=2, number of propagators !=4')
+        M2add = zero
       end if
     end if
   else if (rank==1 ) then
     if (size(momenta,2)==2 .AND. qt2power==1) then
-      p12 = momenta(1:4,1) + momenta(1:4,2)
+      p12 = momenta(:,1) + momenta(:,2)
       M2add = - Gsum(1)/2 + SUM(Gsum(2:5)*p12(1:4))/6
     else
       call ol_error('in TI_call_qt2: rank=1, qt2power!=1 OR number of propagators !=3')

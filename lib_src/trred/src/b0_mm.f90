@@ -5,13 +5,11 @@
 !    Copyright (C) 2017-2018 Federico Buccioni, Jean-Nicolas Lang,             !
 !                            Stefano Pozzorini, Hantian Zhang and Max Zoller   !
 !                                                                              !
-!    trred has been developed by Jean-Nicolas Lang and Hantian Zhang           !
+!    trred has been developed by J.-N. Lang, H. Zhang and F. Buccioni          !
 !    trred is licenced under the GNU GPL version 3,                            !
 !    see COPYING for details.                                                  !
 !                                                                              !
 !******************************************************************************!
-
-!Last Modified: February 07, 2018
 
 module b0_mm_DP
   use triangle_aux_DP, only: target_precision,dp,i8,cone,cnul,choose,Lphi,zlogzf, &
@@ -27,11 +25,11 @@ module b0_mm_DP
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
  function B0_n_mm(p2,m2,muUV2,n) result(Bn)
-    complex(dp), intent(in) :: p2,m2,muUV2
+    complex(dp), intent(in) :: p2,m2(:),muUV2
     integer,       intent(in) :: n
     complex(dp) :: z,x,y,Bn,output
 
-    z = m2/p2
+    z = m2(1)/p2
     x = cone/z
     y = sqrt(4*z + cone)
 
@@ -80,14 +78,14 @@ module b0_mm_DP
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   function B0_n_mm_init(p2,m2,muUV2,muIR2,n) result(Bn)
-    complex(dp), intent(in) :: p2,m2,muUV2,muIR2
+    complex(dp), intent(in) :: p2,m2(:),muUV2,muIR2
     integer,       intent(in) :: n
     complex(dp) :: Bn
     complex(dp) :: z,x,y,sum, Pdiff, Pn
     integer       :: k, a, j, i
 
     ! print *, "n=", n
-    z = m2/p2
+    z = m2(1)/p2
     x = cone/z
     y = sqrt(4*z + cone)
 
@@ -117,13 +115,13 @@ module b0_mm_DP
   end function B0_n_mm_init
 
   function B0_n_mm_update(p2,m2,muUV2,muIR2,n) result(Bn)
-    complex(dp), intent(in) :: p2,m2,muUV2,muIR2
+    complex(dp), intent(in) :: p2,m2(:),muUV2,muIR2
     integer,       intent(in) :: n
     complex(dp) :: Bn
     complex(dp) :: z,x,y,sum, Pdiff, Pn
     integer       :: k, a, j, i
 
-    z = m2/p2
+    z = m2(1)/p2
     x = cone/z
     y = sqrt(4*z + cone)
 
@@ -179,12 +177,12 @@ module b0_mm_DP
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
  function B0_n_mm_explict(p2,m2,muUV2,n) result(Bn)
-    complex(dp), intent(in) :: p2,m2,muUV2
+    complex(dp), intent(in) :: p2,m2(:),muUV2
     integer,       intent(in) :: n
     complex(dp) :: z,x,y,Bn,g,f, part1, part2, prod, sum
     integer       :: k, a, j, i
 
-    z = m2/p2
+    z = m2(1)/p2
     x = cone/z
     y = sqrt(4*z + cone)
 
@@ -355,11 +353,11 @@ module b0_mm_QP
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
  function B0_n_mm(p2,m2,muUV2,n) result(Bn)
-    complex(qp), intent(in) :: p2,m2,muUV2
+    complex(qp), intent(in) :: p2,m2(:),muUV2
     integer,       intent(in) :: n
     complex(qp) :: z,x,y,Bn,output
 
-    z = m2/p2
+    z = m2(1)/p2
     x = cone/z
     y = sqrt(4*z + cone)
 
@@ -408,14 +406,14 @@ module b0_mm_QP
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   function B0_n_mm_init(p2,m2,muUV2,muIR2,n) result(Bn)
-    complex(qp), intent(in) :: p2,m2,muUV2,muIR2
+    complex(qp), intent(in) :: p2,m2(:),muUV2,muIR2
     integer,       intent(in) :: n
     complex(qp) :: Bn
     complex(qp) :: z,x,y,sum, Pdiff, Pn
     integer       :: k, a, j, i
 
     ! print *, "n=", n
-    z = m2/p2
+    z = m2(1)/p2
     x = cone/z
     y = sqrt(4*z + cone)
 
@@ -445,13 +443,13 @@ module b0_mm_QP
   end function B0_n_mm_init
 
   function B0_n_mm_update(p2,m2,muUV2,muIR2,n) result(Bn)
-    complex(qp), intent(in) :: p2,m2,muUV2,muIR2
+    complex(qp), intent(in) :: p2,m2(:),muUV2,muIR2
     integer,       intent(in) :: n
     complex(qp) :: Bn
     complex(qp) :: z,x,y,sum, Pdiff, Pn
     integer       :: k, a, j, i
 
-    z = m2/p2
+    z = m2(1)/p2
     x = cone/z
     y = sqrt(4*z + cone)
 
@@ -507,12 +505,12 @@ module b0_mm_QP
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
  function B0_n_mm_explict(p2,m2,muUV2,n) result(Bn)
-    complex(qp), intent(in) :: p2,m2,muUV2
+    complex(qp), intent(in) :: p2,m2(:),muUV2
     integer,       intent(in) :: n
     complex(qp) :: z,x,y,Bn,g,f, part1, part2, prod, sum
     integer       :: k, a, j, i
 
-    z = m2/p2
+    z = m2(1)/p2
     x = cone/z
     y = sqrt(4*z + cone)
 

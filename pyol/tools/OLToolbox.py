@@ -183,7 +183,7 @@ def get_svn_revision(mandatory=False):
 # Process library source files #
 # ============================ #
 
-def get_subprocess_src(loops, sub_process, processlib_src_dir,
+def get_subprocess_src(loops, sub_process, processlib_src_dir, config,
                        nvirtualfiles=0, override_loops=False):
     """Return lists of double precision, multi precision and info files
     which belong to a subprocess. Used to determine which files must be
@@ -193,8 +193,10 @@ def get_subprocess_src(loops, sub_process, processlib_src_dir,
     process definition; the info file does not exist yet)."""
     info_files = [os.path.join(processlib_src_dir,
                                'info_' + sub_process + '.txt')]
-    # Read info file for subprocess and check for 'Type' option
-    # to override loops specification.
+    # Read info file for subprocess and
+    # * check for 'Type' option to override loops specification,
+    # * check for 'OLMode' option yo set olmode.
+    olmode = 0
     if override_loops:
         try:
             fh = open(info_files[0], 'r')
@@ -206,7 +208,8 @@ def get_subprocess_src(loops, sub_process, processlib_src_dir,
         for opt in info.split():
             if opt.startswith('Type='):
                 loops = opt[5:]
-                break
+            elif opt.startswith('OLMode='):
+                olmode = int(opt[7:])
 
     if loops == 't':
         dp_src = ['born_generic_' + sub_process + '.F90']
@@ -224,12 +227,28 @@ def get_subprocess_src(loops, sub_process, processlib_src_dir,
                    'checks_' + sub_process + '.F90']
                 + ['virtual_' + str(n+1) + '_' + sub_process + '.F90'
                    for n in range(nvirtualfiles)])
-
         if 't' in loops:
             dp_src.append('born_generic4loop_' + sub_process + '.F90')
             mp_src.append('born4loop_' + sub_process + '.F90')
         if 'p' in loops:
             mp_src.append('pseudotree_' + sub_process + '.F90')
+        # Decide if the loop process code is duplicated
+        # to compiled it in quad precision.
+        enable_process_qp = True
+        if 's' in loops:
+            # Loop-squared: qp only for checks
+            enable_process_qp = config['process_qp_checks']
+            print('enable_process_qp:', enable_process_qp)
+        else:
+            if olmode <= 1:
+                # OL1-type NLO or helicity optimised NLO: qp as rescue mode
+                enable_process_qp = config['process_qp_rescue']
+            else:
+                # On-the-fly reduction: qp only for checks
+                enable_process_qp = config['process_qp_checks']
+        if not enable_process_qp:
+            dp_src.extend(mp_src)
+            mp_src = []
 
     dp_src = [os.path.join(processlib_src_dir, srcfile) for srcfile in dp_src]
     mp_src = [os.path.join(processlib_src_dir, srcfile) for srcfile in mp_src]
@@ -238,17 +257,17 @@ def get_subprocess_src(loops, sub_process, processlib_src_dir,
 
 
 
-def get_processlib_src(loops, processlib, process_src_dir, compile_extra=True):
+def get_processlib_src(loops, processlib, config):
     """Return lists of double precision, multi precision and info files
     which belong to a process library. Used to determine which files must be
     compiled. Not used to determine which files are generated."""
-    processlib_src_dir = os.path.join(process_src_dir, processlib)
+    processlib_src_dir = os.path.join(config['process_src_dir'], processlib)
     subprocesses = import_list(os.path.join(
         processlib_src_dir, 'process_definition', 'subprocesses.list'))
     subprocesses_extra = import_list(os.path.join(
         processlib_src_dir, 'process_definition', 'subprocesses_extra.list'),
         fatal=False)
-    if subprocesses_extra and compile_extra:
+    if subprocesses_extra and config['compile_extra']:
         subprocesses.extend(subprocesses_extra)
     dp_src = [os.path.join(processlib_src_dir,
                            'version_' + processlib + '.F90')]
@@ -257,7 +276,7 @@ def get_processlib_src(loops, processlib, process_src_dir, compile_extra=True):
 
     for sub_process in subprocesses:
         dp_add, mp_add, info_add = get_subprocess_src(
-            loops, sub_process, processlib_src_dir, override_loops=True)
+            loops, sub_process, processlib_src_dir, config, override_loops=True)
         dp_src.extend(dp_add)
         mp_src.extend(mp_add)
         info_files.extend(info_add)

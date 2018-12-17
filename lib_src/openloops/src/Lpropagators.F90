@@ -95,7 +95,7 @@ subroutine prop_loop_Q_A(rank_in,rank_out,G_Q,K,M,Gout_Q)
   implicit none
   integer,           intent(in)  :: rank_in, rank_out
   complex(REALKIND), intent(in)  :: G_Q(4,rank_in), K(5), M
-  complex(REALKIND), intent(out) :: Gout_Q(4,rank_out)
+  complex(REALKIND), intent(inout) :: Gout_Q(4,rank_out)
   integer :: l
 
   Gout_Q = 0

@@ -20,6 +20,13 @@
 
 module ol_vertices_/**/REALKIND
   implicit none
+
+  ! interface to support explicit momenta and momentum integers
+  interface vert_UV_W
+    module procedure vert_UV_W_mexpl, vert_UV_W_mids
+  end interface
+
+
   contains
 
 ! **********************************************************************
@@ -213,7 +220,9 @@ end subroutine vert_QA_V
 
 ! **********************************************************************
 ! subroutine vert_VV_V(J_V1, P1, J_V2, P2, Jout_V)
-subroutine vert_UV_W(J_V1, P1, J_V2, P2, Jout_V)
+! TODO:  <09-11-18, J.-N. Lang> !
+
+subroutine vert_UV_W_mexpl(J_V1, P1, J_V2, P2, Jout_V)
 ! bare VV -> V vertex
 ! ----------------------------------------------------------------------
 ! J_Vi(4)    = incoming gluon currents (light-cone rep.)
@@ -235,8 +244,36 @@ subroutine vert_UV_W(J_V1, P1, J_V2, P2, Jout_V)
   P2J1 = cont_VV(P1+P2+P2,J_V1)
   Jout_V = J1J2 * (P1 - P2) + P2J1 * J_V2 - P1J2 * J_V1
 
-! end subroutine vert_VV_V
-end subroutine vert_UV_W
+end subroutine vert_UV_W_mexpl
+
+! **********************************************************************
+subroutine vert_UV_W_mids(J_V1, mom1, J_V2, mom2, Jout_V)
+! bare VV -> V vertex
+! ----------------------------------------------------------------------
+! J_Vi(4)    = incoming gluon currents (light-cone rep.)
+! Pi(4)      = incoming J_Vi momentum  (light-cone rep.)
+! Jout_V(4)  = outgoing gluon current  (light-cone rep.)
+! Jout_V(a3) = {  g(a1,a2)*[P1-P2](a3) + g(a2,a3)*[P2+Pout](a1)
+!               + g(a3,a1)*[-Pout-P1](a2)} * J_V1(a1) * J_V2(a2)
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_contractions_/**/REALKIND, only: cont_VV
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
+  implicit none
+
+  integer,           intent(in)  :: mom1, mom2
+  complex(REALKIND), intent(in)  :: J_V1(4), J_V2(4)
+  complex(REALKIND), intent(out) :: Jout_V(4)
+  complex(REALKIND) :: J1J2, P1J2, P2J1, P1(4), P2(4)
+
+  P1 = get_LC_4(mom1)
+  P2 = get_LC_4(mom2)
+  J1J2 = cont_VV(J_V1,J_V2)
+  P1J2 = cont_VV(P1+P1+P2,J_V2)
+  P2J1 = cont_VV(P1+P2+P2,J_V1)
+  Jout_V = J1J2 * (P1 - P2) + P2J1 * J_V2 - P1J2 * J_V1
+
+end subroutine vert_UV_W_mids
 
 
 ! **********************************************************************
@@ -1165,6 +1202,12 @@ end module ol_vertices_/**/REALKIND
 
 module ol_s_vertices_/**/REALKIND
   implicit none
+
+  ! interface to support explicit momenta and momentum integers
+  interface vert_UV_W
+    module procedure vert_UV_W_mexpl, vert_UV_W_mids
+  end interface
+
   contains
 
 !************************************************************************
@@ -1549,7 +1592,7 @@ end subroutine vert_QA_V
 
 
 ! **********************************************************************
-subroutine vert_UV_W(V1, P1, V2, P2, V_out)
+subroutine vert_UV_W_mexpl(V1, P1, V2, P2, V_out)
 ! bare VV -> V vertex
 ! ----------------------------------------------------------------------
 ! Vi          = incoming gluon (light-cone rep.)
@@ -1571,7 +1614,36 @@ subroutine vert_UV_W(V1, P1, V2, P2, V_out)
   P1J2 = cont_PP(P1+P1+P2,V2%j)
   P2J1 = cont_PP(P1+P2+P2,V1%j)
   V_out%j = J1J2 * (P1 - P2) + P2J1 * V2%j - P1J2 * V1%j
-end subroutine vert_UV_W
+end subroutine vert_UV_W_mexpl
+
+
+! **********************************************************************
+subroutine vert_UV_W_mids(V1, mom1, V2, mom2, V_out)
+! bare VV -> V vertex
+! ----------------------------------------------------------------------
+! Vi          = incoming gluon (light-cone rep.)
+! Pi(4)       = incoming Vi momentum  (light-cone rep.)
+! V_out(4)    = outgoing gluon (light-cone rep.)
+! V_out%j(a3) = {  g(a1,a2)*[P1-P2](a3) + g(a2,a3)*[P2+Pout](a1)
+!               + g(a3,a1)*[-Pout-P1](a2)} * V1%j(a1) * V2%j(a2)
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_s_contractions_/**/REALKIND, only: cont_PP
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
+  implicit none
+  type(wfun),        intent(in)  :: V1, V2
+  integer,           intent(in)  :: mom1, mom2
+  type(wfun),        intent(out) :: V_out
+  complex(REALKIND) :: J1J2, P1J2, P2J1, P1(4), P2(4)
+
+  P1 = get_LC_4(mom1)
+  P2 = get_LC_4(mom2)
+  J1J2 = cont_PP(V1%j,V2%j)
+  P1J2 = cont_PP(P1+P1+P2,V2%j)
+  P2J1 = cont_PP(P1+P2+P2,V1%j)
+  V_out%j = J1J2 * (P1 - P2) + P2J1 * V2%j - P1J2 * V1%j
+end subroutine vert_UV_W_mids
 
 
 ! **********************************************************************
@@ -2047,6 +2119,12 @@ end module ol_s_vertices_/**/REALKIND
 
 module ol_h_vertices_/**/REALKIND
   implicit none
+
+  ! interface to support explicit momenta and momentum integers
+  interface vert_UV_W
+    module procedure vert_UV_W_mexpl, vert_UV_W_mids
+  end interface
+
   contains
 
 ! ! **********************************************************************
@@ -2551,7 +2629,7 @@ end subroutine vert_QA_V
 
 
 ! **********************************************************************
-subroutine vert_UV_W(ntry, V1, P1, V2, P2, V_out, n, t)
+subroutine vert_UV_W_mexpl(ntry, V1, P1, V2, P2, V_out, n, t)
 ! bare VV -> V vertex
 ! ----------------------------------------------------------------------
 ! ntry           = 1 (2) for 1st (subsequent) PS points
@@ -2597,7 +2675,57 @@ subroutine vert_UV_W(ntry, V1, P1, V2, P2, V_out, n, t)
 
   if (ntry == 1) call helbookkeeping_vert3(ntry, V1, V2, V_out, n, t)
 
-end subroutine vert_UV_W
+end subroutine vert_UV_W_mexpl
+
+! **********************************************************************
+subroutine vert_UV_W_mids(ntry, V1, mom1, V2, mom2, V_out, n, t)
+! bare VV -> V vertex
+! ----------------------------------------------------------------------
+! ntry           = 1 (2) for 1st (subsequent) PS points
+! Vi(1:n(i))     = incoming gluon (light-cone representation)
+! Pi(4)          = incoming Vi momentum  (light-cone representation)
+! V_out(1:n(3))  = outgoing gluon (light-cone representation)
+! V_out(h)%j(a3) = {  g(a1,a2)*[P1-P2](a3) + g(a2,a3)*[P2+Pout](a1)
+!               + g(a3,a1)*[-Pout-P1](a2)} * V1(t(1,h))%j(a1) * V2(t(2,h))%j(a2)
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert3
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
+!   use ol_h_contractions_/**/REALKIND, only: cont_PP
+  implicit none
+  integer(intkind1), intent(in)   :: ntry
+  integer,           intent(in)   :: mom1,mom2
+  integer(intkind2), intent(inout):: n(3), t(2,n(3))
+  type(wfun),        intent(in)   :: V1(n(1)), V2(n(2))
+  type(wfun),        intent(out)  :: V_out(n(3))
+  complex(REALKIND) :: J1J2, P1J2(n(2)), P2J1(n(1))
+  complex(REALKIND) :: P1half(4), P2half(4), P12(4), P112(4), P122(4)
+  integer :: h
+
+  P1half = 0.5_/**/REALKIND * get_LC_4(mom1)
+  P2half = 0.5_/**/REALKIND * get_LC_4(mom2)
+  P12  = P1half - P2half
+  P112 = P1half + P1half + P2half
+  P122 = P1half + P2half + P2half
+  do h = 1, n(1)
+    P2J1(h) = P122(1) * V1(h)%j(2) + P122(2) * V1(h)%j(1) &
+            - P122(3) * V1(h)%j(4) - P122(4) * V1(h)%j(3)
+  end do
+  do h = 1, n(2)
+    P1J2(h) = P112(1) * V2(h)%j(2) + P112(2) * V2(h)%j(1) &
+             -P112(3) * V2(h)%j(4) - P112(4) * V2(h)%j(3)
+  end do
+  do h = 1, n(3)
+    J1J2 = V1(t(1,h))%j(1) * V2(t(2,h))%j(2) + V1(t(1,h))%j(2) * V2(t(2,h))%j(1) &
+          -V1(t(1,h))%j(3) * V2(t(2,h))%j(4) - V1(t(1,h))%j(4) * V2(t(2,h))%j(3)
+
+    V_out(h)%j = J1J2 * P12 + P2J1(t(1,h)) * V2(t(2,h))%j - P1J2(t(2,h)) * V1(t(1,h))%j
+  end do
+
+  if (ntry == 1) call helbookkeeping_vert3(ntry, V1, V2, V_out, n, t)
+
+end subroutine vert_UV_W_mids
 
 
 ! **********************************************************************

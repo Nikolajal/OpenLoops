@@ -49,7 +49,8 @@ subroutine qcd_renormalisation
 #ifndef PRECISION_dp
   use ol_parameters_decl_/**/DREALKIND, only: LeadingColour, model
   use ol_loop_parameters_decl_/**/DREALKIND, only: &
-    & nc, nf, nf_up, nf_down, N_lf, nq_nondecoupl, CT_is_on, R2_is_on, SwF, SwB
+    & nc, nf, nf_up, nf_down, N_lf, nq_nondecoupl, CT_is_on, R2_is_on, SwF, SwB, &
+    bubble_vertex
 #endif
   implicit none
 
@@ -146,16 +147,16 @@ subroutine qcd_renormalisation
     if (nf > 3) then
       if (MC /= 0) then
         dZg = dZg - (4*tf)/3 * deC_UV
-        if (nq_nondecoupl < 4 .or. mureg <= rMC) then
-          dgQCD = dgQCD + (2*tf)*real(log(mureg2/MC2))/3
+        if (nq_nondecoupl < 4 .or. muren <= rMC) then
+          dgQCD = dgQCD + (2*tf)*real(log(muren2/MC2))/3
         end if
       end if
     end if
     if (nf > 4) then
       if (MB /= 0) then
         dZg = dZg - (4*tf)/3 * deB_UV
-        if (nq_nondecoupl < 5 .or. mureg <= rMB) then
-          dgQCD = dgQCD + (2*tf)*real(log(mureg2/MB2))/3
+        if (nq_nondecoupl < 5 .or. muren <= rMB) then
+          dgQCD = dgQCD + (2*tf)*real(log(muren2/MB2))/3
         end if
       end if
     end if
@@ -163,8 +164,8 @@ subroutine qcd_renormalisation
       if (MT /= 0) then
         dZg = dZg - (4*tf)/3 * deT_UV
         ! top-quark decoupling term
-        if (nq_nondecoupl < 6 .or. mureg <= rMT) then
-          dgQCD = dgQCD + (2*tf)*real(log(mureg2/MT2))/3
+        if (nq_nondecoupl < 6 .or. muren <= rMT) then
+          dgQCD = dgQCD + (2*tf)*real(log(muren2/MT2))/3
         end if
       end if
     end if
@@ -291,16 +292,25 @@ subroutine qcd_renormalisation
 
   if (CT_is_on /= 0) then
     ! Only UV counterterms
-    dummy_complex = dZq
-    ctqq   = [ dummy_complex, ZERO ]
-    dummy_complex = dZc
-    ctcc   = [ dummy_complex, MC * (dZMC + dZc) ]
-    dummy_complex = dZb
-    ctbb   = [ dummy_complex, MB * (dZMB + dZb) ]
-    dummy_complex = dZt
-    cttt   = [ dummy_complex, MT * (dZMT + dZt) ]
-    dummy_complex = dZg
-    ctGG   = [ dummy_complex, ZERO , ZERO ]
+
+    if (bubble_vertex .eq. 1) then
+      ctqq   = [ ZERO, ZERO ]
+      ctcc   = [ ZERO, ZERO ]
+      ctbb   = [ ZERO, ZERO ]
+      cttt   = [ ZERO, ZERO ]
+      ctGG   = [ ZERO, ZERO , ZERO ]
+    else
+      dummy_complex = dZq
+      ctqq   = [ dummy_complex, ZERO ]
+      dummy_complex = dZc
+      ctcc   = [ dummy_complex, MC * (dZMC + dZc) ]
+      dummy_complex = dZb
+      ctbb   = [ dummy_complex, MB * (dZMB + dZb) ]
+      dummy_complex = dZt
+      cttt   = [ dummy_complex, MT * (dZMT + dZt) ]
+      dummy_complex = dZg
+      ctGG   = [ dummy_complex, ZERO , ZERO ]
+    end if
     ctGqq = (dgQCD + dZq + dZg/2)
     ctGcc = (dgQCD + dZc + dZg/2)
     ctGbb = (dgQCD + dZb + dZg/2)
@@ -362,12 +372,16 @@ subroutine qcd_renormalisation
     if (SwB /= 0) then
       ! non-fermionic
       dummy_complex = -cf
-      ctqq   = ctqq + [ dummy_complex, ZERO ]
-      ctcc   = ctcc + [ dummy_complex, -2*MC*cf ]
-      ctbb   = ctbb + [ dummy_complex, -2*MB*cf ]
-      cttt   = cttt + [ dummy_complex, -2*MT*cf ]
+      if (bubble_vertex .eq. 0) then
+        ctqq   = ctqq + [ dummy_complex, ZERO ]
+        ctcc   = ctcc + [ dummy_complex, -2*MC*cf ]
+        ctbb   = ctbb + [ dummy_complex, -2*MB*cf ]
+        cttt   = cttt + [ dummy_complex, -2*MT*cf ]
+      end if
       dummy_complex = -0.5_/**/REALKIND*ca
-      ctGG   = ctGG + [ dummy_complex, ZERO , cONE ]
+      if (bubble_vertex .eq. 0) then
+        ctGG   = ctGG + [ dummy_complex, ZERO , cONE ]
+      end if
       ctGqq = ctGqq - 2*cf
       ctGcc = ctGcc - 2*cf
       ctGbb = ctGbb - 2*cf
@@ -425,7 +439,9 @@ subroutine qcd_renormalisation
     if (SwF /= 0) then
       ! fermionic
       dummy_complex = -(2*tf*nf)/3
-      ctGG   = ctGG + [ dummy_complex, 4*tf*MQ2sum , ZERO ]
+      if (bubble_vertex .eq. 0) then
+        ctGG   = ctGG + [ dummy_complex, 4*tf*MQ2sum , ZERO ]
+      end if
       ctVVV  = ctVVV - (4*tf*nf)/3
       ! pure R2 terms
       ! ZGG R2 coupling: 4/3*sum_q(a_q)
@@ -475,3 +491,506 @@ subroutine qcd_renormalisation
 end subroutine qcd_renormalisation
 
 end module ol_qcd_renormalisation_/**/REALKIND
+
+
+module ol_qcd_offshell_selfenergies/**/REALKIND
+  use KIND_TYPES, only: REALKIND, DREALKIND
+  use ol_loop_parameters_decl_/**/REALKIND, only: de1_IR, de1_UV, de2_i_IR
+  use ol_debug, only: ol_msg, ol_error, ol_fatal
+  use ol_generic, only: to_string
+  implicit none
+
+  contains
+
+    ! Gluon self-energy
+function gluon_ofsse(p2,pid)
+  use KIND_TYPES, only: DREALKIND, REALKIND
+  use ol_parameters_decl_/**/REALKIND
+  use ol_loop_parameters_decl_/**/REALKIND
+#ifndef PRECISION_dp
+  use ol_loop_parameters_decl_/**/DREALKIND, only: &
+    & nc, N_lf, bubble_vertex
+#endif
+  complex(REALKIND), intent(in) :: p2
+  integer,           intent(in) :: pid
+  complex(REALKIND) :: cc1,gluon_ofsse(3),B01,B02,B03,B04
+  complex(REALKIND) :: cc1R1
+
+  !complex(REALKIND) :: B0_1,B0_2,B1_1,B1_2,B11_1,B11_2,B00_1,B00_2
+  real(REALKIND) :: ncc,nlf
+  integer :: i
+
+  if (pid .ne. 21) then
+    call ol_fatal('Cannot use gluon_ofsse for pid other than 21. pid=' //  &
+                  trim(to_string(pid)) // '.')
+  end if
+
+  ncc = real(nc,kind=REALKIND)
+  nlf = real(N_lf,kind=REALKIND)
+  ! gs**2/(16*pi**2) stripped, assert(N_lf == 5, Nf == 6)
+
+  B01 = calcB0(p2,ZERO,ZERO)
+  cc1 = +(5*ncc-2*nlf)*(B01)/real(3,kind=REALKIND)
+
+  do i = N_lf, 5
+    select case (i)
+    case (5)
+      B02 = calcB0(ZERO,MT2,MT2)
+      B03 = calcB0(p2,MT2,MT2)
+      cc1 = cc1 + 4*MT2*(B02-B03)/(3*p2) &
+                - 2*B03/3
+    case (4)
+      B02 = calcB0(ZERO,MB2,MB2)
+      B03 = calcB0(p2,MB2,MB2)
+      cc1 = cc1 + 4*MB2*(B02-B03)/(3*p2) &
+                - 2*B03/3
+    case (3)
+      B02 = calcB0(ZERO,MC2,MC2)
+      B03 = calcB0(p2,MC2,MC2)
+      cc1 = cc1 + 4*MC2*(B02-B03)/(3*p2) &
+                - 2*B03/3
+    case default
+      call ol_fatal('Flavor scheme N_lf=' // trim(to_string(N_lf)) // ' not implemented for bubble_vertex.')
+  end select
+  end do
+
+  ! only R1
+  cc1R1 = (12 + ncc)/real(9,kind=REALKIND)
+  gluon_ofsse(1) =  (dZg - cc1 - cc1R1)  ! w^\mu_out = p^2 w^\mu_in
+  gluon_ofsse(2) =  0                        ! w^\mu_out = w^\mu_in
+  gluon_ofsse(3) = -(-cc1 + cc1R1)  ! w^\mu_out = (w_in.p) p^\mu
+
+  end function
+
+    ! Quark self-energy
+function quark_ofsse(p2,pid)
+  use KIND_TYPES, only: DREALKIND, REALKIND
+  use ol_parameters_decl_/**/REALKIND
+  use ol_loop_parameters_decl_/**/REALKIND
+#ifndef PRECISION_dp
+  use ol_loop_parameters_decl_/**/DREALKIND, only: &
+    & nc, N_lf, bubble_vertex
+#endif
+  complex(REALKIND), intent(in) :: p2
+  integer,           intent(in) :: pid
+  complex(REALKIND) :: cc1,cc2,cc3,quark_ofsse(2),B01,B02,B03
+  complex(REALKIND) :: cc1R1,cc2R1,cc3R1,fac
+  complex(REALKIND) :: cc1R2,cc2R2,cc3R2
+
+  complex(REALKIND) :: B0_1,A0_1,dZ,dM,M,M2
+
+
+  select case (pid)
+  case (1)
+    dZ = dZq
+    dM = 0
+    M = MD
+    M2 = MD2
+  case (2)
+    dZ = dZq
+    dM = 0
+    M = MU
+    M2 = MU2
+  case (3)
+    dZ = dZq
+    dM = 0
+    M = MS
+    M2 = MS2
+  case (4)
+    dZ = dZc
+    dM = dZMC
+    M = MC
+    M2 = MC2
+  case (5)
+    dZ = dZb
+    dM = dZMB
+    M = MB
+    M2 = MB2
+  case (6)
+    dZ = dZt
+    dM = dZMT
+    M = MT
+    M2 = MT2
+  case default
+    call ol_fatal('Cannot use quark_ofsse for pidse other than 1,2,3,4,5,6. ' // &
+                  'pid=' // trim(to_string(pid)) // '.')
+  end select
+
+  B0_1 = calcB0(p2,ZERO,M2)
+  A0_1 = calcA0(M2)
+  fac = rONE*cf
+  quark_ofsse(1) = dZ + fac*((M2+p2) * B0_1 - A0_1 -p2)/p2  ! w^i_out = pslash^{ij} w^j_in
+  quark_ofsse(2) = M*(dM + dZ) + fac*(4*M*B0_1-2*M)         ! w^i_out = w^i_in
+
+
+  end function
+
+  function calcA0(m12_in)
+    use ol_parameters_decl_/**/DREALKIND, only: ew_renorm_switch, coli_cache_use
+    use ol_loop_parameters_decl_/**/DREALKIND, only: a_switch
+#ifdef USE_COLLIER
+    use collier, only: setmode_cll
+    use collier_coefs, only: A0_cll
+    use cache, only: SwitchOffCacheSystem_cll, SwitchOnCacheSystem_cll
+#endif
+#ifdef USE_ONELOOP
+    use avh_olo_/**/REALKIND
+#endif
+    complex(REALKIND) calcA0
+    complex(REALKIND), intent(in) :: m12_in
+    complex(DREALKIND) m12
+    complex(DREALKIND) A0_coli
+#ifdef USE_ONELOOP
+    complex(REALKIND) :: rslt(0:2)
+#endif
+
+    calcA0 = 0
+
+    m12 = m12_in
+
+#if defined(USE_COLLIER)
+    if ((ew_renorm_switch == 1 .or. ew_renorm_switch == 7 .or. ew_renorm_switch == 99) &
+          .and. coli_cache_use == 1) then
+      call SwitchOffCacheSystem_cll
+    end if
+    if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
+      call setmode_cll(1)
+      call A0_cll(A0_coli,m12)
+      calcA0 = A0_coli
+      if (ew_renorm_switch == 99) then
+        print*, "A0 CO:  ", A0_coli
+      end if
+      if (a_switch == 7) call setmode_cll(2)
+    end if
+    if (ew_renorm_switch == 7 .or. ew_renorm_switch == 99) then
+      call setmode_cll(2)
+      call A0_cll(A0_coli,m12)
+      calcA0 = A0_coli
+      if (ew_renorm_switch == 99) then
+        print*, "A0 DD:  ", A0_coli
+      end if
+      if (a_switch == 1) call setmode_cll(1)
+    end if
+    if ((ew_renorm_switch == 1 .or. ew_renorm_switch == 7 .or. ew_renorm_switch == 99) &
+          .and. coli_cache_use == 1) then
+      call SwitchOnCacheSystem_cll
+    end if
+#endif
+
+#ifdef USE_ONELOOP
+    if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
+      call olo_a0(rslt,m12_in)
+      calcA0 = rslt(0) + rslt(1)*de1_IR + rslt(2)*de2_i_IR
+      if (ew_renorm_switch == 99) then
+        print*, "A0 OLO: ", calcB0
+      end if
+    end if
+#endif
+
+      return
+  end function calcA0
+
+  function calcB0(p2_in,m12_in,m22_in)
+    use ol_parameters_decl_/**/DREALKIND, only: ew_renorm_switch, coli_cache_use
+    use ol_loop_parameters_decl_/**/DREALKIND, only: a_switch
+#ifdef USE_COLLIER
+    use collier, only: setmode_cll
+    use collier_coefs, only: B0_cll
+    use cache, only: SwitchOffCacheSystem_cll, SwitchOnCacheSystem_cll
+#endif
+#ifdef USE_ONELOOP
+    use avh_olo_/**/REALKIND
+#endif
+    complex(REALKIND) calcB0
+    complex(REALKIND), intent(in) :: p2_in
+    complex(REALKIND), intent(in) :: m12_in
+    complex(REALKIND), intent(in) :: m22_in
+    complex(REALKIND) p2q
+    complex(DREALKIND) p2
+    complex(DREALKIND) m12
+    complex(DREALKIND) m22
+    complex(DREALKIND) B0_coli
+#ifdef USE_ONELOOP
+    complex(REALKIND) :: rslt(0:2)
+#endif
+
+    calcB0 = 0
+
+    p2  = p2_in
+    m12 = m12_in
+    m22 = m22_in
+
+#ifdef USE_COLLIER
+    if ((ew_renorm_switch == 1 .or. ew_renorm_switch == 7 .or. ew_renorm_switch == 99) &
+          .and. coli_cache_use == 1) then
+      call SwitchOffCacheSystem_cll
+    end if
+    if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
+      call setmode_cll(1)
+      p2 = real(p2)
+      call B0_cll(B0_coli,p2,m12,m22)
+      calcB0 = B0_coli
+      if (ew_renorm_switch == 99) then
+        print*, "B0 CO:  ", B0_coli
+      end if
+      if (a_switch == 7) call setmode_cll(2)
+    end if
+    if (ew_renorm_switch == 7 .or. ew_renorm_switch == 99) then
+      call setmode_cll(2)
+      p2 = real(p2)
+      call B0_cll(B0_coli,p2,m12,m22)
+      calcB0 = B0_coli
+      if (ew_renorm_switch == 99) then
+        print*, "B0 DD:  ", B0_coli
+      end if
+      if (a_switch == 1) call setmode_cll(1)
+    end if
+    if ((ew_renorm_switch == 1 .or. ew_renorm_switch == 7 .or. ew_renorm_switch == 99) &
+          .and. coli_cache_use == 1) then
+      call SwitchOnCacheSystem_cll
+    end if
+#endif
+
+#ifdef USE_ONELOOP
+    if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
+      p2q = real(p2_in)
+      call olo_b0(rslt,real(p2q),m12_in,m22_in)
+      calcB0 = rslt(0) + rslt(1)*de1_IR + rslt(2)*de2_i_IR
+      if (ew_renorm_switch == 99) then
+        print*, "B0 OLO: ", calcB0
+      end if
+    end if
+#endif
+
+      return
+  end function calcB0
+
+  function calcB1(p2_in,m12_in,m22_in)
+    use ol_parameters_decl_/**/DREALKIND, only: ew_renorm_switch, coli_cache_use
+    use ol_loop_parameters_decl_/**/DREALKIND, only: a_switch
+#ifdef USE_COLLIER
+    use collier, only: setmode_cll
+    use collier_coefs, only: B_cll
+    use cache, only: SwitchOffCacheSystem_cll, SwitchOnCacheSystem_cll
+#endif
+#ifdef USE_ONELOOP
+    use avh_olo_/**/REALKIND
+#endif
+    complex(REALKIND) calcB1
+    complex(REALKIND), intent(in) :: p2_in
+    complex(REALKIND), intent(in) :: m12_in
+    complex(REALKIND), intent(in) :: m22_in
+    complex(DREALKIND) :: p2
+    complex(DREALKIND) :: m12
+    complex(DREALKIND) :: m22
+    complex(DREALKIND) B1_coli
+#ifdef USE_COLLIER
+    complex(DREALKIND) B(0:1,0:1), Buv(0:1,0:1)
+#endif
+#ifdef USE_ONELOOP
+    complex(REALKIND) :: rslt_b11(0:2), rslt_b00(0:2), rslt_b1(0:2), rslt_b0(0:2)
+#endif
+
+    calcB1 = 0
+
+    p2  = p2_in
+    m12 = m12_in
+    m22 = m22_in
+
+#ifdef USE_COLLIER
+    if ((ew_renorm_switch == 1 .or. ew_renorm_switch == 7 .or. ew_renorm_switch == 99) &
+          .and. coli_cache_use == 1) then
+      call SwitchOffCacheSystem_cll
+    end if
+    if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
+      call setmode_cll(1)
+      p2 = real(p2)
+      call B_cll(B,Buv,p2,m12,m22,1)
+      calcB1 = B(1,0)
+      if (ew_renorm_switch == 99) then
+        print*, "B1 CO:  ", calcB1
+      end if
+      if (a_switch == 7) call setmode_cll(2)
+    end if
+    if (ew_renorm_switch == 7 .or. ew_renorm_switch == 99) then
+      call setmode_cll(2)
+      p2 = real(p2)
+      call B_cll(B,Buv,p2,m12,m22,1)
+      calcB1 = B(1,0)
+      if (ew_renorm_switch == 99) then
+        print*, "B1 DD:  ", calcB1
+      end if
+      if (a_switch == 1) call setmode_cll(1)
+    end if
+    if ((ew_renorm_switch == 1 .or. ew_renorm_switch == 7 .or. ew_renorm_switch == 99) &
+          .and. coli_cache_use == 1) then
+      call SwitchOnCacheSystem_cll
+    end if
+#endif
+
+#ifdef USE_ONELOOP
+    if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
+      call olo_b11(rslt_b11,rslt_b00,rslt_b1,rslt_b0,real(p2_in),m12_in,m22_in)
+      calcB1 = rslt_b1(0) + rslt_b1(1)*de1_IR + rslt_b1(2)*de2_i_IR
+      if (ew_renorm_switch == 99) then
+        print*, "B1 OLO: ", calcB1
+      end if
+    end if
+#endif
+
+    return
+  end function calcB1
+
+  function calcB00(p2_in,m12_in,m22_in)
+    use ol_parameters_decl_/**/DREALKIND, only: ew_renorm_switch, coli_cache_use
+    use ol_loop_parameters_decl_/**/DREALKIND, only: a_switch
+#ifdef USE_COLLIER
+    use collier, only: setmode_cll
+    use collier_coefs, only: B_cll
+    use cache, only: SwitchOffCacheSystem_cll, SwitchOnCacheSystem_cll
+#endif
+#ifdef USE_ONELOOP
+    use avh_olo_/**/REALKIND
+#endif
+    complex(REALKIND) calcB00
+    complex(REALKIND), intent(in) :: p2_in
+    complex(REALKIND), intent(in) :: m12_in
+    complex(REALKIND), intent(in) :: m22_in
+    complex(DREALKIND) :: p2
+    complex(DREALKIND) :: m12
+    complex(DREALKIND) :: m22
+    complex(DREALKIND) B1_coli
+#ifdef USE_COLLIER
+    complex(DREALKIND) B(0:2,0:1), Buv(0:2,0:1)
+#endif
+#ifdef USE_ONELOOP
+    complex(REALKIND) :: rslt_b11(0:2), rslt_b00(0:2), rslt_b1(0:2), rslt_b0(0:2)
+#endif
+
+    calcB00 = 0
+
+    p2  = p2_in
+    m12 = m12_in
+    m22 = m22_in
+
+#if defined(USE_COLLIER)
+    if ((ew_renorm_switch == 1 .or. ew_renorm_switch == 7 .or. ew_renorm_switch == 99) &
+          .and. coli_cache_use == 1) then
+      call SwitchOffCacheSystem_cll
+    end if
+    if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
+      call setmode_cll(1)
+      p2 = real(p2)
+      call B_cll(B,Buv,p2,m12,m22,2)
+      calcB00 = B(1,0)
+      if (ew_renorm_switch == 99) then
+        print*, "B00 CO:  ", calcB00
+      end if
+      if (a_switch == 7) call setmode_cll(2)
+    end if
+    if (ew_renorm_switch == 7 .or. ew_renorm_switch == 99) then
+      call setmode_cll(2)
+      p2 = real(p2)
+      call B_cll(B,Buv,p2,m12,m22,2)
+      calcB00 = B(1,0)
+      if (ew_renorm_switch == 99) then
+        print*, "B00 DD:  ", calcB00
+      end if
+      if (a_switch == 1) call setmode_cll(1)
+    end if
+    if ((ew_renorm_switch == 1 .or. ew_renorm_switch == 7 .or. ew_renorm_switch == 99) &
+          .and. coli_cache_use == 1) then
+      call SwitchOnCacheSystem_cll
+    end if
+#endif
+
+#ifdef USE_ONELOOP
+    if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
+      call olo_b11(rslt_b11,rslt_b00,rslt_b1,rslt_b0,real(p2_in),m12_in,m22_in)
+      calcB00 = rslt_b00(0) + rslt_b00(1)*de1_IR + rslt_b00(2)*de2_i_IR
+      if (ew_renorm_switch == 99) then
+        print*, "B00 OLO: ", calcB00
+      end if
+    end if
+#endif
+
+    return
+  end function calcB00
+
+  function calcB11(p2_in,m12_in,m22_in)
+    use ol_parameters_decl_/**/DREALKIND, only: ew_renorm_switch, coli_cache_use
+    use ol_loop_parameters_decl_/**/DREALKIND, only: a_switch
+#ifdef USE_COLLIER
+    use collier, only: setmode_cll
+    use collier_coefs, only: B_cll
+    use cache, only: SwitchOffCacheSystem_cll, SwitchOnCacheSystem_cll
+#endif
+#ifdef USE_ONELOOP
+    use avh_olo_/**/REALKIND
+#endif
+    complex(REALKIND) calcB11
+    complex(REALKIND), intent(in) :: p2_in
+    complex(REALKIND), intent(in) :: m12_in
+    complex(REALKIND), intent(in) :: m22_in
+    complex(DREALKIND) :: p2
+    complex(DREALKIND) :: m12
+    complex(DREALKIND) :: m22
+    complex(DREALKIND) B1_coli
+#ifdef USE_COLLIER
+    complex(DREALKIND) B(0:1,0:2), Buv(0:1,0:2)
+#endif
+#ifdef USE_ONELOOP
+    complex(REALKIND) :: rslt_b11(0:2), rslt_b00(0:2), rslt_b1(0:2), rslt_b0(0:2)
+#endif
+
+    calcB11 = 0
+
+    p2  = p2_in
+    m12 = m12_in
+    m22 = m22_in
+
+#if defined(USE_COLLIER)
+    if ((ew_renorm_switch == 1 .or. ew_renorm_switch == 7 .or. ew_renorm_switch == 99) &
+          .and. coli_cache_use == 1) then
+      call SwitchOffCacheSystem_cll
+    end if
+    if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
+      call setmode_cll(1)
+      p2 = real(p2)
+      call B_cll(B,Buv,p2,m12,m22,2)
+      calcB11 = B(0,2)
+      if (ew_renorm_switch == 99) then
+        print*, "B11 CO:  ", calcB11
+      end if
+      if (a_switch == 7) call setmode_cll(2)
+    end if
+    if (ew_renorm_switch == 7 .or. ew_renorm_switch == 99) then
+      call setmode_cll(2)
+      p2 = real(p2)
+      call B_cll(B,Buv,p2,m12,m22,2)
+      calcB11 = B(0,2)
+      if (ew_renorm_switch == 99) then
+        print*, "B11 DD:  ", calcB11
+      end if
+      if (a_switch == 1) call setmode_cll(1)
+    end if
+    if ((ew_renorm_switch == 1 .or. ew_renorm_switch == 7 .or. ew_renorm_switch == 99) &
+          .and. coli_cache_use == 1) then
+      call SwitchOnCacheSystem_cll
+    end if
+#endif
+
+#ifdef USE_ONELOOP
+    if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
+      call olo_b11(rslt_b11,rslt_b00,rslt_b1,rslt_b0,real(p2_in),m12_in,m22_in)
+      calcB11 = rslt_b11(0) + rslt_b11(1)*de1_IR + rslt_b11(2)*de2_i_IR
+      if (ew_renorm_switch == 99) then
+        print*, "B11 OLO: ", calcB11
+      end if
+    end if
+#endif
+
+    return
+  end function calcB11
+
+end module ol_qcd_offshell_selfenergies/**/REALKIND

@@ -135,6 +135,9 @@ def get_config(args=[]):
     parse_option(config, 'interface', converter=int, one_of=[0,1,2])
     parse_option(config, 'precision', converter=split_list,
                  subset_of=['dp','qp'])
+    parse_option(config, 'process_qp_rescue', converter=parse_bool)
+    parse_option(config, 'process_qp_checks', converter=parse_bool)
+    parse_option(config, 'max_string_length', converter=int)
     parse_option(config, 'compile_libraries', converter=split_list,
                  subset_of=['rambo', 'collier', 'cuttools', 'trred'])
     parse_option(config, 'link_libraries', converter=split_list,

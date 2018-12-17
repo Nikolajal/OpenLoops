@@ -5,18 +5,20 @@
 !    Copyright (C) 2017-2018 Federico Buccioni, Jean-Nicolas Lang,             !
 !                            Stefano Pozzorini, Hantian Zhang and Max Zoller   !
 !                                                                              !
-!    trred has been developed by Jean-Nicolas Lang and Hantian Zhang           !
+!    trred has been developed by J.-N. Lang, H. Zhang and F. Buccioni          !
 !    trred is licenced under the GNU GPL version 3,                            !
 !    see COPYING for details.                                                  !
 !                                                                              !
 !******************************************************************************!
 
-!Last Modified: February 07, 2018
 
 module triangle_reduction_DP
-  use triangle_expansion_DP, only: B0d_coeff,B0d_list, B0d_0_coeff, B0d_0_list, &
-                                C0d_0mm_coeff,C0d_m00_coeff, C0d_000_coeff,  &
-                                C0d_mmm_table, B0d_mm_opt,B0d_mm_opt_list
+  use triangle_expansion_DP, only: B0d_coeff,B0d_list,B0d_0_coeff,B0d_0_list, &
+                                C0d_0mm_coeff,C0d_m00_coeff,C0d_000_coeff,  &
+                                C0d_000_EP1_coeff, &
+                                C0d_mmm_table,B0d_mm_opt,B0d_mm_opt_list, &
+                                C0d_m0m1m1_coeff,C0d_m0m1m1_list, &
+                                B0d_m0m1_coeff,B0d_m0m1_list
   use triangle_aux_DP, only: dp,cone,cnul,A0,B0_zero,rnul
   implicit none
 
@@ -34,6 +36,10 @@ module triangle_reduction_DP
     module procedure B0d_mm_opt, B0d_mm_opt_list
   end interface
 
+  interface B0d_m0m1
+    module procedure B0d_m0m1_coeff, B0d_m0m1_list
+  end interface
+
   interface C0d_0mm
     module procedure C0d_0mm_coeff
   end interface
@@ -48,6 +54,14 @@ module triangle_reduction_DP
 
   interface C0d_000
     module procedure C0d_000_coeff
+  end interface
+
+  interface C0d_000_EP1
+    module procedure C0d_000_EP1_coeff
+  end interface
+
+  interface C0d_m0m1m1
+    module procedure C0d_m0m1m1_coeff, C0d_m0m1m1_list
   end interface
 
   contains
@@ -908,12 +922,234 @@ module triangle_reduction_DP
     
   end function
 
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                   m0m1m1                                    !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!
+!  rank1  !
+!!!!!!!!!!!
+
+  function C_m0m1m1_p1_DP(p2,m02,m12,muUV2,d) result(C_p1)
+    complex(dp),     intent(in) :: m02,m12
+    real(dp),        intent(in) :: p2,muUV2,d
+    complex(dp) :: C_p1
+
+    C_p1 = B0d_m0m1(p2,m02,m12,muUV2,d,1)/p2 - C0d_m0m1m1(p2,m02,m12,d)
+
+  end function
+
+  function C_m0m1m1_P12_DP(p2,m02,m12,muUV2,d) result(C_P12)
+    complex(dp),     intent(in) :: m02,m12
+    real(dp),        intent(in) :: p2,muUV2,d
+    complex(dp) :: C_P12
+
+    C_P12 = B0d_m0m1(p2,m02,m12,muUV2,d,[cnul, cone/p2, 2*cone/p2])  &
+          - (cone + (m02-m12)/p2)*C0d_m0m1m1(p2,m02,m12,d,1)
+    
+  end function
+
+!!!!!!!!!!!
+!  rank2  !
+!!!!!!!!!!!
+
+  function C_m0m1m1_p1p1_DP(p2,m02,m12,muUV2,d) result(C_p1p1)
+    complex(dp),     intent(in) :: m02,m12
+    real(dp),        intent(in) :: p2,muUV2,d
+    complex(dp) :: C_p1p1,z0,z1,b1,a1
+
+    z0 = m02/p2
+    z1 = m12/p2
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d, &
+                  [(z1-z0)/(2*p2*(cone+d)),-(3*cone-z0+z1)/(2*p2)])
+    a1 = (A0(m02,muUV2)-A0(m12,muUV2))/(2*p2**2*(cone+d))
+    C_p1p1 =  a1 + b1 + C0d_m0m1m1(p2,m02,m12,d)
+    
+  end function
+
+  function C_m0m1m1_p1P12_DP(p2,m02,m12,muUV2,d) result(C_p1P12)
+    complex(dp),     intent(in) :: m02,m12
+    real(dp),        intent(in) :: p2,muUV2,d
+    complex(dp) :: C_p1P12,z0,z1,a1,b1,c1
+
+    z0 = m02/p2
+    z1 = m12/p2
+
+    a1 = -(A0(m02,muUV2)-A0(m12,muUV2))/(2*p2**2*(cone+d))
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d,       &
+                  [(z0-z1)/(2*p2*(cone+d)), &
+                  -((2*cone+z0-z1)/(2*p2)), &
+                  -((5*cone+z0-z1)/(2*p2))])
+    c1 = (cone+z0-2*z1)*C0d_m0m1m1(p2,m02,m12,d,1)
+    C_p1P12 = a1 + b1 + c1
+  end function
+
+  function C_m0m1m1_P12P12_DP(p2,m02,m12,muUV2,d) result(C_P12P12)
+    complex(dp),     intent(in) :: m02,m12
+    real(dp),        intent(in) :: p2,muUV2,d
+    complex(dp) :: C_P12P12,z0,z1,a1,b1,c1
+
+    z0 = m02/p2
+    z1 = m12/p2
+
+    a1 = (A0(m02,muUV2)-A0(m12,muUV2))/(2*p2**2*(cone+d))
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d,        &
+                  [(z1-z0)/(2*p2*(1+d)),   &
+                   (cone+z0-z1)/(2*p2),    &
+                   (-cone-2*z0+2*z1)/(p2), &
+                   -(3*(cone+z0-z1))/(p2)])
+
+    c1 = ((cone + z0)**2 - 2*(2*cone+z0)*z1+z1**2)*C0d_m0m1m1(p2,m02,m12,d,2)
+    C_P12P12 = a1 + b1 + c1
+  end function
+
+  function C_m0m1m1_g_DP(p2,m02,m12,muUV2,d) result(C_g)
+    complex(dp),     intent(in) :: m02,m12
+    real(dp),        intent(in) :: p2,muUV2,d
+    complex(dp) :: C_g,z0,z1,b1,c1
+
+    z0 = m02/p2
+    z1 = m12/p2
+
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d,[cone,cone+z0-z1])/4
+    c1 = p2*z1*C0d_m0m1m1(p2,m02,m12,d,0)/2
+    C_g = cone/4 + b1 + c1
+  end function
+
+!!!!!!!!!!!
+!  rank3  !
+!!!!!!!!!!!
+
+  function C_m0m1m1_p1p1p1_DP(p2,m02,m12,muUV2,d) result(C_p1p1p1)
+    complex(dp),     intent(in) :: m02,m12
+    real(dp),        intent(in) :: p2,muUV2,d
+    complex(dp) :: C_p1p1p1,z0,z1,a11,a12,b1,c1
+
+    z0 = m02/p2
+    z1 = m12/p2
+    a11 = ((z0-z1)/(cone+d) + (-5*cone+2*z0-2*z1)/2)*A0(m02,muUV2)/(3*p2**2*(cone+d))
+    a12 = -((z0-z1)/(cone+d) + (-7*cone+2*z0-2*z1)/2)*A0(m12,muUV2)/(3*p2**2*(cone+d))
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d, &
+                [(-z0**2+2*z0*z1-z1**2)/(3*p2*(cone+d)**2) + &
+                (5*z0-2*z0**2-7*z1+4*z0*z1-2*z1**2)/(6*p2*(cone+d)), &
+                (11*cone-5*z0+2*z0**2+7*z1-4*z0*z1+2*z1**2)/(6*p2)])
+    c1 = -C0d_m0m1m1(p2,m02,m12,d)
+    C_p1p1p1 =  a11 + a12 + b1 + c1 -(z0+z1)/(6*p2*(cone+d))
+
+  end function
+
+  function C_m0m1m1_p1p1P12_DP(p2,m02,m12,muUV2,d) result(C_p1p1P12)
+    complex(dp),     intent(in) :: m02,m12
+    real(dp),        intent(in) :: p2,muUV2,d
+    complex(dp) :: C_p1p1P12,z0,z1,a11,a12,b1,c1
+
+    z0 = m02/p2
+    z1 = m12/p2
+    a11 = ((z1-z0)/(cone+d) + (5*cone-z0+z1)/2)*A0(m02,muUV2)/(3*p2**2*(cone+d))
+    a12 = -((z1-z0)/(cone+d) + (7*cone-z0+z1)/2)*A0(m12,muUV2)/(3*p2**2*(cone+d))
+
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d, &
+                  [(z0-z1)**2/(3*p2*(cone+d)**2) + &
+                  (-5*z0+z0**2+7*z1-2*z0*z1+z1**2) /(6*p2*(cone+d)), &
+                   -(-6*cone+z0**2+z1*(7*cone+z1)-z0*(5*cone+2*z1))/(6*p2), &
+                   -(-17*cone+z0**2-2*z0*(2*cone+z1)+z1*(8*cone+z1))/(6*p2)])
+
+    c1 = -(cone+z0-3*z1)*C0d_m0m1m1(p2,m02,m12,d,1)
+    C_p1p1P12 = a11 + a12 + b1 + c1 + (z0+z1)/(6*p2*(cone+d))
+
+  end function
+
+  function C_m0m1m1_p1P12P12_DP(p2,m02,m12,muUV2,d) result(C_p1P12P12)
+    complex(dp),     intent(in) :: m02,m12
+    real(dp),        intent(in) :: p2,muUV2,d
+    complex(dp) :: C_p1P12P12,z0,z1,a11,a12,b1,c1
+
+    z0 = m02/p2
+    z1 = m12/p2
+
+    a11 = ((z0-z1)/(3*p2**2*(cone+d)**2)-5/(6*p2**2*(cone+d)))*A0(m02,muUV2)
+    a12 = (-(z0-z1)/(3*p2**2*(cone+d)**2)+7/(6*p2**2*(cone+d)))*A0(m12,muUV2)
+
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d, &
+          [-((z0 - z1)**2/(3*p2*(cone+d)**2))+(5*z0-7*z1)/( 6*p2*(cone+d)), &
+           (-3*cone-5*z0+7*z1)/(6*p2), &
+           (3*cone+7*z0+z0**2-11*z1-2*z0*z1+z1**2)/(3*p2), &
+           (10*cone+11*z0+z0**2-19*z1-2*z0*z1+z1**2)/(3*p2)])
+
+    c1 = (-cone-2*z0-z0**2+6*z1+4*z0*z1-3*z1**2)*C0d_m0m1m1(p2,m02,m12,d,2)
+    C_p1P12P12 = a11 + a12 + b1 + c1 - (z0+z1)/(6*p2*(cone+d))
+
+  end function
+
+  function C_m0m1m1_P12P12P12_DP(p2,m02,m12,muUV2,d) result(C_P12P12P12)
+    complex(dp),     intent(in) :: m02,m12
+    real(dp),        intent(in) :: p2,muUV2,d
+    complex(dp) :: C_P12P12P12,z0,z1,a11,a12,b1,c1
+
+    z0 = m02/p2
+    z1 = m12/p2
+    a11 = ((-z0+z1)/(3*p2**2*(cone+d)**2) + (5*cone+z0-z1)/(6*p2**2*(cone+d)))*A0(m02,muUV2)
+    a12 = -((-z0+z1)/(3*p2**2*(cone+d)**2) + (7*cone+z0-z1)/(6*p2**2*(cone+d)))*A0(m12,muUV2)
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d, &
+                  [(z0-z1)**2/(3*p2*(cone+d)**2)-(z0**2+z0*(5*cone-2*z1)+ &
+                   (-7*cone+z1)*z1)/(6*p2*(cone+d)), &
+                   (2*cone+z0**2+z0*(5*cone-2*z1)+(-7*cone+z1)*z1)/(6*p2), &
+                   -((3*cone+3*z0**2+z0*(10*cone-6*z1)+z1*(-14*cone+3*z1))/(6*p2)), &
+                   (3*cone+8*z0**2+z0*(11*cone-16*z1)+z1*(-19*cone+8*z1))/(3*p2), &
+                   (11*cone-38*z1+11*(z0*(2*cone+z0)-2*z0*z1+z1**2))/(3*p2)])
+
+    c1 = -(cone+z0-z1)*((cone+z0)**2-2*(4*cone+z0)*z1+z1**2)*C0d_m0m1m1(p2,m02,m12,d,3)
+    C_P12P12P12 = a11 + a12 + b1 + c1 + (z0+z1)/(6*p2*(cone+d))
+
+  end function
+
+  function C_m0m1m1_gp1_DP(p2,m02,m12,muUV2,d) result(C_gp1)
+    complex(dp),     intent(in) :: m02,m12
+    real(dp),        intent(in) :: p2,muUV2,d
+    complex(dp) :: C_gp1,z0,z1,a11,a12,b1,b2,c1,r1
+
+    z0 = m02/p2
+    z1 = m12/p2
+    a11 = (z0-z1)*A0(m02,muUV2)/(12*p2*(cone+d))
+    a12 = -(z0-z1)*A0(m12,muUV2)/(12*p2*(cone+d))
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d, &
+                  [-(z0-z1)**2/(12*(cone+d))-cone/6, &
+                   (-2*cone-z0+z0**2+5*z1-2*z0*z1+z1**2)/(12)])
+    c1 = -(p2*z1)*C0d_m0m1m1(p2,m02,m12,d)/2
+    r1 = -(7*cone)/36
+    C_gp1 = a11 + a12 + b1 + b2 + c1 + r1
+
+  end function
+
+  function C_m0m1m1_gP12_DP(p2,m02,m12,muUV2,d) result(C_gP12)
+    complex(dp),     intent(in) :: m02,m12
+    real(dp),        intent(in) :: p2,muUV2,d
+    complex(dp) :: C_gP12,z0,z1,a1,b1,c1,r1
+
+    z0 = m02/p2
+    z1 = m12/p2
+    a1 = (-z0+z1)/(12*p2*(1+d))*(A0(m02,muUV2)-A0(m12,muUV2))
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d, &
+                  [cone/12 + &
+                   (z0**2-2*z0*z1+z1**2)/(12*(cone+d)), &
+                  -(z0+z0**2-2*z0*z1+(-5*cone+z1)*z1)/12, &
+                  -((cone+z0)**2-2*(5*cone+z0)*z1+z1**2)/12])
+
+    c1 = p2*z1*(-cone-z0+z1)*C0d_m0m1m1(p2,m02,m12,d,1)/2
+    C_gP12 = a1 + b1 + c1 + cone/18
+
+  end function
+
 end module triangle_reduction_DP
 
 module triangle_reduction_QP
-  use triangle_expansion_QP, only: B0d_coeff,B0d_list, B0d_0_coeff, B0d_0_list, &
-                                C0d_0mm_coeff,C0d_m00_coeff, C0d_000_coeff,  &
-                                C0d_mmm_table, B0d_mm_opt,B0d_mm_opt_list
+  use triangle_expansion_QP, only: B0d_coeff,B0d_list,B0d_0_coeff,B0d_0_list, &
+                                C0d_0mm_coeff,C0d_m00_coeff,C0d_000_coeff,  &
+                                C0d_000_EP1_coeff, &
+                                C0d_mmm_table,B0d_mm_opt,B0d_mm_opt_list, &
+                                C0d_m0m1m1_coeff,C0d_m0m1m1_list, &
+                                B0d_m0m1_coeff,B0d_m0m1_list
   use triangle_aux_QP, only: qp,cone,cnul,A0,B0_zero,rnul
   implicit none
 
@@ -931,6 +1167,10 @@ module triangle_reduction_QP
     module procedure B0d_mm_opt, B0d_mm_opt_list
   end interface
 
+  interface B0d_m0m1
+    module procedure B0d_m0m1_coeff, B0d_m0m1_list
+  end interface
+
   interface C0d_0mm
     module procedure C0d_0mm_coeff
   end interface
@@ -945,6 +1185,14 @@ module triangle_reduction_QP
 
   interface C0d_000
     module procedure C0d_000_coeff
+  end interface
+
+  interface C0d_000_EP1
+    module procedure C0d_000_EP1_coeff
+  end interface
+
+  interface C0d_m0m1m1
+    module procedure C0d_m0m1m1_coeff, C0d_m0m1m1_list
   end interface
 
   contains
@@ -1803,6 +2051,225 @@ module triangle_reduction_QP
 
     C_gP12 = b +(-m2*p2*c1)/(2*p2) + cone/18._qp
     
+  end function
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                   m0m1m1                                    !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!
+!  rank1  !
+!!!!!!!!!!!
+
+  function C_m0m1m1_p1_QP(p2,m02,m12,muUV2,d) result(C_p1)
+    complex(qp),     intent(in) :: m02,m12
+    real(qp),        intent(in) :: p2,muUV2,d
+    complex(qp) :: C_p1
+
+    C_p1 = B0d_m0m1(p2,m02,m12,muUV2,d,1)/p2 - C0d_m0m1m1(p2,m02,m12,d)
+
+  end function
+
+  function C_m0m1m1_P12_QP(p2,m02,m12,muUV2,d) result(C_P12)
+    complex(qp),     intent(in) :: m02,m12
+    real(qp),        intent(in) :: p2,muUV2,d
+    complex(qp) :: C_P12
+
+    C_P12 = B0d_m0m1(p2,m02,m12,muUV2,d,[cnul, cone/p2, 2*cone/p2])  &
+          - (cone + (m02-m12)/p2)*C0d_m0m1m1(p2,m02,m12,d,1)
+    
+  end function
+
+!!!!!!!!!!!
+!  rank2  !
+!!!!!!!!!!!
+
+  function C_m0m1m1_p1p1_QP(p2,m02,m12,muUV2,d) result(C_p1p1)
+    complex(qp),     intent(in) :: m02,m12
+    real(qp),        intent(in) :: p2,muUV2,d
+    complex(qp) :: C_p1p1,z0,z1,b1,a1
+
+    z0 = m02/p2
+    z1 = m12/p2
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d, &
+                  [(z1-z0)/(2*p2*(cone+d)),-(3*cone-z0+z1)/(2*p2)])
+    a1 = (A0(m02,muUV2)-A0(m12,muUV2))/(2*p2**2*(cone+d))
+    C_p1p1 =  a1 + b1 + C0d_m0m1m1(p2,m02,m12,d)
+    
+  end function
+
+  function C_m0m1m1_p1P12_QP(p2,m02,m12,muUV2,d) result(C_p1P12)
+    complex(qp),     intent(in) :: m02,m12
+    real(qp),        intent(in) :: p2,muUV2,d
+    complex(qp) :: C_p1P12,z0,z1,a1,b1,c1
+
+    z0 = m02/p2
+    z1 = m12/p2
+
+    a1 = -(A0(m02,muUV2)-A0(m12,muUV2))/(2*p2**2*(cone+d))
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d,       &
+                  [(z0-z1)/(2*p2*(cone+d)), &
+                  -((2*cone+z0-z1)/(2*p2)), &
+                  -((5*cone+z0-z1)/(2*p2))])
+    c1 = (cone+z0-2*z1)*C0d_m0m1m1(p2,m02,m12,d,1)
+    C_p1P12 = a1 + b1 + c1
+  end function
+
+  function C_m0m1m1_P12P12_QP(p2,m02,m12,muUV2,d) result(C_P12P12)
+    complex(qp),     intent(in) :: m02,m12
+    real(qp),        intent(in) :: p2,muUV2,d
+    complex(qp) :: C_P12P12,z0,z1,a1,b1,c1
+
+    z0 = m02/p2
+    z1 = m12/p2
+
+    a1 = (A0(m02,muUV2)-A0(m12,muUV2))/(2*p2**2*(cone+d))
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d,        &
+                  [(z1-z0)/(2*p2*(1+d)),   &
+                   (cone+z0-z1)/(2*p2),    &
+                   (-cone-2*z0+2*z1)/(p2), &
+                   -(3*(cone+z0-z1))/(p2)])
+
+    c1 = ((cone + z0)**2 - 2*(2*cone+z0)*z1+z1**2)*C0d_m0m1m1(p2,m02,m12,d,2)
+    C_P12P12 = a1 + b1 + c1
+  end function
+
+  function C_m0m1m1_g_QP(p2,m02,m12,muUV2,d) result(C_g)
+    complex(qp),     intent(in) :: m02,m12
+    real(qp),        intent(in) :: p2,muUV2,d
+    complex(qp) :: C_g,z0,z1,b1,c1
+
+    z0 = m02/p2
+    z1 = m12/p2
+
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d,[cone,cone+z0-z1])/4
+    c1 = p2*z1*C0d_m0m1m1(p2,m02,m12,d,0)/2
+    C_g = cone/4 + b1 + c1
+  end function
+
+!!!!!!!!!!!
+!  rank3  !
+!!!!!!!!!!!
+
+  function C_m0m1m1_p1p1p1_QP(p2,m02,m12,muUV2,d) result(C_p1p1p1)
+    complex(qp),     intent(in) :: m02,m12
+    real(qp),        intent(in) :: p2,muUV2,d
+    complex(qp) :: C_p1p1p1,z0,z1,a11,a12,b1,c1
+
+    z0 = m02/p2
+    z1 = m12/p2
+    a11 = ((z0-z1)/(cone+d) + (-5*cone+2*z0-2*z1)/2)*A0(m02,muUV2)/(3*p2**2*(cone+d))
+    a12 = -((z0-z1)/(cone+d) + (-7*cone+2*z0-2*z1)/2)*A0(m12,muUV2)/(3*p2**2*(cone+d))
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d, &
+                [(-z0**2+2*z0*z1-z1**2)/(3*p2*(cone+d)**2) + &
+                (5*z0-2*z0**2-7*z1+4*z0*z1-2*z1**2)/(6*p2*(cone+d)), &
+                (11*cone-5*z0+2*z0**2+7*z1-4*z0*z1+2*z1**2)/(6*p2)])
+    c1 = -C0d_m0m1m1(p2,m02,m12,d)
+    C_p1p1p1 =  a11 + a12 + b1 + c1 -(z0+z1)/(6*p2*(cone+d))
+
+  end function
+
+  function C_m0m1m1_p1p1P12_QP(p2,m02,m12,muUV2,d) result(C_p1p1P12)
+    complex(qp),     intent(in) :: m02,m12
+    real(qp),        intent(in) :: p2,muUV2,d
+    complex(qp) :: C_p1p1P12,z0,z1,a11,a12,b1,c1
+
+    z0 = m02/p2
+    z1 = m12/p2
+    a11 = ((z1-z0)/(cone+d) + (5*cone-z0+z1)/2)*A0(m02,muUV2)/(3*p2**2*(cone+d))
+    a12 = -((z1-z0)/(cone+d) + (7*cone-z0+z1)/2)*A0(m12,muUV2)/(3*p2**2*(cone+d))
+
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d, &
+                  [(z0-z1)**2/(3*p2*(cone+d)**2) + &
+                  (-5*z0+z0**2+7*z1-2*z0*z1+z1**2) /(6*p2*(cone+d)), &
+                   -(-6*cone+z0**2+z1*(7*cone+z1)-z0*(5*cone+2*z1))/(6*p2), &
+                   -(-17*cone+z0**2-2*z0*(2*cone+z1)+z1*(8*cone+z1))/(6*p2)])
+
+    c1 = -(cone+z0-3*z1)*C0d_m0m1m1(p2,m02,m12,d,1)
+    C_p1p1P12 = a11 + a12 + b1 + c1 + (z0+z1)/(6*p2*(cone+d))
+
+  end function
+
+  function C_m0m1m1_p1P12P12_QP(p2,m02,m12,muUV2,d) result(C_p1P12P12)
+    complex(qp),     intent(in) :: m02,m12
+    real(qp),        intent(in) :: p2,muUV2,d
+    complex(qp) :: C_p1P12P12,z0,z1,a11,a12,b1,c1
+
+    z0 = m02/p2
+    z1 = m12/p2
+
+    a11 = ((z0-z1)/(3*p2**2*(cone+d)**2)-5/(6*p2**2*(cone+d)))*A0(m02,muUV2)
+    a12 = (-(z0-z1)/(3*p2**2*(cone+d)**2)+7/(6*p2**2*(cone+d)))*A0(m12,muUV2)
+
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d, &
+          [-((z0 - z1)**2/(3*p2*(cone+d)**2))+(5*z0-7*z1)/( 6*p2*(cone+d)), &
+           (-3*cone-5*z0+7*z1)/(6*p2), &
+           (3*cone+7*z0+z0**2-11*z1-2*z0*z1+z1**2)/(3*p2), &
+           (10*cone+11*z0+z0**2-19*z1-2*z0*z1+z1**2)/(3*p2)])
+
+    c1 = (-cone-2*z0-z0**2+6*z1+4*z0*z1-3*z1**2)*C0d_m0m1m1(p2,m02,m12,d,2)
+    C_p1P12P12 = a11 + a12 + b1 + c1 - (z0+z1)/(6*p2*(cone+d))
+
+  end function
+
+  function C_m0m1m1_P12P12P12_QP(p2,m02,m12,muUV2,d) result(C_P12P12P12)
+    complex(qp),     intent(in) :: m02,m12
+    real(qp),        intent(in) :: p2,muUV2,d
+    complex(qp) :: C_P12P12P12,z0,z1,a11,a12,b1,c1
+
+    z0 = m02/p2
+    z1 = m12/p2
+    a11 = ((-z0+z1)/(3*p2**2*(cone+d)**2) + (5*cone+z0-z1)/(6*p2**2*(cone+d)))*A0(m02,muUV2)
+    a12 = -((-z0+z1)/(3*p2**2*(cone+d)**2) + (7*cone+z0-z1)/(6*p2**2*(cone+d)))*A0(m12,muUV2)
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d, &
+                  [(z0-z1)**2/(3*p2*(cone+d)**2)-(z0**2+z0*(5*cone-2*z1)+ &
+                   (-7*cone+z1)*z1)/(6*p2*(cone+d)), &
+                   (2*cone+z0**2+z0*(5*cone-2*z1)+(-7*cone+z1)*z1)/(6*p2), &
+                   -((3*cone+3*z0**2+z0*(10*cone-6*z1)+z1*(-14*cone+3*z1))/(6*p2)), &
+                   (3*cone+8*z0**2+z0*(11*cone-16*z1)+z1*(-19*cone+8*z1))/(3*p2), &
+                   (11*cone-38*z1+11*(z0*(2*cone+z0)-2*z0*z1+z1**2))/(3*p2)])
+
+    c1 = -(cone+z0-z1)*((cone+z0)**2-2*(4*cone+z0)*z1+z1**2)*C0d_m0m1m1(p2,m02,m12,d,3)
+    C_P12P12P12 = a11 + a12 + b1 + c1 + (z0+z1)/(6*p2*(cone+d))
+
+  end function
+
+  function C_m0m1m1_gp1_QP(p2,m02,m12,muUV2,d) result(C_gp1)
+    complex(qp),     intent(in) :: m02,m12
+    real(qp),        intent(in) :: p2,muUV2,d
+    complex(qp) :: C_gp1,z0,z1,a11,a12,b1,b2,c1,r1
+
+    z0 = m02/p2
+    z1 = m12/p2
+    a11 = (z0-z1)*A0(m02,muUV2)/(12*p2*(cone+d))
+    a12 = -(z0-z1)*A0(m12,muUV2)/(12*p2*(cone+d))
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d, &
+                  [-(z0-z1)**2/(12*(cone+d))-cone/6, &
+                   (-2*cone-z0+z0**2+5*z1-2*z0*z1+z1**2)/(12)])
+    c1 = -(p2*z1)*C0d_m0m1m1(p2,m02,m12,d)/2
+    r1 = -(7*cone)/36
+    C_gp1 = a11 + a12 + b1 + b2 + c1 + r1
+
+  end function
+
+  function C_m0m1m1_gP12_QP(p2,m02,m12,muUV2,d) result(C_gP12)
+    complex(qp),     intent(in) :: m02,m12
+    real(qp),        intent(in) :: p2,muUV2,d
+    complex(qp) :: C_gP12,z0,z1,a1,b1,c1,r1
+
+    z0 = m02/p2
+    z1 = m12/p2
+    a1 = (-z0+z1)/(12*p2*(1+d))*(A0(m02,muUV2)-A0(m12,muUV2))
+    b1 = B0d_m0m1(p2,m02,m12,muUV2,d, &
+                  [cone/12 + &
+                   (z0**2-2*z0*z1+z1**2)/(12*(cone+d)), &
+                  -(z0+z0**2-2*z0*z1+(-5*cone+z1)*z1)/12, &
+                  -((cone+z0)**2-2*(5*cone+z0)*z1+z1**2)/12])
+
+    c1 = p2*z1*(-cone-z0+z1)*C0d_m0m1m1(p2,m02,m12,d,1)/2
+    C_gP12 = a1 + b1 + c1 + cone/18
+
   end function
 
 end module triangle_reduction_QP

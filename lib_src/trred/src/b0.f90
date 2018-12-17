@@ -5,13 +5,12 @@
 !    Copyright (C) 2017-2018 Federico Buccioni, Jean-Nicolas Lang,             !
 !                            Stefano Pozzorini, Hantian Zhang and Max Zoller   !
 !                                                                              !
-!    trred has been developed by Jean-Nicolas Lang and Hantian Zhang           !
+!    trred has been developed by J.-N. Lang, H. Zhang and F. Buccioni          !
 !    trred is licenced under the GNU GPL version 3,                            !
 !    see COPYING for details.                                                  !
 !                                                                              !
 !******************************************************************************!
 
-!Last Modified: February 07, 2018
 
 module b0_DP
   use triangle_aux_DP, only: target_precision,dp,cone,cnul,choose,Lphi,zlogzf
@@ -23,7 +22,7 @@ module b0_DP
   contains
 
   function B0_0_n(p2,m2,muUV2,muIR2,n) result(B0)
-    complex(dp), intent(in) :: p2,m2,muUV2,muIR2
+    complex(dp), intent(in) :: p2,m2(:),muUV2,muIR2
     integer,    intent(in)    :: n
     complex(dp)             :: B0
 
@@ -36,11 +35,11 @@ module b0_DP
   end function B0_0_n
 
   function B0_n(p2,m2,muUV2,muIR2,n) result(B0)
-    complex(dp), intent(in) :: p2,m2,muUV2,muIR2
+    complex(dp), intent(in) :: p2,m2(:),muUV2,muIR2
     integer,       intent(in) :: n
     complex(dp)             :: z,B0
 
-    z = m2/p2
+    z = m2(1)/p2
     if (n .eq. 0) then
       B0 = B0_0(z,p2,muUV2)
     else
@@ -102,6 +101,19 @@ module b0_DP
     
   end function B0_n_large_z
 
+  function B0_0_n_EP1(p2,m2,muUV2,muIR2,n) result(B0)
+    complex(dp), intent(in) :: p2,m2,muUV2,muIR2
+    integer,    intent(in)    :: n
+    complex(dp)             :: B0
+
+    if (n==0) then
+      B0 = -1._dp
+    else
+      B0 = 0._dp
+    end if
+    
+  end function B0_0_n_EP1
+
 end module b0_DP
 
 module b0_QP
@@ -114,7 +126,7 @@ module b0_QP
   contains
 
   function B0_0_n(p2,m2,muUV2,muIR2,n) result(B0)
-    complex(qp), intent(in) :: p2,m2,muUV2,muIR2
+    complex(qp), intent(in) :: p2,m2(:),muUV2,muIR2
     integer,    intent(in)    :: n
     complex(qp)             :: B0
 
@@ -127,11 +139,11 @@ module b0_QP
   end function B0_0_n
 
   function B0_n(p2,m2,muUV2,muIR2,n) result(B0)
-    complex(qp), intent(in) :: p2,m2,muUV2,muIR2
+    complex(qp), intent(in) :: p2,m2(:),muUV2,muIR2
     integer,       intent(in) :: n
     complex(qp)             :: z,B0
 
-    z = m2/p2
+    z = m2(1)/p2
     if (n .eq. 0) then
       B0 = B0_0(z,p2,muUV2)
     else
@@ -192,5 +204,18 @@ module b0_QP
     end if
     
   end function B0_n_large_z
+
+  function B0_0_n_EP1(p2,m2,muUV2,muIR2,n) result(B0)
+    complex(qp), intent(in) :: p2,m2,muUV2,muIR2
+    integer,    intent(in)    :: n
+    complex(qp)             :: B0
+
+    if (n==0) then
+      B0 = -1._qp
+    else
+      B0 = 0._qp
+    end if
+    
+  end function B0_0_n_EP1
 
 end module b0_QP

@@ -388,7 +388,7 @@ module openloops
     use ol_parameters_decl_/**/DREALKIND, only: &
       & install_path,flavour_mapping_on, coupling_qcd, coupling_ew, &
       & write_shopping_list, add_associated_ew, loop_order_ew, loop_order_qcd, &
-      & check_collection
+      & check_collection, partial_normal_order
     implicit none
     character(len=*), intent(in) :: process_in
     integer, intent(in) :: amptype
@@ -452,7 +452,15 @@ module openloops
       ! determine normal ordering
       allocate (perm(size(ext)))
       allocate (extid(size(ext)))
-      call normal_order(ext, perm, extid, proc)
+      proc=""
+      if(partial_normal_order) then
+        call normal_order(ext(:n_in), perm(:n_in), extid(:n_in), proc)
+        call normal_order(ext(n_in+1:), perm(n_in+1:), extid(n_in+1:), proc)
+        perm(n_in+1:)=perm(n_in+1:)+n_in
+      else
+        call normal_order(ext, perm, extid, proc)
+      end if
+
       if (proc == "") then
         call ol_error("register_process: invalid argument: " // trim(process_in))
         return
@@ -480,7 +488,7 @@ module openloops
         loop_order_ew_bak = loop_order_ew
         loop_order_qcd_bak = loop_order_qcd
 
-        ! for >4q processes: if not dound directly try to load tree and loop
+        ! for >4q processes: if not found directly try to load tree and loop
         ! amplitudes from different libraries.
         if (register_process_string < 0 .and.  nextpid(ext,[1,2,3,4,5,6]) .ge. 4) then
          if (amptype > 10 .and. coupling_ew(0) /= -1 &
@@ -525,26 +533,31 @@ module openloops
         if (register_process_string > 0 .and. abs(add_associated_ew) > 1) then
           check_collection_bak = check_collection
           check_collection=.false.
-          if (coupling_ew_bak(1) == 0) then
-            coupling_ew(0) = -1
-            coupling_qcd(0) = coupling_qcd_bak(0)
-          else if (coupling_qcd_bak(1) == 0) then
+          if (coupling_ew_bak(0) > -1) then
+            coupling_ew(0) = coupling_ew_bak(0)+1
+            coupling_qcd(0) = -1
+          else if (coupling_qcd_bak(0) > -1) then
             coupling_ew(0) = -1
             coupling_qcd(0) = coupling_qcd_bak(0)-1
+          else
+            call ol_error("associate ew order selection not valid.")
           end if
-          process_handles(register_process_string)%associated_born_1 = &
-            loop_over_libraries(proc, 1, n_in, perm, pol, extid, process_in)
+          associated_ew = loop_over_libraries(proc, 1, n_in, perm, pol, extid, process_in)
+          process_handles(register_process_string)%associated_born_1= associated_ew
         end if
 
         if (register_process_string > 0 .and. abs(add_associated_ew) > 2) then
-          if (coupling_ew_bak(1) == 0) then
+          if (coupling_ew_bak(0) > -1) then
+            coupling_ew(0) = coupling_ew_bak(0)+2
+            coupling_qcd(0) = -1
+          else if (coupling_qcd_bak(0) > -1) then
             coupling_ew(0) = -1
             coupling_qcd(0) = coupling_qcd_bak(0)-2
-          else if (coupling_qcd_bak(1) == 0) then
+          else
             call ol_error("associate ew order selection not valid.")
           end if
-          process_handles(register_process_string)%associated_born_2 = &
-            loop_over_libraries(proc, 1, n_in, perm, pol, extid, process_in)
+          associated_ew = loop_over_libraries(proc, 1, n_in, perm, pol, extid, process_in)
+          process_handles(register_process_string)%associated_born_2= associated_ew
         end if
 
         loop_order_ew = loop_order_ew_bak
@@ -673,9 +686,10 @@ module openloops
       type(extparticle), intent(in) :: ext(:)
       integer, intent(out) :: perm(:)
       integer, intent(out) :: extid(:)
-      character(len=*), intent(out) :: proc
+      character(len=*), intent(inout) :: proc
       integer :: i,j, normal(35), pos
       character(len=3) :: normalc(35)
+      logical :: do_normal_order = .true.
 
       ! define normal ordering and corresponding characters
 
@@ -693,24 +707,37 @@ module openloops
       normalc(31:35) = ["z  ","w  ","wx ","g  ","g  "]
 
       perm = 0
-      proc = ""
 
-      ! normal order, build string and store permutation
-      pos = 1
-      do i = 1, size(normal)
-        do j = 1, size(ext)
-          if (ext(j)%id == normal(i)) then
-            proc = trim(proc) // trim(normalc(i))
-            perm(j) = pos
-            extid(j) = ext(j)%id
-            pos = pos + 1
-          end if
+      if(do_normal_order) then
+        ! normal order, build string and store permutation
+        pos = 1
+        do i = 1, size(normal)
+          do j = 1, size(ext)
+            if (ext(j)%id == normal(i)) then
+              proc = trim(proc) // trim(normalc(i))
+              perm(j) = pos
+              extid(j) = ext(j)%id
+              pos = pos + 1
+            end if
+          end do
         end do
-      end do
-
-      if (pos-1 /= size(ext)) then
-        proc = ""
+        if (pos-1 /= size(ext)) then
+          proc = ""
+        end if
+      else
+        ! build string, no normal ordering, no permutation
+        do j = 1, size(ext)
+          do i = 1, size(normal)
+            if (ext(j)%id == normal(i)) then
+              proc = trim(proc) // trim(normalc(i))
+              cycle
+            end if
+          end do
+          extid(j) = ext(j)%id
+          perm(j) = j
+        end do
       end if
+
   end subroutine normal_order
 
   function loop_over_libraries(proc, amptype, n_in, perm, pol, extid, process_in)
@@ -732,7 +759,7 @@ module openloops
     librarytype = 0
     LoopLibrarytype: do
       if (OLMode == -1) then
-        LoopOLMode: do loop_olmode = 2, 0, -1
+        LoopOLMode: do loop_olmode = 3, 0, -1
           check = check_process(proc, amptype, librarytype, n_in, &
                   olmode=loop_olmode, perm_in=perm, pol=pol, extid=extid, process_string=process_in)
           if (error > 1) return
@@ -960,7 +987,6 @@ module openloops
             & .or. index(trim(process_infos(p)%TYPE), trim(loops_specification)) == 0 &
             & ) cycle InfoLoop
 
-
           !follow mapping
           if(len_trim(process_infos(p)%MAP) /= 0) then
             !check for conditional mappings
@@ -1015,7 +1041,9 @@ module openloops
           end if
 
           ! check OLmode
-          if (process_infos(p)%OLMode /= OLMode) cycle InfoLoop
+          if (present(OLMode)) then
+            if (process_infos(p)%OLMode /= OLMode) cycle InfoLoop
+          end if
 
           ! check parameters
           call check_parameters(p,amptype,found)
@@ -1090,15 +1118,13 @@ module openloops
         end do
 
         if(auto_preset) then
-          if (process_infos(p)%OLMode == 2) then
+          if (process_infos(p)%OLMode .ge. 2) then
             call set_if_modified(a_switch,1)
-            call set_if_modified(redlib_qp,5)
-            call set_if_modified(stability_mode,14)
+            call set_if_modified(stability_mode,11)
           else
             if (amptype == 12 .or. amptype == 22 .or. amptype == 24) then
               call set_if_modified(a_switch,1)
               call set_if_modified(a_switch_rescue,7)
-              call set_if_modified(redlib_qp,5)
               call set_if_modified(stability_mode,21)
             else
               call set_if_modified(a_switch,1)
@@ -3452,7 +3478,7 @@ module openloops
     if (subprocess%stability_mode/=-1)  call set_if_modified(stability_mode,subprocess%stability_mode)
     if (subprocess%a_switch/=-1)        call set_if_modified(a_switch,subprocess%a_switch)
     if (subprocess%a_switch_rescue/=-1) call set_if_modified(a_switch_rescue,subprocess%a_switch_rescue)
-    if (subprocess%redlib_qp/=-1)       call set_if_modified(redlib_qp,subprocess%a_switch_rescue)
+    if (subprocess%redlib_qp/=-1)       call set_if_modified(redlib_qp,subprocess%redlib_qp)
     n_scatt = subprocess%n_in
     call subprocess%set_permutation(subprocess%permutation)
     if (subprocess%has_pol) call subprocess%pol_init(subprocess%pol)

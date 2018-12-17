@@ -19,14 +19,263 @@
 
 
 module ol_loop_handling_/**/REALKIND
+  use ol_data_types_/**/REALKIND, only: hol, hcl
+  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,          &
+                                              hybrid_zero_mode, &
+                                              hybrid_dp_mode,   &
+                                              hybrid_qp_mode,   &
+                                              hybrid_dp_qp_mode,&
+                                              hp_alloc_mode
   implicit none
+
+#ifdef PRECISION_dp
+  interface req_qp_cmp
+    module procedure req_qp_cmp_hcl, req_qp_cmp_hol
+  end interface
+
+  interface upgrade_qp
+    module procedure upgrade_qp_hcl, upgrade_qp_hol
+  end interface
+
+  interface downgrade_dp
+    module procedure downgrade_dp_hcl, downgrade_dp_hol
+  end interface
+
+#endif
+
   contains
 
+
+!!!!!!!!!!!!!!!!!!!!!!!!!
+!  Hybrid mode helpers  !
+!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+#ifdef PRECISION_dp
+  subroutine hol_dealloc_hybrid(ol_coeff)
+    use ol_data_types_/**/REALKIND, only: hol
+    use ol_parameters_decl_/**/REALKIND, only: ZERO
+    type(hol), intent(inout) :: ol_coeff
+
+    if (hp_mode .eq. 1) then
+      if (hp_alloc_mode .eq. 0) then
+        ol_coeff%j_qp(:,:,:,:) = ZERO
+      else if (hp_alloc_mode .eq. 2) then
+        deallocate(ol_coeff%j_qp)
+      end if
+    end if
+
+  end subroutine hol_dealloc_hybrid
+
+  subroutine hcl_dealloc_hybrid(ol_coeff)
+    use ol_data_types_/**/REALKIND, only: hol
+    use ol_parameters_decl_/**/REALKIND, only: ZERO
+    type(hcl), intent(inout) :: ol_coeff
+
+    if (hp_mode .eq. 1) then
+      if (hp_alloc_mode .eq. 0) then
+        ol_coeff%cmp_qp(:) = ZERO
+      else if (hp_alloc_mode .eq. 2) then
+        deallocate(ol_coeff%cmp_qp)
+      end if
+    end if
+
+  end subroutine hcl_dealloc_hybrid
+
+  function req_qp_cmp_hol(Gin)
+    type(hol), intent(in) :: Gin
+    logical :: req_qp_cmp_hol
+
+    if (Gin%mode .gt. hybrid_dp_mode .and. (hp_mode .eq. 1)) then
+      req_qp_cmp_hol = .true.
+    else
+      req_qp_cmp_hol = .false.
+    end if
+  end function req_qp_cmp_hol
+
+  function req_qp_cmp_hcl(Gin)
+    type(hcl), intent(in) :: Gin
+    logical :: req_qp_cmp_hcl
+
+    if (Gin%mode .gt. hybrid_dp_mode .and. (hp_mode .eq. 1)) then
+      req_qp_cmp_hcl = .true.
+    else
+      req_qp_cmp_hcl = .false.
+    end if
+  end function req_qp_cmp_hcl
+
+
+  subroutine upgrade_qp_hcl(Gin)
+    use KIND_TYPES, only:  QREALKIND
+    use ol_parameters_decl_/**/REALKIND, only: ZERO
+    type(hcl), intent(inout) :: Gin
+
+    if (Gin%mode .eq. hybrid_dp_mode) then
+      Gin%mode = hybrid_qp_mode
+      if (hp_alloc_mode .gt. 1) call hcl_alloc_hybrid(Gin)
+      Gin%cmp_qp(:) = cmplx(Gin%cmp(:),kind=QREALKIND)
+      Gin%cmp(:) = ZERO
+    else if (Gin%mode .eq. hybrid_dp_qp_mode) then
+      Gin%mode = hybrid_qp_mode
+      Gin%cmp_qp(:) = Gin%cmp_qp(:) + cmplx(Gin%cmp(:),kind=QREALKIND)
+      Gin%cmp(:) = ZERO
+    end if
+
+  end subroutine upgrade_qp_hcl
+
+  subroutine hcl_alloc_hybrid(ol_coeff)
+    use KIND_TYPES, only: REALKIND
+    use ol_data_types_/**/REALKIND, only: hcl
+
+    type(hcl), intent(inout) :: ol_coeff
+    integer :: rank
+
+    if (.not. allocated(ol_coeff%cmp_qp)) then
+      rank = size(ol_coeff%cmp)
+      allocate(ol_coeff%cmp_qp(rank))
+    end if
+    ol_coeff%cmp_qp = 0
+  end subroutine hcl_alloc_hybrid
+
+  subroutine upgrade_qp_hol(Gin)
+    use KIND_TYPES, only:  QREALKIND
+    use ol_parameters_decl_/**/REALKIND, only: ZERO
+    type(hol), intent(inout) :: Gin
+
+    ! pure dp mode -> pure qp
+    if (Gin%mode .eq. hybrid_dp_mode) then
+      Gin%mode = 2
+      if (hp_alloc_mode .gt. 1) call hol_alloc_hybrid(Gin)
+      Gin%j_qp(:,:,:,:) = cmplx(Gin%j(:,:,:,:),kind=QREALKIND)
+      Gin%j(:,:,:,:) = ZERO
+    ! mixed dp.qp mode -> pure qp
+    else if (Gin%mode .eq. hybrid_dp_qp_mode) then
+      Gin%mode = 2
+      Gin%j_qp(:,:,:,:) = Gin%j_qp(:,:,:,:) + cmplx(Gin%j(:,:,:,:),kind=QREALKIND)
+      Gin%j(:,:,:,:) = ZERO
+    end if
+
+  end subroutine upgrade_qp_hol
+
+  subroutine hol_alloc_hybrid(ol_coeff)
+    use KIND_TYPES, only: REALKIND
+    use ol_data_types_/**/REALKIND, only: hol
+
+    type(hol), intent(inout) :: ol_coeff
+    integer :: alpha,rank,beta,hel_states
+
+    if (.not. allocated(ol_coeff%j_qp)) then
+      hel_states = size(ol_coeff%hf)
+      alpha = size(ol_coeff%j,1)
+      rank = size(ol_coeff%j,2)
+      beta = size(ol_coeff%j,3)
+      allocate(ol_coeff%j_qp(alpha, rank, beta, hel_states))
+    end if
+    ol_coeff%j_qp = 0
+
+  end subroutine hol_alloc_hybrid
+
+  subroutine downgrade_dp_hcl(Gin)
+    use KIND_TYPES, only: DREALKIND
+    use ol_parameters_decl_/**/REALKIND, only: ZERO
+    type(hcl), intent(inout) :: Gin
+
+    if (Gin%mode .eq. hybrid_qp_mode) then
+      Gin%mode = hybrid_dp_mode
+      Gin%cmp(:) = cmplx(Gin%cmp_qp(:),kind=DREALKIND)
+    else if (Gin%mode .eq. hybrid_dp_qp_mode) then
+      Gin%mode = hybrid_dp_mode
+      Gin%cmp(:) = Gin%cmp(:) + cmplx(Gin%cmp_qp(:),kind=DREALKIND)
+    end if
+    call hcl_dealloc_hybrid(Gin)
+
+  end subroutine downgrade_dp_hcl
+
+  subroutine downgrade_dp_hol(Gin)
+    use KIND_TYPES, only: DREALKIND
+    use ol_parameters_decl_/**/REALKIND, only: ZERO
+    type(hol), intent(inout) :: Gin
+
+    ! pure qp mode -> pure dp
+    if (Gin%mode .eq. hybrid_qp_mode) then
+      Gin%mode = hybrid_dp_mode
+      Gin%j(:,:,:,:) = cmplx(Gin%j_qp(:,:,:,:),kind=DREALKIND)
+    ! mixed dp.qp mode -> pure dp
+    else if (Gin%mode .eq. hybrid_dp_qp_mode) then
+      Gin%mode = hybrid_dp_mode
+      Gin%j(:,:,:,:) = Gin%j(:,:,:,:) + cmplx(Gin%j_qp(:,:,:,:),kind=DREALKIND)
+    end if
+    call hol_dealloc_hybrid(Gin)
+
+  end subroutine downgrade_dp_hol
+
+
+#endif
+
+  function merge_mode(mode1,mode2)
+    integer, intent(in) :: mode1,mode2
+    integer :: merge_mode
+
+    select case (mode1)
+    case (hybrid_zero_mode)
+      select case (mode2)
+      case (hybrid_zero_mode)
+        merge_mode = hybrid_zero_mode
+      case (hybrid_dp_mode)
+        merge_mode = hybrid_dp_mode
+      case (hybrid_qp_mode)
+        merge_mode = hybrid_qp_mode
+      case (hybrid_dp_qp_mode)
+        merge_mode = hybrid_dp_qp_mode
+      end select
+
+    case (hybrid_dp_mode)
+      select case (mode2)
+      case (hybrid_zero_mode)
+        merge_mode = hybrid_dp_mode
+      case (hybrid_dp_mode)
+        merge_mode = hybrid_dp_mode
+      case (hybrid_qp_mode,hybrid_dp_qp_mode)
+        merge_mode = hybrid_dp_qp_mode
+      end select
+
+    case (hybrid_qp_mode)
+      select case (mode2)
+      case (hybrid_zero_mode)
+        merge_mode = hybrid_qp_mode
+      case (hybrid_dp_mode,hybrid_dp_qp_mode)
+        merge_mode = hybrid_dp_qp_mode
+      case (hybrid_qp_mode)
+        merge_mode = hybrid_qp_mode
+      end select
+
+    case (hybrid_dp_qp_mode)
+      merge_mode = hybrid_dp_qp_mode
+    end select
+
+  end function merge_mode
+
+!******************************************************************************
+subroutine signflip_OLR(Ginout)
+!------------------------------------------------------------------------------
+! changing sign of colour factor because of inverted building
+! direction for vertex of 3 coloured objects
+!******************************************************************************
+  use KIND_TYPES, only: REALKIND
+  type(hol), intent(inout) :: Ginout
+
+  Ginout%j = -Ginout%j
+#ifdef PRECISION_dp
+  if (hp_mode .eq. 1 .and. Ginout%mode .gt. hybrid_dp_mode) then
+    Ginout%j_qp = -Ginout%j_qp
+  end if
+#endif
+
+end subroutine signflip_OLR
 
 !!*****************************************************************************
 !! Functions for transposing an open loop (change of dressing direction)     !!
 !!*****************************************************************************
-
 
 !******************************************************************************
 subroutine HGT_OLR(Gin,r1,r2,hel)
@@ -37,22 +286,40 @@ subroutine HGT_OLR(Gin,r1,r2,hel)
 ! beta  = contravariant (light-cone) "active" index contracted with vertices/
 !         props to build the loop
 !******************************************************************************
-  use KIND_TYPES, only: REALKIND
+  use KIND_TYPES, only: REALKIND, QREALKIND
   implicit none
   integer, intent(in) :: r1, r2, hel
-  complex(REALKIND), intent(inout) :: Gin(4,r1:r2,4,hel)
+  type(hol), intent(inout) :: Gin
   complex(REALKIND) :: Gout(4,r1:r2,4,hel)
   integer :: al ,be, h
+#ifdef PRECISION_dp
+  complex(QREALKIND) :: Gout_qp(4,r1:r2,4,hel)
+#endif
 
   do h=1,hel
     do al=1,4
       do be=1,4
-        Gout(al,r1:r2,be,h)=Gin(be,r1:r2,al,h)
+        Gout(al,r1:r2,be,h)=Gin%j(be,r1:r2,al,h)
       end do
     end do
   end do
 
-  Gin=Gout
+  Gin%j(:,r1:r2,:,:)=Gout
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gin)) then
+    do h=1,hel
+    do al=1,4
+      do be=1,4
+        Gout_qp(al,r1:r2,be,h)=Gin%j_qp(be,r1:r2,al,h)
+      end do
+    end do
+  end do
+
+  Gin%j_qp(:,r1:r2,:,:)=Gout_qp
+
+  end if
+#endif
 
 end subroutine HGT_OLR
 
@@ -67,22 +334,40 @@ subroutine HGT_invQ_OLR(Gin,r1,r2,hel)
 ! beta  = contravariant (light-cone) "active" index contracted with vertices/
 !         props to build the loop
 !******************************************************************************
-  use KIND_TYPES, only: REALKIND
+  use KIND_TYPES, only: REALKIND, QREALKIND
   implicit none
   integer, intent(in) :: r1, r2, hel
-  complex(REALKIND), intent(inout) :: Gin(4,r1:r2,4,hel)
+  type(hol), intent(inout) :: Gin
   complex(REALKIND) :: Gout(4,r1:r2,4,hel)
   integer :: al, be, h
+#ifdef PRECISION_dp
+  complex(QREALKIND) :: Gout_qp(4,r1:r2,4,hel)
+#endif
 
   do h=1,hel
     do al=1,4
         do be=1,4
-          Gout(al,r1:r2,be,h)=-Gin(be,r1:r2,al,h)
+          Gout(al,r1:r2,be,h)=-Gin%j(be,r1:r2,al,h)
         end do
     end do
   end do
 
-  Gin=Gout
+  Gin%j(:,r1:r2,:,:)=Gout
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gin)) then
+    do h=1,hel
+      do al=1,4
+          do be=1,4
+            Gout_qp(al,r1:r2,be,h)=-Gin%j_qp(be,r1:r2,al,h)
+          end do
+      end do
+    end do
+
+    Gin%j_qp(:,r1:r2,:,:)=Gout_qp
+
+  end if
+#endif
 
 end subroutine HGT_invQ_OLR
 
@@ -98,23 +383,41 @@ subroutine HGT_w2_OLR(Gin,r1,r2,hel)
 ! NOTE: The factor 2 stemming from the metric when raising alpha before is
 !       multiplied here
 !******************************************************************************
-  use KIND_TYPES, only: REALKIND
+  use KIND_TYPES, only: REALKIND, QREALKIND
   implicit none
   integer, intent(in) :: r1, r2, hel
-  complex(REALKIND), intent(inout) :: Gin(4,r1:r2,4,hel)
+  type(hol), intent(inout) :: Gin
   complex(REALKIND) :: Gout(4,r1:r2,4,hel)
   integer :: al ,be, h
+#ifdef PRECISION_dp
+  complex(QREALKIND) :: Gout_qp(4,r1:r2,4,hel)
+#endif
 
   do h=1,hel
     do al=1,4
       do be=1,4
-        Gout(al,r1:r2,be,h)=Gin(be,r1:r2,al,h)
+        Gout(al,r1:r2,be,h)=Gin%j(be,r1:r2,al,h)
       end do
     end do
   end do
 
   !! Factor 2 from raising alpha before
-  Gin=Gout+Gout
+  Gin%j(:,r1:r2,:,:)=Gout+Gout
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gin)) then
+    do h=1,hel
+      do al=1,4
+        do be=1,4
+          Gout_qp(al,r1:r2,be,h)=Gin%j_qp(be,r1:r2,al,h)
+        end do
+      end do
+    end do
+
+    Gin%j_qp(:,r1:r2,:,:)=Gout_qp+Gout_qp
+
+  end if
+#endif
 
 end subroutine HGT_w2_OLR
 
@@ -131,23 +434,41 @@ subroutine HGT_w2_invQ_OLR(Gin,r1,r2,hel)
 ! NOTE: The factor 2 stemming from the metric when raising alpha before is
 !       multiplied here
 !******************************************************************************
-  use KIND_TYPES, only: REALKIND
+  use KIND_TYPES, only: REALKIND, QREALKIND
   implicit none
   integer, intent(in) :: r1, r2, hel
-  complex(REALKIND), intent(inout) :: Gin(4,r1:r2,4,hel)
+  type(hol), intent(inout) :: Gin
   complex(REALKIND) :: Gout(4,r1:r2,4,hel)
   integer :: al ,be, h
+#ifdef PRECISION_dp
+  complex(QREALKIND) :: Gout_qp(4,r1:r2,4,hel)
+#endif
 
   do h=1,hel
     do al=1,4
       do be=1,4
-        Gout(al,r1:r2,be,h)=-Gin(be,r1:r2,al,h)
+        Gout(al,r1:r2,be,h)=-Gin%j(be,r1:r2,al,h)
       end do
     end do
   end do
 
   !! Factor 2 from raising alpha before
-  Gin = Gout + Gout
+  Gin%j(:,r1:r2,:,:) = Gout + Gout
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gin)) then
+    do h=1,hel
+      do al=1,4
+        do be=1,4
+          Gout_qp(al,r1:r2,be,h)=-Gin%j_qp(be,r1:r2,al,h)
+        end do
+      end do
+    end do
+
+    !! Factor 2 from raising alpha before
+    Gin%j_qp(:,r1:r2,:,:) = Gout_qp + Gout_qp
+  end if
+#endif
 
 end subroutine HGT_w2_invQ_OLR
 
@@ -165,21 +486,37 @@ subroutine HGT_raise_alpha_OLR(Gin,r1,r2,hel)
 ! NOTE: A factor 2 stemming from the metric is suppressed (to be multiplied
 !       later)
 !******************************************************************************
-  use KIND_TYPES, only: REALKIND
+  use KIND_TYPES, only: REALKIND, QREALKIND
   implicit none
   integer, intent(in) :: r1, r2, hel
-  complex(REALKIND), intent(inout) :: Gin(4,r1:r2,4,hel)
+  type(hol), intent(inout) :: Gin
   complex(REALKIND) :: Gout(4,r1:r2,4,hel)
   integer :: be
+#ifdef PRECISION_dp
+  complex(QREALKIND) :: Gout_qp(4,r1:r2,4,hel)
+#endif
 
   do be=1,4
-    Gout(2,r1:r2,be,1:hel)= Gin(be,r1:r2,1,1:hel)
-    Gout(1,r1:r2,be,1:hel)= Gin(be,r1:r2,2,1:hel)
-    Gout(4,r1:r2,be,1:hel)=-Gin(be,r1:r2,3,1:hel)
-    Gout(3,r1:r2,be,1:hel)=-Gin(be,r1:r2,4,1:hel)
+    Gout(2,r1:r2,be,1:hel)= Gin%j(be,r1:r2,1,1:hel)
+    Gout(1,r1:r2,be,1:hel)= Gin%j(be,r1:r2,2,1:hel)
+    Gout(4,r1:r2,be,1:hel)=-Gin%j(be,r1:r2,3,1:hel)
+    Gout(3,r1:r2,be,1:hel)=-Gin%j(be,r1:r2,4,1:hel)
   end do
 
-  Gin = Gout
+  Gin%j(:,r1:r2,:,:) = Gout
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gin)) then
+    do be=1,4
+      Gout_qp(2,r1:r2,be,1:hel)= Gin%j_qp(be,r1:r2,1,1:hel)
+      Gout_qp(1,r1:r2,be,1:hel)= Gin%j_qp(be,r1:r2,2,1:hel)
+      Gout_qp(4,r1:r2,be,1:hel)=-Gin%j_qp(be,r1:r2,3,1:hel)
+      Gout_qp(3,r1:r2,be,1:hel)=-Gin%j_qp(be,r1:r2,4,1:hel)
+    end do
+
+    Gin%j_qp(:,r1:r2,:,:) = Gout_qp
+  end if
+#endif
 
 end subroutine HGT_raise_alpha_OLR
 
@@ -229,21 +566,42 @@ subroutine HGT_raise_alpha_invQ_OLR(Gin,r1,r2,hel)
 ! NOTE: A factor 2 stemming from the metric is suppressed (to be multiplied
 !       later)
 !******************************************************************************
-  use KIND_TYPES, only: REALKIND
+  use KIND_TYPES, only: REALKIND, QREALKIND
   implicit none
   integer, intent(in) :: r1, r2, hel
-  complex(REALKIND), intent(inout) :: Gin(4,r1:r2,4,hel)
+  type(hol), intent(inout) :: Gin
   complex(REALKIND) :: Gout(4,r1:r2,4,hel)
   integer :: be, h
+#ifdef PRECISION_dp
+  complex(QREALKIND) :: Gout_qp(4,r1:r2,4,hel)
+#endif
 
-  do be=1,4
-    Gout(2,r1:r2,be,1:hel)= -Gin(be,r1:r2,1,1:hel)
-    Gout(1,r1:r2,be,1:hel)= -Gin(be,r1:r2,2,1:hel)
-    Gout(4,r1:r2,be,1:hel)=  Gin(be,r1:r2,3,1:hel)
-    Gout(3,r1:r2,be,1:hel)=  Gin(be,r1:r2,4,1:hel)
+  do h=1,hel
+    do be=1,4
+        Gout(2,r1:r2,be,h)= -Gin%j(be,r1:r2,1,h)
+        Gout(1,r1:r2,be,h)= -Gin%j(be,r1:r2,2,h)
+        Gout(4,r1:r2,be,h)=  Gin%j(be,r1:r2,3,h)
+        Gout(3,r1:r2,be,h)=  Gin%j(be,r1:r2,4,h)
+    end do
   end do
 
-  Gin = Gout
+  Gin%j(:,r1:r2,:,:) = Gout
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gin)) then
+    do h=1,hel
+      do be=1,4
+          Gout_qp(2,r1:r2,be,h)= -Gin%j_qp(be,r1:r2,1,h)
+          Gout_qp(1,r1:r2,be,h)= -Gin%j_qp(be,r1:r2,2,h)
+          Gout_qp(4,r1:r2,be,h)=  Gin%j_qp(be,r1:r2,3,h)
+          Gout_qp(3,r1:r2,be,h)=  Gin%j_qp(be,r1:r2,4,h)
+      end do
+    end do
+
+    Gin%j_qp(:,r1:r2,:,:) = Gout_qp
+
+  end if
+#endif
 
 end subroutine HGT_raise_alpha_invQ_OLR
 
@@ -256,21 +614,41 @@ subroutine HGT_lower_alpha_OLR(Gin,r1,r2,hel)
 ! NOTE: A factor 1/2 stemming from the metric is suppressed
 !       (cancelling a factor 2 from raising alpha before)
 !******************************************************************************
-  use KIND_TYPES, only: REALKIND
+  use KIND_TYPES, only: REALKIND, QREALKIND
   implicit none
-  integer,           intent(in)    :: r1, r2, hel
-  complex(REALKIND), intent(inout) :: Gin(4,r1:r2,4,hel)
-  complex(REALKIND)                :: Gout(4,r1:r2,4,hel)
+  integer, intent(in) :: r1, r2, hel
+  type(hol), intent(inout) :: Gin
+  complex(REALKIND) :: Gout(4,r1:r2,4,hel)
   integer :: be, h
+#ifdef PRECISION_dp
+  complex(QREALKIND) :: Gout_qp(4,r1:r2,4,hel)
+#endif
 
-  do be=1,4
-    Gout(be,r1:r2,2,1:hel)= Gin(1,r1:r2,be,1:hel)
-    Gout(be,r1:r2,1,1:hel)= Gin(2,r1:r2,be,1:hel)
-    Gout(be,r1:r2,4,1:hel)=-Gin(3,r1:r2,be,1:hel)
-    Gout(be,r1:r2,3,1:hel)=-Gin(4,r1:r2,be,1:hel)
+  do h=1,hel
+    do be=1,4
+        Gout(be,r1:r2,2,h)= Gin%j(1,r1:r2,be,h)
+        Gout(be,r1:r2,1,h)= Gin%j(2,r1:r2,be,h)
+        Gout(be,r1:r2,4,h)=-Gin%j(3,r1:r2,be,h)
+        Gout(be,r1:r2,3,h)=-Gin%j(4,r1:r2,be,h)
+    end do
   end do
 
- Gin = Gout
+ Gin%j(:,r1:r2,:,:) = Gout
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gin)) then
+    do h=1,hel
+      do be=1,4
+          Gout_qp(be,r1:r2,2,h)= Gin%j_qp(1,r1:r2,be,h)
+          Gout_qp(be,r1:r2,1,h)= Gin%j_qp(2,r1:r2,be,h)
+          Gout_qp(be,r1:r2,4,h)=-Gin%j_qp(3,r1:r2,be,h)
+          Gout_qp(be,r1:r2,3,h)=-Gin%j_qp(4,r1:r2,be,h)
+      end do
+    end do
+
+   Gin%j_qp(:,r1:r2,:,:) = Gout_qp
+  end if
+#endif
 
 end subroutine HGT_lower_alpha_OLR
 
@@ -284,21 +662,42 @@ subroutine HGT_lower_alpha_invQ_OLR(Gin,r1,r2,hel)
 ! NOTE: A factor 1/2 stemming from the metric is suppressed
 !       (cancelling a factor 2 from raising alpha before)
 !******************************************************************************
-  use KIND_TYPES, only: REALKIND
+  use KIND_TYPES, only: REALKIND, QREALKIND
   implicit none
   integer, intent(in) :: r1, r2, hel
-  complex(REALKIND), intent(inout) :: Gin(4,r1:r2,4,hel)
+  type(hol), intent(inout) :: Gin
   complex(REALKIND) :: Gout(4,r1:r2,4,hel)
   integer :: be, h
+#ifdef PRECISION_dp
+  complex(QREALKIND) :: Gout_qp(4,r1:r2,4,hel)
+#endif
 
-  do be=1,4
-    Gout(be,r1:r2,2,1:hel)= -Gin(1,r1:r2,be,1:hel)
-    Gout(be,r1:r2,1,1:hel)= -Gin(2,r1:r2,be,1:hel)
-    Gout(be,r1:r2,4,1:hel)=  Gin(3,r1:r2,be,1:hel)
-    Gout(be,r1:r2,3,1:hel)=  Gin(4,r1:r2,be,1:hel)
+  do h=1,hel
+    do be=1,4
+        Gout(be,r1:r2,2,h)= -Gin%j(1,r1:r2,be,h)
+        Gout(be,r1:r2,1,h)= -Gin%j(2,r1:r2,be,h)
+        Gout(be,r1:r2,4,h)=  Gin%j(3,r1:r2,be,h)
+        Gout(be,r1:r2,3,h)=  Gin%j(4,r1:r2,be,h)
+    end do
   end do
 
-  Gin = Gout
+  Gin%j(:,r1:r2,:,:) = Gout
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gin)) then
+    do h=1,hel
+      do be=1,4
+          Gout_qp(be,r1:r2,2,h)= -Gin%j_qp(1,r1:r2,be,h)
+          Gout_qp(be,r1:r2,1,h)= -Gin%j_qp(2,r1:r2,be,h)
+          Gout_qp(be,r1:r2,4,h)=  Gin%j_qp(3,r1:r2,be,h)
+          Gout_qp(be,r1:r2,3,h)=  Gin%j_qp(4,r1:r2,be,h)
+      end do
+    end do
+
+    Gin%j_qp(:,r1:r2,:,:) = Gout_qp
+
+  end if
+#endif
 
 end subroutine HGT_lower_alpha_invQ_OLR
 
@@ -310,21 +709,41 @@ subroutine HGT_lower_alpha_w2_OLR(Gin,r1,r2,hel)
 ! alpha (contravariant in lightcone)
 ! NOTE: The factor 1/2 stemming from the metric is multiplied here
 !******************************************************************************
-  use KIND_TYPES, only: REALKIND
+  use KIND_TYPES, only: REALKIND, QREALKIND
   implicit none
   integer, intent(in) :: r1, r2, hel
-  complex(REALKIND), intent(inout) :: Gin(4,r1:r2,4,hel)
+  type(hol), intent(inout) :: Gin
   complex(REALKIND) :: Gout(4,r1:r2,4,hel)
   integer :: be, h
+#ifdef PRECISION_dp
+  complex(QREALKIND) :: Gout_qp(4,r1:r2,4,hel)
+#endif
 
-  do be=1,4
-    Gout(be,r1:r2,2,1:hel)= Gin(1,r1:r2,be,1:hel)
-    Gout(be,r1:r2,1,1:hel)= Gin(2,r1:r2,be,1:hel)
-    Gout(be,r1:r2,4,1:hel)=-Gin(3,r1:r2,be,1:hel)
-    Gout(be,r1:r2,3,1:hel)=-Gin(4,r1:r2,be,1:hel)
+  do h=1,hel
+    do be=1,4
+      Gout(be,r1:r2,2,h)= Gin%j(1,r1:r2,be,h)
+      Gout(be,r1:r2,1,h)= Gin%j(2,r1:r2,be,h)
+      Gout(be,r1:r2,4,h)=-Gin%j(3,r1:r2,be,h)
+      Gout(be,r1:r2,3,h)=-Gin%j(4,r1:r2,be,h)
+    end do
   end do
 
-  Gin = Gout/2
+  Gin%j(:,r1:r2,:,:) = Gout/2
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gin)) then
+    do h=1,hel
+      do be=1,4
+        Gout_qp(be,r1:r2,2,h)= Gin%j_qp(1,r1:r2,be,h)
+        Gout_qp(be,r1:r2,1,h)= Gin%j_qp(2,r1:r2,be,h)
+        Gout_qp(be,r1:r2,4,h)=-Gin%j_qp(3,r1:r2,be,h)
+        Gout_qp(be,r1:r2,3,h)=-Gin%j_qp(4,r1:r2,be,h)
+      end do
+    end do
+
+    Gin%j_qp(:,r1:r2,:,:) = Gout_qp/2
+  end if
+#endif
 
 end subroutine HGT_lower_alpha_w2_OLR
 
@@ -337,21 +756,39 @@ subroutine HGT_lower_alpha_w2_invQ_OLR(Gin,r1,r2,hel)
 ! alpha (contravariant in lightcone)
 ! NOTE: The factor 1/2 stemming from the metric is multiplied here
 !******************************************************************************
-  use KIND_TYPES, only: REALKIND
+  use KIND_TYPES, only: REALKIND, QREALKIND
   implicit none
   integer, intent(in) :: r1, r2, hel
-  complex(REALKIND), intent(inout) :: Gin(4,r1:r2,4,hel)
+  type(hol), intent(inout) :: Gin
   complex(REALKIND) :: Gout(4,r1:r2,4,hel)
   integer :: be, h
+#ifdef PRECISION_dp
+  complex(QREALKIND) :: Gout_qp(4,r1:r2,4,hel)
+#endif
 
-  do be = 1, 4
-    Gout(be,r1:r2,2,1:hel)= -Gin(1,r1:r2,be,1:hel)
-    Gout(be,r1:r2,1,1:hel)= -Gin(2,r1:r2,be,1:hel)
-    Gout(be,r1:r2,4,1:hel)=  Gin(3,r1:r2,be,1:hel)
-    Gout(be,r1:r2,3,1:hel)=  Gin(4,r1:r2,be,1:hel)
+  do h=1,hel
+    do be=1,4
+        Gout(be,r1:r2,2,h)= -Gin%j(1,r1:r2,be,h)
+        Gout(be,r1:r2,1,h)= -Gin%j(2,r1:r2,be,h)
+        Gout(be,r1:r2,4,h)=  Gin%j(3,r1:r2,be,h)
+        Gout(be,r1:r2,3,h)=  Gin%j(4,r1:r2,be,h)
+    end do
   end do
+ Gin%j(:,r1:r2,:,:) = Gout/2
 
-  Gin = Gout/2
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gin)) then
+    do h=1,hel
+      do be=1,4
+          Gout_qp(be,r1:r2,2,h)= -Gin%j_qp(1,r1:r2,be,h)
+          Gout_qp(be,r1:r2,1,h)= -Gin%j_qp(2,r1:r2,be,h)
+          Gout_qp(be,r1:r2,4,h)=  Gin%j_qp(3,r1:r2,be,h)
+          Gout_qp(be,r1:r2,3,h)=  Gin%j_qp(4,r1:r2,be,h)
+      end do
+    end do
+   Gin%j_qp(:,r1:r2,:,:) = Gout_qp/2
+  end if
+#endif
 
 end subroutine HGT_lower_alpha_w2_invQ_OLR
 
@@ -361,31 +798,91 @@ end subroutine HGT_lower_alpha_w2_invQ_OLR
 !!*****************************************************************************
 
 !******************************************************************************
-subroutine HG1shiftOLR(HG1in,dQ,htot)
+subroutine HG1shiftOLR(HG1in,dQid,htot)
 !------------------------------------------------------------------------------
 ! Shift the momentum q -> q + dQ for the tensor G1(beta,l,alpha), i.e.
 ! the scalar part of G1 is shifted by the vector part contracted with dQ
 ! (all in light-cone rep)
 !******************************************************************************
-  use KIND_TYPES, only: REALKIND, intkind1
+  use KIND_TYPES, only: REALKIND, intkind1, QREALKIND
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
   use ol_data_types_/**/REALKIND, only: hol
-  implicit none
-
-  integer, intent(in):: htot
-  type(hol), intent(inout)      :: HG1in
-  complex(REALKIND), intent(in) :: dQ(4)
+#ifdef PRECISION_dp
+  use ol_kinematics_/**/QREALKIND, only: get_LC_4_qp=>get_LC_4
+#endif
+  integer,   intent(in)    :: htot
+  integer,   intent(in)    :: dQid
+  type(hol), intent(inout) :: HG1in
+  complex(REALKIND) :: dQ(4)
   complex(REALKIND) :: G1shift(4,1,4,htot)
+#ifdef PRECISION_dp
+  complex(QREALKIND) :: G1shift_qp(4,1,4,htot)
+  complex(QREALKIND) :: dQ_qp(4)
+#endif
+
+  dQ = get_LC_4(dQid)
 
   G1shift(:,1,:,:) = HG1in%j(:,2,:,:)*dQ(1) + HG1in%j(:,3,:,:)*dQ(2) &
                    + HG1in%j(:,4,:,:)*dQ(3) + HG1in%j(:,5,:,:)*dQ(4)
 
   HG1in%j(:,1,:,:) = HG1in%j(:,1,:,:) + G1shift(:,1,:,:)
 
+#ifdef PRECISION_dp
+  if (req_qp_cmp(HG1in)) then
+    dQ_qp = get_LC_4_qp(dQid)
+    G1shift_qp(:,1,:,:) = HG1in%j_qp(:,2,:,:)*dQ_qp(1) + HG1in%j_qp(:,3,:,:)*dQ_qp(2) &
+                     + HG1in%j_qp(:,4,:,:)*dQ_qp(3) + HG1in%j_qp(:,5,:,:)*dQ_qp(4)
+
+    HG1in%j_qp(:,1,:,:) = HG1in%j_qp(:,1,:,:) + G1shift_qp(:,1,:,:)
+  end if
+#endif
+
 end subroutine HG1shiftOLR
 
 
 !******************************************************************************
-subroutine G_TensorShift(Gin,dQ)
+subroutine G_TensorShift(Gin,dQid)
+! -----------------------------------------------------------------------------
+! It performs a loop-momentum shift, i.e. q -> q + dQ, for the tensor Gin(l).
+! rank-1, rank-2 and rank-3 supported
+!******************************************************************************
+  use KIND_TYPES, only: REALKIND, QREALKIND
+  use ol_data_types_/**/REALKIND, only: hcl
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
+#ifdef PRECISION_dp
+  use ol_loop_handling_/**/QREALKIND, only: &
+              G1tensorshiftOLR_qp => G1tensorshiftOLR, &
+              G2tensorshiftOLR_qp => G2tensorshiftOLR, &
+              G3tensorshiftOLR_qp => G3tensorshiftOLR
+  use ol_kinematics_/**/QREALKIND, only: get_LC_4_qp=>get_LC_4
+#endif
+  integer,   intent(in)    :: dQid
+  type(hcl), intent(inout) :: Gin
+
+  if (size(Gin%cmp) == 5) then
+    call G1tensorshiftOLR(Gin%cmp,get_LC_4(dQid))
+  else if (size(Gin%cmp) == 15) then
+    call G2tensorshiftOLR(Gin%cmp,get_LC_4(dQid))
+  else if (size(Gin%cmp) == 35) then
+    call G3tensorshiftOLR(Gin%cmp,get_LC_4(dQid))
+  end if
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gin)) then
+    if (size(Gin%cmp) == 5) then
+      call G1tensorshiftOLR_qp(Gin%cmp_qp,get_LC_4_qp(dQid))
+    else if (size(Gin%cmp) == 15) then
+      call G2tensorshiftOLR_qp(Gin%cmp_qp,get_LC_4_qp(dQid))
+    else if (size(Gin%cmp) == 35) then
+      call G3tensorshiftOLR_qp(Gin%cmp_qp,get_LC_4_qp(dQid))
+    end if
+  end if
+#endif
+
+end subroutine G_TensorShift
+
+!******************************************************************************
+subroutine G_TensorShift_otf(Gin,dQ)
 ! -----------------------------------------------------------------------------
 ! It performs a loop-momentum shift, i.e. q -> q + dQ, for the tensor Gin(l).
 ! rank-1, rank-2 and rank-3 supported
@@ -403,8 +900,7 @@ subroutine G_TensorShift(Gin,dQ)
     call G3tensorshiftOLR(Gin,dQ)
   end if
 
-end subroutine G_TensorShift
-
+end subroutine G_TensorShift_otf
 
 !******************************************************************************
 subroutine G1tensorshiftOLR(G1in,dQ)
@@ -429,8 +925,8 @@ end subroutine G1tensorshiftOLR
 subroutine G2tensorshiftOLR(Gin,dQ)
 ! -----------------------------------------------------------------------------
 ! Shift the momentum q -> q + dQ for the tensor G2tensor(l), i.e. the vector
-! and the scalar part  by the tensor and vector part contracted with dQ 
-! (all in light-cone rep) 
+! and the scalar part  by the tensor and vector part contracted with dQ
+! (all in light-cone rep)
 ! l = tensor index
 !******************************************************************************
   use KIND_TYPES, only: REALKIND
@@ -485,8 +981,8 @@ end subroutine G2tensorshiftOLR
 !******************************************************************************
 subroutine G3tensorshiftOLR(Gin,dQ)
 ! -----------------------------------------------------------------------------
-! Shift the momentum q -> q + dQ for the tensor G3tensor(l), i.e. the vector 
-! and the scalar part by the tensor and vector part contracted with dQ 
+! Shift the momentum q -> q + dQ for the tensor G3tensor(l), i.e. the vector
+! and the scalar part by the tensor and vector part contracted with dQ
 ! (all in light-cone rep)
 ! l = tensor index
 !******************************************************************************

@@ -38,7 +38,8 @@ module ol_generic
   interface to_string
     module procedure integer_to_string, integer1_to_string, integer2_to_string, &
           & double_to_string, complex_to_string, single_to_string, &
-          & integerlist_to_string, doublelist_to_string, complexlist_to_string
+          & integerlist_to_string, doublelist_to_string, complexlist_to_string, &
+          logical_to_string
   end interface to_string
 
   interface to_int
@@ -102,6 +103,18 @@ module ol_generic
       if (del) integerlist_to_string = trim(integerlist_to_string) // "]"
     end if
   end function integerlist_to_string
+
+  function logical_to_string(x)
+    implicit none
+    logical :: x
+    character(5) :: logical_to_string
+    !write(integer_to_string,*) x
+    if (x .eqv. .true.) then
+      logical_to_string = "True"
+    else
+      logical_to_string = "False"
+    end if
+  end function logical_to_string
 
   function doublelist_to_string(x,del,sep)
     use KIND_TYPES, only: DREALKIND

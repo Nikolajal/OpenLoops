@@ -21,6 +21,11 @@
 module ol_parameters_init_/**/REALKIND
   use ol_debug
   implicit none
+
+  interface get_coupling
+    module procedure get_coupling2_id
+  end interface
+
   contains
 
 subroutine masspowers(rM, Ga, M, M2, rM2)
@@ -54,9 +59,6 @@ subroutine parameters_init()
   use KIND_TYPES, only: REALKIND
   use ol_generic, only: to_string, random_string
   use ol_parameters_decl_/**/REALKIND
-#if defined(COLLIER_LEGACY) && defined(USE_COLLIER)
-  use bt_TI_lib_switch, only: TI_library ! from COLI: module to switch between COLI and DD libraries
-#endif
   use ol_version, only: splash_todo, print_welcome
   implicit none
 
@@ -67,11 +69,6 @@ subroutine parameters_init()
   if (splash_todo .and. .not. nosplash) then
     call print_welcome()
   end if
-
-#if defined(COLLIER_LEGACY) && defined(USE_COLLIER)
-  if (a_switch == 1) TI_library = 1 ! use COLI
-  if (a_switch == 7) TI_library = 2 ! use DD
-#endif
 
   ! set mass of V-auxiliary fields
   rMX_unscaled = rMZ_unscaled
@@ -138,72 +135,120 @@ subroutine parameters_init()
   use ol_parameters_decl_/**/DREALKIND, only: &
     & model, parameters_verbose, cms_on => cms_on, ew_scheme => ew_scheme, &
     & parameters_status_dp => parameters_status,  alpha_QCD_dp => alpha_QCD, &
-    & alpha_QED_0_dp => alpha_QED_0, alpha_QED_MZ_dp => alpha_QED_MZ, Gmu_dp => Gmu, &
-    & rME_dp => rME, wME_dp => wME, rMM_dp => rMM, wMM_dp => wMM, rML_dp => rML, wML_dp => wML, &
-    & rMU_dp => rMU, wMU_dp => wMU, rMD_dp => rMD, wMD_dp => wMD, rMS_dp => rMS, wMS_dp => wMS, &
-    & rMC_dp => rMC, wMC_dp => wMC, rMB_dp => rMB, wMB_dp => wMB, rMT_dp => rMT, wMT_dp => wMT, &
-    & rMW_dp => rMW, wMW_dp => wMW, rMZ_dp => rMZ, wMZ_dp => wMZ, rMH_dp => rMH, wMH_dp => wMH, &
-    & rMX_dp => rMX, wMX_dp => wMX, rMY_dp => rMY, wMY_dp => wMY, &
-    & rYE_dp => rYE, rYM_dp => rYM, rYL_dp => rYL, rYU_dp => rYU, rYD_dp => rYD, rYS_dp => rYS, &
-    & rYC_dp => rYC, rYB_dp => rYB, wYB_dp => wYB, rYT_dp => rYT, wYT_dp => wYT, &
-    & rMA0_dp => rMA0, wMA0_dp => wMA0, rMHH_dp => rMHH, wMHH_dp => wMHH, rMHp_dp => rMHp, wMHp_dp => wMHp, &
+    & alpha_QED_0_dp => alpha_QED_0, alpha_QED_MZ_dp => alpha_QED_MZ, &
     & thdmTB_dp => thdmTB, thdmSBA_dp => thdmSBA, thdmL5_dp => thdmL5
+  use ol_parameters_decl_/**/DREALKIND, only: &
+    rME_unscaled_dp => rME_unscaled, &
+    wME_unscaled_dp => wME_unscaled, &
+    rYE_unscaled_dp => rYE_unscaled, &
+    rMM_unscaled_dp => rMM_unscaled, &
+    wMM_unscaled_dp => wMM_unscaled, &
+    rYM_unscaled_dp => rYM_unscaled, &
+    rML_unscaled_dp => rML_unscaled, &
+    wML_unscaled_dp => wML_unscaled, &
+    rYL_unscaled_dp => rYL_unscaled, &
+    rMU_unscaled_dp => rMU_unscaled, &
+    wMU_unscaled_dp => wMU_unscaled, &
+    rYU_unscaled_dp => rYU_unscaled, &
+    rMD_unscaled_dp => rMD_unscaled, &
+    wMD_unscaled_dp => wMD_unscaled, &
+    rYD_unscaled_dp => rYD_unscaled, &
+    rMS_unscaled_dp => rMS_unscaled, &
+    wMS_unscaled_dp => wMS_unscaled, &
+    rYS_unscaled_dp => rYS_unscaled, &
+    rMC_unscaled_dp => rMC_unscaled, &
+    wMC_unscaled_dp => wMC_unscaled, &
+    rYC_unscaled_dp => rYC_unscaled, &
+    rMB_unscaled_dp => rMB_unscaled, &
+    wMB_unscaled_dp => wMB_unscaled, &
+    rYB_unscaled_dp => rYB_unscaled, &
+    wYB_unscaled_dp => wYB_unscaled, &
+    rMT_unscaled_dp => rMT_unscaled, &
+    wMT_unscaled_dp => wMT_unscaled, &
+    rYT_unscaled_dp => rYT_unscaled, &
+    wYT_unscaled_dp => wYT_unscaled, &
+    rMW_unscaled_dp => rMW_unscaled, &
+    wMW_unscaled_dp => wMW_unscaled, &
+    rMZ_unscaled_dp => rMZ_unscaled, &
+    wMZ_unscaled_dp => wMZ_unscaled, &
+    rMX_unscaled_dp => rMX_unscaled, &
+    wMX_unscaled_dp => wMX_unscaled, &
+    rMY_unscaled_dp => rMY_unscaled, &
+    wMY_unscaled_dp => wMY_unscaled, &
+    rMH_unscaled_dp => rMH_unscaled, &
+    wMH_unscaled_dp => wMH_unscaled, &
+    rMA0_unscaled_dp => rMA0_unscaled, &
+    wMA0_unscaled_dp => wMA0_unscaled, &
+    rMHH_unscaled_dp => rMHH_unscaled, &
+    wMHH_unscaled_dp => wMHH_unscaled, &
+    rMHp_unscaled_dp => rMHp_unscaled, &
+    wMHp_unscaled_dp => wMHp_unscaled, &
+    MREG_unscaled_dp => MREG_unscaled, &
+    Gmu_unscaled_dp => Gmu_unscaled
+  use ol_parameters_decl_/**/DREALKIND, only: scalefactor_dp => scalefactor
   use ol_parameters_decl_/**/QREALKIND, only: scalefactor
   implicit none
 
-  rMX_unscaled = rMZ_unscaled
-  rMY_unscaled = rMW_unscaled
+  scalefactor = scalefactor_dp
+  rMA0 = scalefactor * rMA0_unscaled_dp
+  wMA0 = scalefactor * wMA0_unscaled_dp
+  rMHH = scalefactor * rMHH_unscaled_dp
+  wMHH = scalefactor * wMHH_unscaled_dp
+  rMHp = scalefactor * rMHp_unscaled_dp
+  wMHp = scalefactor * wMHp_unscaled_dp
 
-  rME = scalefactor * rME_unscaled
-  wME = scalefactor * wME_unscaled
-  rYE = scalefactor * rYE_unscaled
-  rMM = scalefactor * rMM_unscaled
-  wMM = scalefactor * wMM_unscaled
-  rYM = scalefactor * rYM_unscaled
-  rML = scalefactor * rML_unscaled
-  wML = scalefactor * wML_unscaled
-  rYL = scalefactor * rYL_unscaled
-  rMU = scalefactor * rMU_unscaled
-  wMU = scalefactor * wMU_unscaled
-  rYU = scalefactor * rYU_unscaled
-  rMD = scalefactor * rMD_unscaled
-  wMD = scalefactor * wMD_unscaled
-  rYD = scalefactor * rYD_unscaled
-  rMS = scalefactor * rMS_unscaled
-  wMS = scalefactor * wMS_unscaled
-  rYS = scalefactor * rYS_unscaled
-  rMC = scalefactor * rMC_unscaled
-  wMC = scalefactor * wMC_unscaled
-  rYC = scalefactor * rYC_unscaled
-  rMB = scalefactor * rMB_unscaled
-  wMB = scalefactor * wMB_unscaled
-  rYB = scalefactor * rYB_unscaled
-  wYB = scalefactor * wYB_unscaled
-  rMT = scalefactor * rMT_unscaled
-  wMT = scalefactor * wMT_unscaled
-  rYT = scalefactor * rYT_unscaled
-  wYT = scalefactor * wYT_unscaled
-  rMW = scalefactor * rMW_unscaled
-  wMW = scalefactor * wMW_unscaled
-  rMZ = scalefactor * rMZ_unscaled
-  wMZ = scalefactor * wMZ_unscaled
-  rMX = scalefactor * rMX_unscaled
-  wMX = scalefactor * wMX_unscaled
-  rMY = scalefactor * rMY_unscaled
-  wMY = scalefactor * wMY_unscaled
-  rMH = scalefactor * rMH_unscaled
-  wMH = scalefactor * wMH_unscaled
+  MREG = scalefactor * MREG_unscaled_dp
 
-  rMA0 = scalefactor * rMA0_unscaled
-  wMA0 = scalefactor * wMA0_unscaled
-  rMHH = scalefactor * rMHH_unscaled
-  wMHH = scalefactor * wMHH_unscaled
-  rMHp = scalefactor * rMHp_unscaled
-  wMHp = scalefactor * wMHp_unscaled
+  rME = scalefactor * rME_unscaled_dp
+  wME = scalefactor * wME_unscaled_dp
+  rYE = scalefactor * rYE_unscaled_dp
+  rMM = scalefactor * rMM_unscaled_dp
+  wMM = scalefactor * wMM_unscaled_dp
+  rYM = scalefactor * rYM_unscaled_dp
+  rML = scalefactor * rML_unscaled_dp
+  wML = scalefactor * wML_unscaled_dp
+  rYL = scalefactor * rYL_unscaled_dp
+  rMU = scalefactor * rMU_unscaled_dp
+  wMU = scalefactor * wMU_unscaled_dp
+  rYU = scalefactor * rYU_unscaled_dp
+  rMD = scalefactor * rMD_unscaled_dp
+  wMD = scalefactor * wMD_unscaled_dp
+  rYD = scalefactor * rYD_unscaled_dp
+  rMS = scalefactor * rMS_unscaled_dp
+  wMS = scalefactor * wMS_unscaled_dp
+  rYS = scalefactor * rYS_unscaled_dp
+  rMC = scalefactor * rMC_unscaled_dp
+  wMC = scalefactor * wMC_unscaled_dp
+  rYC = scalefactor * rYC_unscaled_dp
+  rMB = scalefactor * rMB_unscaled_dp
+  wMB = scalefactor * wMB_unscaled_dp
+  rYB = scalefactor * rYB_unscaled_dp
+  wYB = scalefactor * wYB_unscaled_dp
+  rMT = scalefactor * rMT_unscaled_dp
+  wMT = scalefactor * wMT_unscaled_dp
+  rYT = scalefactor * rYT_unscaled_dp
+  wYT = scalefactor * wYT_unscaled_dp
+  rMW = scalefactor * rMW_unscaled_dp
+  wMW = scalefactor * wMW_unscaled_dp
+  rMZ = scalefactor * rMZ_unscaled_dp
+  wMZ = scalefactor * wMZ_unscaled_dp
+  rMX = scalefactor * rMX_unscaled_dp
+  wMX = scalefactor * wMX_unscaled_dp
+  rMY = scalefactor * rMY_unscaled_dp
+  wMY = scalefactor * wMY_unscaled_dp
+  rMH = scalefactor * rMH_unscaled_dp
+  wMH = scalefactor * wMH_unscaled_dp
 
-  MREG = scalefactor * MREG_unscaled
+  rMA0 = scalefactor * rMA0_unscaled_dp
+  wMA0 = scalefactor * wMA0_unscaled_dp
+  rMHH = scalefactor * rMHH_unscaled_dp
+  wMHH = scalefactor * wMHH_unscaled_dp
+  rMHp = scalefactor * rMHp_unscaled_dp
+  wMHp = scalefactor * wMHp_unscaled_dp
 
-  Gmu  = Gmu_unscaled / scalefactor**2
+  MREG = scalefactor * MREG_unscaled_dp
+
+  Gmu  = Gmu_unscaled_dp / scalefactor**2
 
   alpha_QED_0  = alpha_QED_0_dp
   alpha_QED_MZ = alpha_QED_MZ_dp
@@ -492,37 +537,11 @@ subroutine channel_on(ch)
   use ol_generic, only: to_string
   use ol_debug, only: ol_error, ol_fatal
 #ifdef USE_COLLIER
-#ifndef COLLIER_LEGACY
   use collier, only: initevent_cll
-#endif
 #endif
   implicit none
   integer, intent(inout) :: ch
 #ifdef USE_COLLIER
-#ifdef COLLIER_LEGACY
-  integer :: maxcache
-  external :: cacheon, cachereonch, cacheinit ! from COLI
-  if (coli_cache_use /= 0 .and. (a_switch == 1 .or. a_switch == 2 .or. a_switch == 3)) then
-    call getmaxcache(maxcache)
-    if (ch == -1) then
-      ch = next_channel_number
-      next_channel_number = next_channel_number + 1
-      if (ch > maxcache) then
-        ! maximum number of channels exceeded
-        call ol_error(2, 'subroutine channel_on:')
-        call ol_error(2, 'next channel = ' // to_string(next_channel_number) // '/' // to_string(maxcache))
-        call ol_error(2, 'to handle more channels increase maxcache')
-        call ol_error(2,  'in collier/src/coli_params_cache.h')
-        call ol_fatal()
-      else
-        call cacheon(ch)
-      end if
-    end if
-
-    call cachereonch(ch)  ! cache channel reactivated
-    call cacheinit(0,ch) ! cache channel initialised for new PS point
-  end if
-#else
   if (coli_cache_use /= 0 .and. (a_switch == 1 .or. a_switch == 2 .or. a_switch == 3 .or. a_switch == 7)) then
     if (ch == -1) then
       ch = next_channel_number
@@ -535,7 +554,6 @@ subroutine channel_on(ch)
     end if
   end if
 #endif
-#endif
 end subroutine channel_on
 
 
@@ -543,16 +561,11 @@ end subroutine channel_on
 ! **********************************************************************
 subroutine channel_off(ch)
 ! switch cache for channel ch temporarily off
+! DEPRECATED, only for compatibility with old process code
 ! **********************************************************************
   use ol_parameters_decl_/**/DREALKIND, only: coli_cache_use, a_switch
   implicit none
   integer, intent(in) :: ch
-#if defined(USE_COLLIER) && defined(COLLIER_LEGACY)
-  external :: cachetempoffch
-  if (coli_cache_use /= 0 .and. (a_switch == 1 .or. a_switch == 2 .or. a_switch == 3)) then
-    call cachetempoffch(ch)
-  end if
-#endif
 end subroutine channel_off
 ! #ifdef PRECISION_dp
 #endif
@@ -594,14 +607,56 @@ subroutine init_kin_arrays(Npart)
   end if
 end subroutine init_kin_arrays
 
+
+subroutine init_kin_arrays_quad(Npart)
+  use ol_momenta_decl_/**/QREALKIND, only: Q_qp, L_qp, QInvariantsMatrix_qp
+  use ol_external_decl_/**/QREALKIND, only: P_ex, binom2, crossing, inverse_crossing, gf_array, Ward_array
+  use ol_external_decl_/**/QREALKIND, only: allocatedNpart
+  implicit none
+  integer, intent(in) :: Npart
+  integer :: n_
+  if (Npart > allocatedNpart) then
+    if (allocatedNpart /= 0) then
+      call clean_kin_arrays()
+    end if
+    allocate(Q_qp(5,0:2**Npart-1))
+    Q_qp = 0
+    allocate(L_qp(6,0:2**Npart-1))
+    L_qp = 0
+    allocate(QInvariantsMatrix_qp(Npart,Npart))
+    QInvariantsMatrix_qp = 0
+
+    allocate(binom2(Npart))
+    binom2 = [((n_*(n_-1))/2, n_=1, size(binom2))]
+
+    allocate(P_ex(0:3,Npart))  ! uncleaned external 2->n-2 momenta, set by conv_mom_scatt2in
+    allocate(crossing(Npart))
+    crossing = 0        ! only used if a reduction error occurs
+    allocate(inverse_crossing(Npart))
+    inverse_crossing = 0 ! set by conv_mom_scatt2in
+    !
+    allocate(gf_array(Npart))
+    gf_array = 0
+    allocate(Ward_array(Npart))
+    Ward_array = 0
+
+    allocatedNpart = Npart
+  end if
+end subroutine init_kin_arrays_quad
+
+
+
 subroutine clean_kin_arrays
   use ol_external_decl_/**/REALKIND, only: allocatedNpart
-  use ol_momenta_decl_/**/REALKIND, only: Q, L, QInvariantsMatrix
+  use ol_momenta_decl_/**/REALKIND, only: Q, L, QInvariantsMatrix, Q_qp, QInvariantsMatrix_qp, L_qp
   use ol_external_decl_/**/REALKIND, only: P_ex, binom2, crossing, inverse_crossing, gf_array, Ward_array
   implicit none
   if (allocated(Q)) deallocate(Q)
   if (allocated(L)) deallocate(L)
   if (allocated(QInvariantsMatrix)) deallocate(QInvariantsMatrix)
+  if (allocated(Q_qp)) deallocate(Q_qp)
+  if (allocated(L_qp)) deallocate(L_qp)
+  if (allocated(QInvariantsMatrix_qp)) deallocate(QInvariantsMatrix_qp)
   if (allocated(binom2)) deallocate(binom2)
   if (allocated(P_ex)) deallocate(P_ex)
   if (allocated(crossing)) deallocate(crossing)
@@ -610,16 +665,6 @@ subroutine clean_kin_arrays
   if (allocated(Ward_array)) deallocate(Ward_array)
   allocatedNpart = 0
 end subroutine
-
-#if defined(USE_COLLIER) && defined(COLLIER_LEGACY)
-! *************************
-subroutine tensor_ints_init()
-! *************************
-  use bt_BuildTensors_/**/REALKIND, only: init_tables
-  implicit none
-  call init_tables(6,6)
-end subroutine tensor_ints_init
-#endif
 
 
 
@@ -687,13 +732,9 @@ subroutine loop_parameters_init(pole1_UV, pole1_IR, pole2_IR, CT_on, IR_on)
   use ol_qcd_renormalisation_/**/REALKIND, only: qcd_renormalisation
   use ol_ew_renormalisation_/**/REALKIND, only: ew_renormalisation
 #ifdef USE_COLLIER
-#ifdef COLLIER_LEGACY
-  use dd_init_/**/REALKIND, only: dd_setmode, dd_setparam
-#else
   use collier, only: init_cll, initcachesystem_cll, setmode_cll, setmuuv2_cll, &
     & setmuir2_cll, setdeltauv_cll, setdeltair_cll, settenred_cll, setaccuracy_cll, &
     & initmonitoring_cll, SwitchOffErrStop_cll
-#endif
 #endif
 #ifdef USE_ONELOOP
   use avh_olo, only: olo_scale_prec, olo_onshell, olo_unit
@@ -753,19 +794,19 @@ subroutine loop_parameters_init(pole1_UV, pole1_IR, pole2_IR, CT_on, IR_on)
 
 subroutine loop_parameters_init
   ! non-dp initialisation: synchronise with dp parameters
+  use ol_cwrappers, only: stdout_off, stdout_on
   use ol_tensor_storage_/**/REALKIND, only: tensor_storage_maxrank
   use ol_parameters_decl_/**/REALKIND, only: pi2_6
   use ol_parameters_decl_/**/REALKIND, only: reset_scalefactor
+  use ol_parameters_decl_/**/DREALKIND, only: nosplash
   use ol_loop_parameters_decl_/**/REALKIND
   use ol_loop_parameters_decl_/**/QREALKIND, only: scalefactor, mureg
   use ol_loop_parameters_decl_/**/DREALKIND, only: reset_mureg, reset_olo
   use ol_loop_parameters_decl_/**/DREALKIND, only: &
     & loop_parameters_status_dp => loop_parameters_status, norm_swi, a_switch, a_switch_rescue, redlib_qp, &
     & dd_qp_not_init, tensorlib_qp_not_init, mureg_dp => mureg, muren_dp => muren, fact_UV_dp => x_UV, fact_IR_dp => x_IR, &
-    & pole1_UV_dp => de1_UV, pole1_IR_dp => de1_IR, pole2_IR_dp => de2_i_IR, do_ew_renorm, do_qcd_renorm, maxrank
-#if defined(USE_COLLIER) && defined(COLLIER_LEGACY)
-  use dd_init_/**/REALKIND, only: dd_setmode, dd_setparam
-#endif
+    & pole1_UV_dp => de1_UV, pole1_IR_dp => de1_IR, pole2_IR_dp => de2_i_IR, do_ew_renorm, do_qcd_renorm, maxrank, &
+    & mureg_unscaled, muren_unscaled, muyc_unscaled, muyb_unscaled, muyt_unscaled
   use ol_qcd_renormalisation_/**/REALKIND, only: qcd_renormalisation
   use ol_ew_renormalisation_/**/REALKIND, only: ew_renormalisation
   use ol_loop_parameters_decl_/**/DREALKIND, only: opprootsvalue, opprootsvalue_unscaled
@@ -835,42 +876,6 @@ subroutine loop_parameters_init
   ! (quad precision initialisation is handled within these libraries if applicable)
 
 #ifdef USE_COLLIER
-#ifdef COLLIER_LEGACY
-  ! COLI initialisation
-  if (a_switch == 1 .or. a_switch_rescue == 1 .or. a_switch == 2 .or. a_switch == 3) then
-    if (coli_not_init) then
-      call defcoli ! assign default values to parameters of loop library
-      coli_not_init = .false.
-      call unsetinfo_coli ! turn off printed information for coli parameters setting
-    end if
-    call setdeltauv_coli(de1_UV)
-    call setdeltair_coli(de1_IR,de2_1_IR)
-    call setmuuv2_coli(mu2_UV)
-    call setmuir2_coli(mu2_IR)
-! #else
-!     write(*,*) 'ERROR: Collier (Coli) is deactivated.'
-  end if
-
-  ! DD initialisation
-  if (a_switch == 7 .or. a_switch_rescue == 7) then
-    if (dd_not_init) then
-      mp2 = 0
-!     cacc         threshold precision to activate 3-point alternative reductions
-!     dacc         threshold precision to activate 4-point alternative reductions
-!     mode34 = 2   PV or alternative 3/4-point reductions
-!     mode34 = 0   PV 3/4-point reduction only
-!     mode5  = 0   best 5-point reduction
-!     mode6  = 0   best 6-point reduction
-!     outlevel = 0 no output
-      call dd_setmode(C_PV_threshold,D_PV_threshold,dd_red_mode,0,0,0) ! cacc,dacc,mode34,mode5,mode6,outlevel
-      dd_not_init = .false.
-    end if
-    call dd_setparam(de1_UV,mu2_UV,de2_1_IR,de1_IR,mu2_IR,mp2)
-! #else
-!     write(*,*) 'ERROR: Collier (DD) is deactivated.'
-  end if
-! #ifdef COLLIER_LEGACY
-#else
   if (a_switch == 1 .or. a_switch_rescue == 1 .or. a_switch == 2 .or. a_switch == 3 .or. &
     & a_switch == 7 .or. a_switch_rescue == 7) then
     if (maxpoint > maxpoint_active .or. maxrank > maxrank_active .or. cll_channels > cll_channels_active) then
@@ -902,8 +907,6 @@ subroutine loop_parameters_init
     if (no_collier_stop) call SwitchOffErrStop_cll
     if (cll_log == 2) call initmonitoring_cll()
   end if
-! #ifdef COLLIER_LEGACY
-#endif
 ! #ifdef USE_COLLIER
 #endif
 
@@ -939,9 +942,6 @@ subroutine loop_parameters_init
     end if
     if (reset_mureg) then
       call olo_scale_prec(mureg)
-#ifndef USE_qp
-      reset_mureg = .false.
-#endif
     end if
 ! #else
 !     write(*,*) 'ERROR: CutTools is deactivated.'
@@ -950,36 +950,17 @@ subroutine loop_parameters_init
 
   ! Initialisation of BuildTensors library
   if (tensorlib_not_init .and. (a_switch == 1 .or. a_switch == 2 .or. a_switch == 3 .or. a_switch == 7 &
-  & .or. a_switch_rescue == 1 .or. a_switch_rescue == 7)) then
-#if defined(USE_COLLIER) && defined(COLLIER_LEGACY)
-    call tensor_ints_init()
-    tensorlib_not_init = .false.
-! #else
-!     write(*,*) 'ERROR: Collier (BuildTensors) is deactivated.'
-#endif
+    & .or. a_switch_rescue == 1 .or. a_switch_rescue == 7)) then
   end if
 
 ! ifdef PRECISION_dp
 #else
 
-  ! DD qp initialisation
-!  if (a_switch == 7 .or. a_switch_rescue == 7) then
-  if ( redlib_qp == 7 ) then
-#if defined(USE_COLLIER) && defined(COLLIER_LEGACY)
-    if (dd_qp_not_init) then
-      call dd_setmode(1._qp, 1._qp, 0, 0, 0, 0)
-      dd_qp_not_init = .false.
-    end if
-    if (tensorlib_qp_not_init) then
-      call tensor_ints_init()
-      tensorlib_qp_not_init = .false.
-    end if
-    call dd_setparam(de1_UV, mu2_UV, de2_1_IR, de1_IR, mu2_IR, [0,0,0,0,0,0,0,0,0,0]*0._qp)
-#endif
-  end if
 #ifdef USE_ONELOOP
     if (reset_mureg) then
+      if (nosplash) call stdout_off()
       call olo_scale_prec(mureg)
+      if (nosplash) call stdout_on()
       reset_mureg = .false.
     end if
 #endif
@@ -1001,6 +982,8 @@ subroutine loop_parameters_init
 #endif
 
   call ol_msg(4, "Loop parameters initialized")
+
+
 end subroutine loop_parameters_init
 
 
@@ -1021,6 +1004,28 @@ subroutine ensure_mp_loop_init()
     & call parameters_init()
   if (loop_parameters_status_dp /= loop_parameters_status) &
     & call loop_parameters_init()
+#else
+  use ol_parameters_decl_/**/DREALKIND, only: hp_mode
+  use ol_parameters_decl_/**/QREALKIND, only: parameters_status
+  use ol_parameters_init_/**/QREALKIND, only: &
+    parameters_init_qp=>parameters_init, &
+    loop_parameters_init_qp=>loop_parameters_init
+  use ol_loop_parameters_decl_/**/QREALKIND, only: loop_parameters_status
+  use ol_parameters_decl_/**/DREALKIND, only: &
+    & parameters_status_dp => parameters_status
+  use ol_loop_parameters_decl_/**/DREALKIND, only: &
+    & loop_parameters_status_dp => loop_parameters_status
+  implicit none
+  ! For now it is mandatory to sync QP in DP mode independent of whether
+  ! hybrid mode is activated since QP masses/couplings are
+  ! used everywhere)
+  if (hp_mode .eq. 1) then
+    if (parameters_status_dp /= parameters_status) &
+      & call parameters_init_qp()
+    if (loop_parameters_status_dp /= loop_parameters_status) &
+      & call loop_parameters_init_qp()
+  end if
+
 #endif
 end subroutine ensure_mp_loop_init
 
@@ -1037,7 +1042,7 @@ subroutine parameters_write(filename)
   use ol_debug, only: ol_error, ol_msg
   use ol_parameters_decl_/**/REALKIND
 #ifndef PRECISION_dp
-  use ol_parameters_decl_/**/DREALKIND, only: model, ew_scheme, ew_renorm_scheme
+  use ol_parameters_decl_/**/DREALKIND, only: model, ew_scheme, ew_renorm_scheme, install_path
 #endif
   use ol_loop_parameters_decl_/**/REALKIND
   implicit none
@@ -1059,6 +1064,7 @@ subroutine parameters_write(filename)
   write(outid,*) '===================================================='
   write(outid,*) '================OpenLoops Parameters================'
   write(outid,*) '===================================================='
+  write(outid,*) 'install_path: "', trim(install_path), '"'
   write(outid,*) 'model =', trim(model)
   write(outid,*)
   write(outid,*) 'coupling constants'
@@ -1151,10 +1157,19 @@ subroutine parameters_write(filename)
   write(outid,*) 'ew_renorm_switch  =', ew_renorm_switch
   write(outid,*) 'use_coli_cache    =', coli_cache_use
   write(outid,*) 'use_me_cache      =', use_me_cache
+  write(outid,*) 'bubble_vertex     =', bubble_vertex
   write(outid,*) 'check_Ward_tree   =', Ward_tree
   write(outid,*) 'check_Ward_loop   =', Ward_loop
   write(outid,*) 'out_symmetry      =', out_symmetry_on
   write(outid,*) 'stability_mode         =', stability_mode
+  write(outid,*) 'hp_mode            =', hp_mode
+  if (hp_mode .eq. 1) then
+  write(outid,*) 'hp_err_thres       =', hp_err_thres
+  write(outid,*) 'hp_gd3_thres       =', hp_gd3_thres
+  write(outid,*) 'hp_step_thres      =', hp_step_thres
+  write(outid,*) 'hp_alloc_mode      =', hp_alloc_mode
+  write(outid,*) 'use_qp_invariants  =', use_qp_invariants
+  end if
   write(outid,*) 'deviation_mode         =', deviation_mode
   write(outid,*) 'stability_triggerratio =', trigeff_targ
   write(outid,*) 'stability_unstable     =', abscorr_unst
@@ -1179,5 +1194,150 @@ subroutine parameters_write(filename)
     end if
   end if
 end subroutine parameters_write
+
+subroutine init_met(M)
+  use KIND_TYPES, only: REALKIND, QREALKIND
+  use ol_data_types_/**/REALKIND, only: met
+#ifdef PRECISION_dp
+  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hp_alloc_mode
+#endif
+  type(met), intent(out) :: M
+  M%cmp=0._/**/REALKIND
+  M%sicount = 0
+#ifdef PRECISION_dp
+  if (hp_mode .eq. 1 .and. hp_alloc_mode .eq. 0) then
+    M%cmp_qp=0._/**/QREALKIND
+    M%sicount_qp = 0
+  end if
+#endif
+end subroutine init_met
+
+subroutine add_met(Mout,M)
+  use ol_data_types_/**/REALKIND, only: met
+#ifdef PRECISION_dp
+  use ol_parameters_decl_/**/DREALKIND, only: hp_mode
+#endif
+  type(met), intent(inout) :: Mout
+  type(met), intent(in)    :: M
+  Mout%cmp = Mout%cmp + M%cmp
+#ifdef PRECISION_dp
+  if (hp_mode .eq. 1) then
+    Mout%cmp_qp = Mout%cmp_qp + M%cmp_qp
+  end if
+#endif
+end subroutine add_met
+
+subroutine met_to_real(Mout,M)
+  use KIND_TYPES, only: REALKIND
+  use ol_data_types_/**/REALKIND, only: met
+#ifdef PRECISION_dp
+  use ol_parameters_decl_/**/DREALKIND, only: hp_mode
+#endif
+  real(REALKIND), intent(out) :: Mout
+  type(met),      intent(in)  :: M
+  Mout = M%cmp
+#ifdef PRECISION_dp
+  if (hp_mode .eq. 1) then
+    Mout = Mout + real(M%cmp_qp,kind=REALKIND)
+    ! log
+    !write(*,*) "QP/DP% <", M%sicount_qp/real(M%sicount + M%sicount_qp) * 100
+  end if
+#endif
+end subroutine met_to_real
+
+subroutine init_hcl(T)
+  use KIND_TYPES, only: REALKIND, QREALKIND
+  use ol_data_types_/**/REALKIND, only: hcl
+#ifdef PRECISION_dp
+  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hp_alloc_mode
+#endif
+  type(hcl), intent(inout) :: T
+  T%cmp=0._/**/REALKIND
+  T%error = 0
+  T%mode = 1
+#ifdef PRECISION_dp
+  if (hp_mode .eq. 1 .and. hp_alloc_mode .eq. 0) then
+    T%cmp_qp=0._/**/QREALKIND
+  end if
+#endif
+end subroutine init_hcl
+
+! **********************************************************************
+function get_coupling2_id(cid) result(c)
+! **********************************************************************
+! c  = coupling array
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_parameters_decl_/**/REALKIND
+  use ol_generic, only: to_string
+  use ol_debug, only: ol_error, ol_fatal
+  implicit none
+  integer,             intent(in) :: cid
+  complex(REALKIND), dimension(2) :: c
+
+  select case (cid)
+  case (0)
+    c = ZERO
+  case (ngZn)
+    c = gZn
+  case (ngZl)
+    c = gZl
+  case (ngZu)
+    c = gZu
+  case (ngZd)
+    c = gZd
+  case (ngH)
+    c = gH
+  case (ngX)
+    c = gX
+  case (ngPnl)
+    c = gPnl
+  case (ngPln)
+    c = gPln
+  case (ngPud)
+    c = gPud
+  case (ngPus)
+    c = gPus
+  case (ngPub)
+    c = gPub
+  case (ngPcd)
+    c = gPcd
+  case (ngPcs)
+    c = gPcs
+  case (ngPcb)
+    c = gPcb
+  case (ngPtd)
+    c = gPtd
+  case (ngPts)
+    c = gPts
+  case (ngPtb)
+    c = gPtb
+  case (ngPdu)
+    c = gPdu
+  case (ngPdc)
+    c = gPdc
+  case (ngPdt)
+    c = gPdt
+  case (ngPsu)
+    c = gPsu
+  case (ngPsc)
+    c = gPsc
+  case (ngPst)
+    c = gPst
+  case (ngPbu)
+    c = gPbu
+  case (ngPbc)
+    c = gPbc
+  case (ngPbt)
+    c = gPbt
+  case (ngZRH)
+    c = gZRH
+  case (ngZLH)
+    c = gZLH
+  case default
+    call ol_error(2,"Unknown coupling id: " // to_string(cid))
+    call ol_fatal()
+  end select
+end function get_coupling2_id
 
 end module ol_parameters_init_/**/REALKIND

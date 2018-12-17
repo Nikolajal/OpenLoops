@@ -138,6 +138,7 @@ svn_revision = str(OLToolbox.get_svn_revision(mandatory = False))
 # the openloops library as a string. TODO: override by command line argument;
 # and actually install the libraries there
 install_path =  os.path.abspath(os.path.join(config['process_lib_dir'],"../"))
+max_string_length = max(config['max_string_length'], len(install_path) + 80)
 
 generate_process_true = ((config['generator'] == 1) and
                          not GetOption('clean') and not GetOption('no_exec'))
@@ -151,23 +152,13 @@ if config['compile'] == 0 or (config['compile'] == 1 and
 else:
     compile_libraries = config['compile_libraries']
 
-# Coli legacy cpp defines (default)
-# - ALLCHECK (false) -- print maximal information
-# - CHECK (false) -- perform various checks
-# - SING (true) -- take singular contributions into account
-# - PUBCHECK (false) -- check against publication
-# Coli cpp defines
-# - SING -- take singular contributions into account
-# - CHECK -- perform various checks
-# - WARN -- issue warnings
-# - NEWCHECK -- print untested scalar function calls
-
 cpp_defines = list(map(lambda lib: 'USE_' + lib.upper(), config['link_libraries']))
 cpp_defines += [('KIND_TYPES', 'kind_types'),
                 ('DREALKIND', 'dp'),
                 ('QREALKIND', 'qp'),
                 'USE_' + config['fortran_tool'].upper(),
                 ('OL_INSTALL_PATH', '\\"' + install_path + '\\"'),
+                ('MAXSTRLEN', str(max_string_length)),
                 'SING']
 if config['collier_legacy']:
     cpp_defines.append('COLLIER_LEGACY')
@@ -282,8 +273,8 @@ else:
         'DD_global.F90', 'DD_2pt.F', 'DD_3pt.F', 'DD_4pt.F',
         'DD_5pt.F', 'DD_6pt.F', 'DD_aux.F', 'DD_to_COLLIER.F',
         # dd-qp
-        'DD_global_qp.f90', 'DD_2pt_qp.f', 'DD_3pt_qp.f', 'DD_4pt_qp.f',
-        'DD_5pt_qp.f', 'DD_6pt_qp.f', 'DD_aux_qp.f', 'DD_interface_qp.f90',
+        #'DD_global_qp.f90', 'DD_2pt_qp.f', 'DD_3pt_qp.f', 'DD_4pt_qp.f',
+        #'DD_5pt_qp.f', 'DD_6pt_qp.f', 'DD_aux_qp.f', 'DD_interface_qp.f90',
         # tensors/
         'BuildTensors.F90', 'InitTensors.F90', 'TensorReduction.F90',
         # ./
@@ -293,6 +284,7 @@ else:
 # tr_red
 tr_dp_src = ['b0.f90', 'c0_000.f90', 'c0_m00.f90', 'triangle_expansion.f90',
              'b0_mm.f90', 'c0_0mm.f90',  'c0_mmm.f90',  'triangle_aux.f90',
+             'b0_m0m1.f90', 'c0_m0m1m1.f90',
              'triangle_reduction.f90', 'trred.f90']
 tr_src_mp = []
 
@@ -701,8 +693,7 @@ for (loops, processlib) in process_list:
 
         # list of process library source files
         process_dp_src, process_mp_src, info_files = OLToolbox.get_processlib_src(
-            loops, processlib, config['process_src_dir'],
-            compile_extra=config['compile_extra'])
+            loops, processlib, config)
 
         # prepend global libary info
         library_info_file = os.path.join(processlib_src_dir, 'info_' + processlib + '.txt')
@@ -710,9 +701,14 @@ for (loops, processlib) in process_list:
             info_files.insert(0, library_info_file)
 
         # set up process library source files for preprocessing
+        mp = list(config['precision'])
+        if config['process_qp_rescue']:
+            mp.append('qp_rescue')
+        if config['process_qp_checks']:
+            mp.append('qp_checks')
         process_cpp_container = CPPContainer(
             scons_cmd = scons_cmd,
-            mp = config['precision'],
+            mp = mp,
             cpp_defs = cpp_defines + [OLBaseConfig.loops_cppdefs[loopspec] for loopspec in loops],
             target = 'cpp_' + processlib,
             target_prefix = os.path.join('..', '..', processlib_obj_dir, ''))

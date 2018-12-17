@@ -17,8 +17,6 @@
 !       *                                         *
 !       *    by A.Denner, S.Dittmaier, L.Hofer    *
 !       *                                         *
-!       *               version 1.2               *
-!       *                                         *
 !       *******************************************
 ! 
 !
@@ -297,6 +295,7 @@ contains
       PointsCntA_cll =  PointsCntA_cll + 1
       
       if(maxval(Aacc).gt.reqacc_cll) AccPointsCntA_cll =  AccPointsCntA_cll + 1
+      if(maxval(Aacc).gt.sreqacc_cll) sAccPointsCntA_cll =  sAccPointsCntA_cll + 1
       
       if(maxval(Aacc).gt.critacc_cll) then
         CritPointsCntA_cll =  CritPointsCntA_cll + 1
@@ -504,6 +503,7 @@ contains
       PointsCntB_cll =  PointsCntB_cll + 1
 
       if(maxval(Bacc).gt.reqacc_cll) AccPointsCntB_cll =  AccPointsCntB_cll + 1
+      if(maxval(Bacc).gt.sreqacc_cll) sAccPointsCntB_cll =  sAccPointsCntB_cll + 1
 
       if(maxval(Bacc).gt.critacc_cll) then
         CritPointsCntB_cll =  CritPointsCntB_cll + 1
@@ -942,6 +942,7 @@ contains
       PointsCntC_cll =  PointsCntC_cll + 1
 
       if(maxval(Cacc).gt.reqacc_cll) AccPointsCntC_cll =  AccPointsCntC_cll + 1
+      if(maxval(Cacc).gt.sreqacc_cll) sAccPointsCntC_cll =  sAccPointsCntC_cll + 1
 
       if(maxval(Cacc).gt.critacc_cll) then
         CritPointsCntC_cll =  CritPointsCntC_cll + 1
@@ -971,6 +972,7 @@ contains
 
 #ifdef CritPoints2      
       if(maxval(Cacc2).gt.reqacc_cll) AccPointsCntC2_cll =  AccPointsCntC2_cll + 1
+      if(maxval(Cacc2).gt.sreqacc_cll) sAccPointsCntC2_cll =  sAccPointsCntC2_cll + 1
 
       if(maxval(Cacc2).gt.critacc_cll) then
         CritPointsCntC2_cll =  CritPointsCntC2_cll + 1
@@ -1499,6 +1501,7 @@ contains
       PointsCntD_cll =  PointsCntD_cll + 1
 
       if(maxval(Dacc).gt.reqacc_cll) AccPointsCntD_cll =  AccPointsCntD_cll + 1
+      if(maxval(Dacc).gt.sreqacc_cll) sAccPointsCntD_cll =  sAccPointsCntD_cll + 1
 
       if(maxval(Dacc).gt.critacc_cll) then
         CritPointsCntD_cll =  CritPointsCntD_cll + 1
@@ -1514,6 +1517,7 @@ contains
 
 #ifdef CritPoints2
       if(maxval(Dacc2).gt.reqacc_cll) AccPointsCntD2_cll =  AccPointsCntD2_cll + 1
+      if(maxval(Dacc2).gt.sreqacc_cll) sAccPointsCntD2_cll =  sAccPointsCntD2_cll + 1
 
       if(maxval(Dacc2).gt.critacc_cll) then
         CritPointsCntD2_cll =  CritPointsCntD2_cll + 1
@@ -2091,6 +2095,7 @@ contains
       PointsCntE_cll =  PointsCntE_cll + 1
 
       if(maxval(Eacc).gt.reqacc_cll) AccPointsCntE_cll =  AccPointsCntE_cll + 1
+      if(maxval(Eacc).gt.sreqacc_cll) sAccPointsCntE_cll =  sAccPointsCntE_cll + 1
 
       if(maxval(Eacc).gt.critacc_cll) then
         CritPointsCntE_cll =  CritPointsCntE_cll + 1
@@ -2105,6 +2110,7 @@ contains
 
 #ifdef CritPoints2
       if(maxval(Eacc2).gt.reqacc_cll) AccPointsCntE2_cll =  AccPointsCntE2_cll + 1
+      if(maxval(Eacc2).gt.sreqacc_cll) sAccPointsCntE2_cll =  sAccPointsCntE2_cll + 1
 
       if(maxval(Eacc2).gt.critacc_cll) then
         CritPointsCntE2_cll =  CritPointsCntE2_cll + 1
@@ -2711,6 +2717,7 @@ contains
       PointsCntF_cll =  PointsCntF_cll + 1
 
       if(maxval(Facc).gt.reqacc_cll) AccPointsCntF_cll =  AccPointsCntF_cll + 1
+      if(maxval(Facc).gt.sreqacc_cll) sAccPointsCntF_cll =  sAccPointsCntF_cll + 1
 
       if(maxval(Facc).gt.critacc_cll) then
         CritPointsCntF_cll =  CritPointsCntF_cll + 1
@@ -2725,6 +2732,7 @@ contains
 
 #ifdef CritPoints2
       if(maxval(Facc2).gt.reqacc_cll) AccPointsCntF2_cll =  AccPointsCntF2_cll + 1
+      if(maxval(Facc2).gt.sreqacc_cll) sAccPointsCntF2_cll =  sAccPointsCntF2_cll + 1
 
       if(maxval(Facc2).gt.critacc_cll) then
         CritPointsCntF2_cll =  CritPointsCntF2_cll + 1
@@ -3195,6 +3203,7 @@ contains
       PointsCntG_cll =  PointsCntG_cll + 1
 
       if(maxval(Gacc).gt.reqacc_cll) AccPointsCntG_cll =  AccPointsCntG_cll + 1
+      if(maxval(Gacc).gt.sreqacc_cll) sAccPointsCntG_cll =  sAccPointsCntG_cll + 1
 
       if(maxval(Gacc).gt.critacc_cll) then
         CritPointsCntG_cll =  CritPointsCntG_cll + 1
@@ -3210,6 +3219,7 @@ contains
 #ifdef CritPoints2
       if (mode_cll.ne.2) then      
       if(maxval(Gacc2).gt.reqacc_cll) AccPointsCntG2_cll =  AccPointsCntG2_cll + 1
+      if(maxval(Gacc2).gt.sreqacc_cll) sAccPointsCntG2_cll =  sAccPointsCntG2_cll + 1
 
       if(maxval(Gacc2).gt.critacc_cll) then
         CritPointsCntG2_cll =  CritPointsCntG2_cll + 1
@@ -4218,6 +4228,7 @@ contains
       PointsCntTN_cll(N) =  PointsCntTN_cll(N) + 1
 
       if(maxval(TNacc).gt.reqacc_cll) AccPointsCntTN_cll(N) = AccPointsCntTN_cll(N) + 1
+      if(maxval(TNacc).gt.sreqacc_cll) sAccPointsCntTN_cll(N) = sAccPointsCntTN_cll(N) + 1
 
       if(maxval(TNacc).gt.critacc_cll) then
         CritPointsCntTN_cll(N) =  CritPointsCntTN_cll(N) + 1
@@ -4233,6 +4244,7 @@ contains
 
 #ifdef CritPoints2
       if(maxval(TNacc2).gt.reqacc_cll) AccPointsCntTN2_cll(N) = AccPointsCntTN2_cll(N) + 1
+      if(maxval(TNacc2).gt.sreqacc_cll) sAccPointsCntTN2_cll(N) = sAccPointsCntTN2_cll(N) + 1
 
       if(maxval(TNacc2).gt.critacc_cll) then
         CritPointsCntTN2_cll(N) =  CritPointsCntTN2_cll(N) + 1
@@ -4444,6 +4456,7 @@ contains
       PointsCntTN_cll(1) =  PointsCntTN_cll(1) + 1
 
       if(maxval(Aacc).gt.reqacc_cll) AccPointsCntTN_cll(1) = AccPointsCntTN_cll(1) + 1
+      if(maxval(Aacc).gt.sreqacc_cll) sAccPointsCntTN_cll(1) = sAccPointsCntTN_cll(1) + 1
 
       if(maxval(Aacc).gt.critacc_cll) then
         CritPointsCntTN_cll(1) =  CritPointsCntTN_cll(1) + 1
@@ -5857,6 +5870,7 @@ contains
       PointsCntDB_cll =  PointsCntDB_cll + 1
 
       if(maxval(DBacc).gt.reqacc_cll) AccPointsCntDB_cll =  AccPointsCntDB_cll + 1
+      if(maxval(DBacc).gt.sreqacc_cll) sAccPointsCntDB_cll =  sAccPointsCntDB_cll + 1
 
       if(maxval(DBacc).gt.critacc_cll) then
         CritPointsCntDB_cll =  CritPointsCntDB_cll + 1

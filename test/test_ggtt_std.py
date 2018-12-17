@@ -8,9 +8,7 @@ import olhelper
 
 # Testing class
 class ggtt_std_points(unittest.TestCase):
-    # Hardcoded threshold for number of digits of agreement with the benchmark
 
-    #Testing the tree level MEs
     @olsetup.oltest('ggtt')
     def test_ggtt(self):
         # OL run to be tested
@@ -20,15 +18,14 @@ class ggtt_std_points(unittest.TestCase):
         pointsfile = os.path.join(olsetup.pointspath, 'points_ggtt_std.log')
 
         # OL process registering
-        with olsetup.suppress_stdout_stderr():
-          procs = olhelper.read_procs(pointsfile, self.process, verbose=1)
+        procs = olhelper.read_procs(pointsfile, self.process)
 
         # OL settings
         olhelper.stabilitymode(11)
 
         # OL benchmark results
         benchmks = olhelper.read_mefile(pointsfile, ispointsfile=True)
-        mes = olhelper.run_file(pointsfile, procs, nstart=1, npoints=10, verbose=1)
+        mes = olhelper.run_file(pointsfile, procs, nstart=1, npoints=10)
         for i in range(-1, len(benchmks)):
             digits = -olhelper.digit_agreement(benchmks[i][0], mes[i].tree)
             self.assertLessEqual(digits, threshold_digits)

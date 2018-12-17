@@ -5,13 +5,12 @@
 !    Copyright (C) 2017-2018 Federico Buccioni, Jean-Nicolas Lang,             !
 !                            Stefano Pozzorini, Hantian Zhang and Max Zoller   !
 !                                                                              !
-!    trred has been developed by Jean-Nicolas Lang and Hantian Zhang           !
+!    trred has been developed by J.-N. Lang, H. Zhang and F. Buccioni          !
 !    trred is licenced under the GNU GPL version 3,                            !
 !    see COPYING for details.                                                  !
 !                                                                              !
 !******************************************************************************!
 
-!Last Modified: February 07, 2018
 
 module triangle_aux_DP
   implicit none
@@ -26,10 +25,13 @@ module triangle_aux_DP
 
   integer, parameter :: recursion_threshold = 1000
 
+  real(dp), parameter :: pi = 3.14159265358979323846264338327950288
+
   real(dp), parameter :: target_precision = 10d0**(-15._dp)
 
   complex(dp), parameter :: cone = cmplx(1,0,kind=dp)
   complex(dp), parameter :: cnul = cmplx(0,0,kind=dp)
+  complex(dp), parameter :: cima = cmplx(0,1,kind=dp)
   real(dp), parameter :: rone = real(1,kind=dp)
   real(dp), parameter :: rnul = real(0,kind=dp)
 
@@ -70,6 +72,7 @@ module triangle_aux_DP
     res = product ((/(real(i,kind=dp), i = 1, n)/))
  
   end function factorial
+ 
 
   function choose(n,k) result(res)
     integer, intent(in) :: n,k
@@ -77,11 +80,11 @@ module triangle_aux_DP
     real(dp)  :: res
 
     if (k .lt. 0_i8 .or. k .gt. n) then
-      res = 0_dp
+      res = 0._dp
     else if (k .eq. 0_i8 .or. k .eq. n) then
-      res = 1_dp
+      res = 1._dp
     else
-      res = 1_dp
+      res = 1._dp
       do i = 0, min(k,n-k)-1
         res = res * real(n - i,kind=dp) / real(i + 1,kind=dp)
       end do
@@ -103,7 +106,7 @@ module triangle_aux_DP
     end if
 
     ! this estim is a higher bound for x<=0.9
-    estim = 300*log(target_precision)/(-16_dp)
+    estim = 300*log(target_precision)/(-16._dp)
     steps = ceiling(abs((log(target_precision*estim)-log(x))/log(x)))
     ! refine step
     steps = ceiling(abs((log(target_precision*steps)-log(x))/log(x)))+1+n
@@ -584,8 +587,11 @@ module triangle_aux_QP
 
   real(qp), parameter :: target_precision = 10d0**(-34._qp)
 
+  real(qp), parameter :: pi = 3.14159265358979323846264338327950288
+
   complex(qp), parameter :: cone = cmplx(1,0,kind=qp)
   complex(qp), parameter :: cnul = cmplx(0,0,kind=qp)
+  complex(qp), parameter :: cima = cmplx(0,1,kind=qp)
   real(qp), parameter :: rone = real(1,kind=qp)
   real(qp), parameter :: rnul = real(0,kind=qp)
 

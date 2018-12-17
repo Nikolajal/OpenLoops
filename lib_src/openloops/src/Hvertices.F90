@@ -586,7 +586,7 @@ end subroutine vert_QA_V
 
 
 ! **********************************************************************
-subroutine vert_UV_W(ntry, V1, P1, V2, P2, V_out, n, t)
+subroutine vert_UV_W(ntry, V1, mom1, V2, mom2, V_out, n, t)
 ! bare VV -> V vertex
 ! ----------------------------------------------------------------------
 ! ntry           = 1 (2) for 1st (subsequent) PS points
@@ -599,19 +599,19 @@ subroutine vert_UV_W(ntry, V1, P1, V2, P2, V_out, n, t)
   use KIND_TYPES, only: REALKIND, intkind1, intkind2
   use ol_data_types_/**/REALKIND, only: wfun
   use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert3
-!   use ol_h_contractions_/**/REALKIND, only: cont_PP
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
   implicit none
   integer(intkind1), intent(in)   :: ntry
+  integer,           intent(in)   :: mom1,mom2
   integer(intkind2), intent(inout):: n(3), t(2,n(3))
   type(wfun),        intent(in)   :: V1(n(1)), V2(n(2))
-  complex(REALKIND), intent(in)   :: P1(4), P2(4)
   type(wfun),        intent(out)  :: V_out(n(3))
   complex(REALKIND) :: J1J2, P1J2(n(2)), P2J1(n(1))
   complex(REALKIND) :: P1half(4), P2half(4), P12(4), P112(4), P122(4)
   integer :: h
 
-  P1half = 0.5_/**/REALKIND * P1
-  P2half = 0.5_/**/REALKIND * P2
+  P1half = 0.5_/**/REALKIND * get_LC_4(mom1)
+  P2half = 0.5_/**/REALKIND * get_LC_4(mom2)
   P12  = P1half - P2half
   P112 = P1half + P1half + P2half
   P122 = P1half + P2half + P2half
@@ -691,44 +691,262 @@ subroutine vert_GGG_G(ntry, G1, G2, G3, G_out, n, t)
 
 end subroutine vert_GGG_G
 
+
 ! **********************************************************************
-subroutine vert_VV_S(ntry, V1, V2, S_out, n, t)
-! Two vector boson + scalar vertex
+subroutine vert_EV_V(ntry, V1, V2, V3, V_out, n, t)
+! sigma vertex, where the sigma wave function is replaced
+! by two gluon wave functions V1%j and V2%j
 ! ----------------------------------------------------------------------
-! ntry            : 1 (2) for 1st (subsequent) PS points
-! Incoming vectors: Vi(1:n(i))  (light-cone representation)
-! Outgoing scalar : S_out(1:n(3))
+! ntry          = 1 (2) for 1st (subsequent) PS points
+! Vi(1:n(i))    = incoming sigmas
+! V_out(1:n(3)) = outgoing sigma
+! V_out(h)%j(d) = (g(a,c)*g(b,d) + g(1,4)*g(2,3)) * V1(t(1,h))%j(a)
+!                               * V2(t(2,h))%j(b) * V3(t(3,h))%j(c)
+!               = V1(t(1,h))%j.V3(t(3,h))%j * V2(t(2,h))%j(d)
+!               + V2(t(2,h))%j.V3(t(3,h))%j * V1(t(1,h))%j(d)
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert4
+  use ol_h_contractions_/**/REALKIND, only: cont_PP
+  implicit none
+  integer(intkind1),  intent(in)    :: ntry
+  integer(intkind2),  intent(inout) :: n(4), t(3,n(4))
+  type(wfun), intent(in)   :: V1(n(1)), V2(n(2)), V3(n(3))
+  type(wfun), intent(out)  :: V_out(n(4))
+  integer :: h
+
+  do h = 1, n(4)
+    V_out(h)%j = cont_PP(V1(t(1,h))%j,V3(t(3,h))%j) * V2(t(2,h))%j &
+               - cont_PP(V2(t(2,h))%j,V3(t(3,h))%j) * V1(t(1,h))%j
+  end do
+
+  if (ntry == 1) then
+
+    ! index of subtree: 2^(i-1) + 2^(j-1) where i,j are indices for V and Q
+    V_out(:)%t = V1(1)%t + V2(1)%t + V3(1)%t
+
+    ! n_part = number of external particles in the subtree
+    V_out(:)%n_part = V1(1)%n_part + V2(1)%n_part + V3(1)%n_part
+
+    ! global helicity label of the subtree
+    V_out(:)%hf = V1(t(1,:))%hf + V2(t(2,:))%hf + V3(t(3,:))%hf
+
+    call helbookkeeping_vert4(ntry, V1, V2, V3, V_out, n, t)
+  end if
+
+end subroutine vert_EV_V
+
+! **********************************************************************
+subroutine vert_WWG_G(ntry, V1, V2, V3, V_out, n, t)
+! Four-gluon vertex: factorised Lorentz monomials g(a,b)*g(c,d)
+! ----------------------------------------------------------------------
+! ntry          = 1 (2) for 1st (subsequent) PS points
+! Vi(1:n(i))    = incoming gluons
+! V_out(1:n(4)) = outgoing gluon
+! V_out(h)%j(d) = g(a,b)*g(c,d) * V1%j(a) * V2(t(2,h))%j(b) * V3(t(3,h))%j(c)
+!               = V1(t(1,h))%j.V2(t(2,h))%j * V3(t(3,h))%j(d)
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert4
+  use ol_h_contractions_/**/REALKIND, only: cont_PP
+  implicit none
+  integer(intkind1),  intent(in)    :: ntry
+  integer(intkind2),  intent(inout) :: n(4), t(3,n(4))
+  type(wfun), intent(in)   :: V1(n(1)), V2(n(2)), V3(n(3))
+  type(wfun), intent(out)  :: V_out(n(4))
+  integer :: h
+
+  do h = 1, n(4)
+    V_out(h)%j = cont_PP(V1(t(1,h))%j,V2(t(2,h))%j) * V3(t(3,h))%j
+  end do
+
+  if (ntry == 1) then
+
+    ! index of subtree: 2^(i-1) + 2^(j-1) where i,j are indices for V and Q
+    V_out(:)%t = V1(1)%t + V2(1)%t + V3(1)%t
+
+    ! n_part = number of external particles in the subtree
+    V_out(:)%n_part = V1(1)%n_part + V2(1)%n_part + V3(1)%n_part
+
+    ! global helicity label of the subtree
+    V_out(:)%hf = V1(t(1,:))%hf + V2(t(2,:))%hf + V3(t(3,:))%hf
+
+    call helbookkeeping_vert4(ntry, V1, V2, V3, V_out, n, t)
+  end if
+
+end subroutine vert_WWG_G
+
+! **********************************************************************
+subroutine vert_WWV_V(ntry, V1, V2, V3, V_out, n, t)
+! bare W+ W- A/Z A/Z vertex
+! ----------------------------------------------------------------------
+! ntry           = 1 (2) for 1st (subsequent) PS points
+! Vi(1:n(i))     = incoming vector bosons (light-cone representation)
+! V_out(1:n(4))  = outgoing vector boson (light-cone representation)
+! V_out(h)%j(a4) = [2*g(a1,a2)*g(a3,a4) - g(a2,a3)*g(a1,a4) - g(a1,a3)*g(a2,a4)]
+!                  * V1(t(1,h))%j(a1) * V2(t(2,h))%j(a2) * V3(t(3,h))%j(a3)
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert4
+  use ol_h_contractions_/**/REALKIND, only: cont_PP
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer(intkind2), intent(inout) :: n(4), t(3,n(4))
+  type(wfun),        intent(in)    :: V1(n(1)), V2(n(2)), V3(n(3))
+  type(wfun),        intent(out)   :: V_out(n(4))
+  complex(REALKIND) :: J1J2, J1J3, J2J3
+  integer :: h
+
+  do h = 1, n(4)
+    J1J2 = cont_PP(V1(t(1,h))%j, V2(t(2,h))%j)
+    J1J2 = J1J2 + J1J2
+    J1J3 = cont_PP(V1(t(1,h))%j, V3(t(3,h))%j)
+    J2J3 = cont_PP(V2(t(2,h))%j, V3(t(3,h))%j)
+    V_out(h)%j = J1J2 * V3(t(3,h))%j - J2J3 * V1(t(1,h))%j - J1J3 * V2(t(2,h))%j
+  end do
+
+  if (ntry == 1) then
+
+    ! index of subtree: 2^(i-1) + 2^(j-1) where i,j are indices for V and Q
+    V_out(:)%t = V1(1)%t + V2(1)%t + V3(1)%t
+
+    ! n_part = number of external particles in the subtree
+    V_out(:)%n_part = V1(1)%n_part + V2(1)%n_part + V3(1)%n_part
+
+    ! global helicity label of the subtree
+    V_out(:)%hf = V1(t(1,:))%hf + V2(t(2,:))%hf + V3(t(3,:))%hf
+
+    call helbookkeeping_vert4(ntry, V1, V2, V3, V_out, n, t)
+  end if
+
+end subroutine vert_WWV_V
+
+
+! **********************************************************************
+subroutine vert_VWW_V(ntry, V1, V2, V3, V_out, n, t)
+! ntry          = 1 (2) for 1st (subsequent) PS points
+! Vi(1:n(i))    = incoming vector bosons
+! V_out(1:n(4)) = outgoing vector boson
+! **********************************************************************
+
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert4
+  use ol_h_contractions_/**/REALKIND, only: cont_PP
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer(intkind2), intent(inout) :: n(4), t(3,n(4))
+  type(wfun),        intent(in)    :: V1(n(1)), V2(n(2)), V3(n(3))
+  type(wfun),        intent(out)   :: V_out(n(4))
+  complex(REALKIND) :: J2J3, J2J1, J3J1
+  integer :: h
+
+  do h = 1, n(4)
+    J2J3 = cont_PP(V2(t(2,h))%j, V3(t(3,h))%j)
+    J2J3 = J2J3 + J2J3
+    J2J1 = cont_PP(V2(t(2,h))%j, V1(t(1,h))%j)
+    J3J1 = cont_PP(V3(t(3,h))%j, V1(t(1,h))%j)
+    V_out(h)%j = J2J3 * V1(t(1,h))%j - J3J1 * V2(t(2,h))%j - J2J1 * V3(t(3,h))%j
+  end do
+
+  if (ntry == 1) then
+    ! index of subtree: 2^(i-1) + 2^(j-1) where i,j are indices for V and Q
+    V_out(:)%t = V1(1)%t + V2(1)%t + V3(1)%t
+
+    ! n_part = number of external particles in the subtree
+    V_out(:)%n_part = V1(1)%n_part + V2(1)%n_part + V3(1)%n_part
+
+    ! global helicity label of the subtree
+    V_out(:)%hf = V1(t(1,:))%hf + V2(t(2,:))%hf + V3(t(3,:))%hf
+
+    call helbookkeeping_vert4(ntry, V1, V2, V3, V_out, n, t)
+  end if
+
+end subroutine vert_VWW_V
+
+
+! **********************************************************************
+subroutine vert_SS_S(ntry, S1, S2, S_out, n, t)
+! Three scalar vertex
+! ----------------------------------------------------------------------
+! ntry             : 1 (2) for 1st (subsequent) PS points
+! Incoming scalars : Si(1:n(i))
+! Outgoing scalar  : S_out(1:n(3))
+!                    S_out(h)%j(1) = S1(t(1,h))%j(1) * S2(t(2,h))%j(1)
 ! **********************************************************************
   use KIND_TYPES, only: REALKIND, intkind1, intkind2
   use ol_data_types_/**/REALKIND, only: wfun
   use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert3, checkzero_scalar
-  use ol_h_contractions_/**/REALKIND, only: cont_PP
   implicit none
   integer(intkind1), intent(in)    :: ntry
   integer(intkind2), intent(inout) :: n(3), t(2,n(3))
-  type(wfun),        intent(in)    :: V1(n(1)), V2(n(2))
+  type(wfun),        intent(in)    :: S1(n(1)), S2(n(2))
   type(wfun),        intent(out)   :: S_out(n(3))
   integer :: h
 
   do h = 1, n(3)
-    S_out(h)%j(1) = cont_PP(V1(t(1,h))%j,V2(t(2,h))%j)
+    S_out(h)%j(1) = S1(t(1,h))%j(1) * S2(t(2,h))%j(1)
   end do
 
   if (ntry == 1) then
-    ! index of subtree: 2^(i-1) + 2^(j-1) where i,j are indices for V1 and V2
-    S_out(:)%t = V1(1)%t + V2(1)%t
+    ! index of subtree: 2^(i-1) + 2^(j-1) where i,j are indices for S1 and S2
+    S_out(:)%t = S1(1)%t + S2(1)%t
 
     ! n_part = number of external particles in the subtree
-    S_out(:)%n_part = V1(1)%n_part + V2(1)%n_part
+    S_out(:)%n_part = S1(1)%n_part + S2(1)%n_part
 
     ! global helicity label of the subtree
-    S_out(:)%hf = V1(t(1,:))%hf + V2(t(2,:))%hf
+    S_out(:)%hf = S1(t(1,:))%hf + S2(t(2,:))%hf
 
     call checkzero_scalar(S_out)
-    call helbookkeeping_vert3(ntry, V1, V2, S_out, n, t)
+    call helbookkeeping_vert3(ntry, S1, S2, S_out, n, t)
   end if
 
-end subroutine vert_VV_S
+end subroutine vert_SS_S
+
+
+! **********************************************************************
+subroutine vert_SSS_S(ntry, S1, S2, S3, S_out, n, t)
+! Four scalar vertex
+! ----------------------------------------------------------------------
+! ntry             : 1 (2) for 1st (subsequent) PS points
+! Incoming scalars : Si(1:n(i))
+! Outgoing scalar  : S_out(1:n(3))
+!                    S_out(h)%j(1) = S1(t(1,h))%j(1) * S2(t(2,h))%j(1)
+!                                  * S3(t(3,h))%j(1)
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert4, checkzero_scalar
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer(intkind2), intent(inout) :: n(4), t(3,n(4))
+  type(wfun),        intent(in)    :: S1(n(1)), S2(n(2)), S3(n(3))
+  type(wfun),        intent(out)   :: S_out(n(4))
+  integer :: h
+
+  do h = 1, n(4)
+    S_out(h)%j(1) = S1(t(1,h))%j(1) * S2(t(2,h))%j(1) * S3(t(3,h))%j(1)
+  end do
+
+  if (ntry == 1) then
+    ! index of subtree: 2^(i-1) + 2^(j-1) where i,j are indices for V and Q
+    S_out(:)%t = S1(1)%t + S2(1)%t + S3(1)%t
+
+    ! n_part = number of external particles in the subtree
+    S_out(:)%n_part = S1(1)%n_part + S2(1)%n_part + S3(1)%n_part
+
+    ! global helicity label of the subtree
+    S_out(:)%hf = S1(t(1,:))%hf + S2(t(2,:))%hf + S3(t(3,:))%hf
+
+    call  checkzero_scalar(S_out)
+    call helbookkeeping_vert4(ntry, S1, S2, S3, S_out, n, t)
+  end if
+
+end subroutine vert_SSS_S
 
 
 ! **********************************************************************
@@ -925,6 +1143,195 @@ subroutine vert_AQ_S(g_RL, ntry, A, Q, S_out, n, t)
 
 end subroutine vert_AQ_S
 
+
+! **********************************************************************
+subroutine vert_VS_T(ntry, V, mom1, S, mom2, S_out, n, t)
+! Vector boson + two scalars vertex
+! ----------------------------------------------------------------------
+! ntry            : 1 (2) for 1st (subsequent) PS points
+! Incoming vector : V(1:n(1)),    incoming momentum P1(4) (light-cone representation)
+! Incoming scalar : S(1:n(2)),    incoming momentum P2(4) (light-cone representation)
+! Outgoing scalar : S_out(1:n(3))
+!                   S_out(h)%j(1) = V(t(1,h))%j.(2*P2+P1) * S(t(2,h))%j(1)
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert3, checkzero_scalar
+  use ol_h_contractions_/**/REALKIND, only: cont_PP
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer(intkind2), intent(inout) :: n(3), t(2,n(3))
+  type(wfun),        intent(in)    :: V(n(1)), S(n(2))
+  integer,           intent(in)    :: mom1, mom2
+  type(wfun),        intent(out)   :: S_out(n(3))
+  complex(REALKIND) :: P122(4)
+  integer :: h
+
+  P122 = get_LC_4(mom1) + 2*get_LC_4(mom2)
+  do h = 1, n(3)
+    S_out(h)%j(1) = cont_PP(P122, V(t(1,h))%j) * S(t(2,h))%j(1)
+  end do
+
+  if (ntry == 1) then
+    S_out(:)%n_part = V(1)%n_part + S(1)%n_part
+    S_out(:)%t = V(1)%t + S(1)%t
+    S_out(:)%hf = V(t(1,:))%hf + S(t(2,:))%hf
+    call  checkzero_scalar(S_out)
+    call helbookkeeping_vert3(ntry, V, S, S_out, n, t)
+  end if
+
+end subroutine vert_VS_T
+
+
+! **********************************************************************
+subroutine vert_TV_S(ntry, S, mom1, V, mom2, S_out, n, t)
+! Vector boson + two scalars vertex
+! ----------------------------------------------------------------------
+! ntry            : 1 (2) for 1st (subsequent) PS points
+! Incoming scalar : S(1:n(1)), incoming momentum P2(4) (light-cone representation)
+! Incoming vector : V(1:n(2))    (light-cone representation)
+! Outgoing scalar : S_out(1:n(3))
+!                   S_out(h)%j(1) = V(t(2,h))%j.(-2*P1-P2) * S(t(1,h))%j(1)
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert3, checkzero_scalar
+  use ol_h_contractions_/**/REALKIND, only: cont_PP
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer(intkind2), intent(inout) :: n(3), t(2,n(3))
+  type(wfun),        intent(in)    :: S(n(1)), V(n(2))
+  integer,           intent(in)    :: mom1, mom2
+  type(wfun),        intent(out)   :: S_out(n(3))
+  complex(REALKIND) :: P112(4)
+  integer :: h
+
+  P112 = 2*get_LC_4(mom1) + get_LC_4(mom2)
+  do h = 1, n(3)
+    S_out(h)%j(1) = - cont_PP(P112, V(t(2,h))%j) * S(t(1,h))%j(1)
+  end do
+
+  if (ntry == 1) then
+    S_out(:)%n_part = S(1)%n_part + V(1)%n_part
+    S_out(:)%t = S(1)%t + V(1)%t
+    S_out(:)%hf = S(t(1,:))%hf + V(t(2,:))%hf
+    call checkzero_scalar(S_out)
+    call helbookkeeping_vert3(ntry, S, V, S_out, n, t)
+  end if
+
+end subroutine vert_TV_S
+
+! **********************************************************************
+subroutine vert_ST_V(ntry, S1, mom1, S2, mom2, V_out, n, t)
+! Vector boson + two scalars vertex
+! ----------------------------------------------------------------------
+! ntry            : 1 (2) for 1st (subsequent) PS points
+! Incoming scalars: Si(1:n(i)),  incoming momenta Pi(4) (light-cone representation)
+! Outgoing vector : V_out(1:n(3))
+!                   V_out(h)%j = S1(t(1,h))%j(1) * S2(t(2,h))%j(1) * (P1 - P2)
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert3
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer(intkind2), intent(inout) :: n(3), t(2,n(3))
+  type(wfun),        intent(in)    :: S1(n(1)), S2(n(2))
+  integer,           intent(in)    :: mom1, mom2
+  type(wfun),        intent(out)   :: V_out(n(3))
+  complex(REALKIND) :: P12(4)
+  integer :: h
+
+  P12 = get_LC_4(mom1)-get_LC_4(mom2)
+  do h = 1, n(3)
+    V_out(h)%j = (S1(t(1,h))%j(1) * S2(t(2,h))%j(1)) * P12
+  end do
+
+  if (ntry == 1) then
+    V_out(:)%n_part = S1(1)%n_part + S2(1)%n_part
+    V_out(:)%t = S1(1)%t + S2(1)%t
+    V_out(:)%hf = S1(t(1,:))%hf + S2(t(2,:))%hf
+    call helbookkeeping_vert3(ntry, S1, S2, V_out, n, t)
+  end if
+end subroutine vert_ST_V
+
+
+! **********************************************************************
+subroutine vert_VV_S(ntry, V1, V2, S_out, n, t)
+! Two vector boson + scalar vertex
+! ----------------------------------------------------------------------
+! ntry            : 1 (2) for 1st (subsequent) PS points
+! Incoming vectors: Vi(1:n(i))  (light-cone representation)
+! Outgoing scalar : S_out(1:n(3))
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert3, checkzero_scalar
+  use ol_h_contractions_/**/REALKIND, only: cont_PP
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer(intkind2), intent(inout) :: n(3), t(2,n(3))
+  type(wfun),        intent(in)    :: V1(n(1)), V2(n(2))
+  type(wfun),        intent(out)   :: S_out(n(3))
+  integer :: h
+
+  do h = 1, n(3)
+    S_out(h)%j(1) = cont_PP(V1(t(1,h))%j,V2(t(2,h))%j)
+  end do
+
+  if (ntry == 1) then
+    ! index of subtree: 2^(i-1) + 2^(j-1) where i,j are indices for V1 and V2
+    S_out(:)%t = V1(1)%t + V2(1)%t
+
+    ! n_part = number of external particles in the subtree
+    S_out(:)%n_part = V1(1)%n_part + V2(1)%n_part
+
+    ! global helicity label of the subtree
+    S_out(:)%hf = V1(t(1,:))%hf + V2(t(2,:))%hf
+
+    call checkzero_scalar(S_out)
+    call helbookkeeping_vert3(ntry, V1, V2, S_out, n, t)
+  end if
+
+end subroutine vert_VV_S
+
+
+! **********************************************************************
+subroutine vert_VS_V(ntry, V, S, V_out, n, t)
+! Two vector boson + scalar vertex
+! ----------------------------------------------------------------------
+! ntry            : 1 (2) for 1st (subsequent) PS points
+! Incoming vector : V(1:n(1)) (light-cone representation)
+! Incoming scalar : S(1:n(2))
+! Outgoing vector : V_out(1:n(3))
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert3
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer(intkind2), intent(inout) :: n(3), t(2,n(3))
+  type(wfun),        intent(in)    :: V(n(1)), S(n(2))
+  type(wfun),        intent(out)   :: V_out(n(3))
+  integer :: h
+
+  do h = 1, n(3)
+    V_out(h)%j = V(t(1,h))%j * S(t(2,h))%j(1)
+  end do
+
+  if (ntry == 1) then
+    V_out(:)%n_part = V(1)%n_part + S(1)%n_part
+    V_out(:)%t = V(1)%t + S(1)%t
+    V_out(:)%hf = V(t(1,:))%hf + S(t(2,:))%hf
+    call helbookkeeping_vert3(ntry, V, S, V_out, n, t)
+  end if
+
+end subroutine vert_VS_V
+
+
 ! **********************************************************************
 subroutine vert_SV_V(ntry, S, V, V_out, n, t)
 ! ----------------------------------------------------------------------
@@ -958,5 +1365,286 @@ subroutine vert_SV_V(ntry, S, V, V_out, n, t)
 
 end subroutine vert_SV_V
 
+
+! **********************************************************************
+subroutine vert_VVS_S(ntry, V1, V2, S, S_out, n, t)
+! Two vector boson + two scalars vertex
+! ----------------------------------------------------------------------
+! ntry            : 1 (2) for 1st (subsequent) PS points
+! Incoming vectors: Vi(1:n(i)) (light-cone representation)
+! Incoming scalar : S(1:n(3))
+! Outgoing scalar : S_out(1:n(4))
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert4, checkzero_scalar
+  use ol_h_contractions_/**/REALKIND, only: cont_PP
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer(intkind2), intent(inout) :: n(4), t(3,n(4))
+  type(wfun),        intent(in)    :: V1(n(1)), V2(n(2)), S(n(3))
+  type(wfun),        intent(out)   :: S_out(n(4))
+  integer :: h
+
+  do h = 1, n(4)
+    S_out(h)%j(1) = cont_PP(V1(t(1,h))%j,V2(t(2,h))%j) * S(t(3,h))%j(1)
+  end do
+
+  if (ntry == 1) then
+    ! index of subtree: 2^(i-1) + 2^(j-1) where i,j are indices for V and Q
+    S_out(:)%t = V1(1)%t + V2(1)%t + S(1)%t
+
+    ! n_part = number of external particles in the subtree
+    S_out(:)%n_part = V1(1)%n_part + V2(1)%n_part + S(1)%n_part
+
+    ! global helicity label of the subtree
+    S_out(:)%hf = V1(t(1,:))%hf + V2(t(2,:))%hf + S(t(3,:))%hf
+
+    call checkzero_scalar(S_out)
+    call helbookkeeping_vert4(ntry, V1, V2, S, S_out, n, t)
+  end if
+
+end subroutine vert_VVS_S
+
+! **********************************************************************
+subroutine vert_SSV_V(ntry, S1, S2, V, V_out, n, t)
+! Two vector boson + two scalars vertex
+! ----------------------------------------------------------------------
+! ntry            : 1 (2) for 1st (subsequent) PS points
+! Incoming scalars: Si(1:n(i))
+! Incoming vector : V(1:n(3)) (light-cone representation)
+! Outgoing vector : V_out(1:n(4)) (light-cone representation)
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert4
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer(intkind2), intent(inout) :: n(4), t(3,n(4))
+  type(wfun),        intent(in)    :: S1(n(1)), S2(n(2)), V(n(3))
+  type(wfun),        intent(out)   :: V_out(n(4))
+  integer :: h
+
+  do h = 1, n(4)
+    V_out(h)%j = (S1(t(1,h))%j(1) * S2(t(2,h))%j(1)) * V(t(3,h))%j
+  end do
+
+  if (ntry == 1) then
+    ! index of subtree: 2^(i-1) + 2^(j-1) where i,j are indices for V and Q
+    V_out(:)%t = S1(1)%t + S2(1)%t + V(1)%t
+
+    ! n_part = number of external particles in the subtree
+    V_out(:)%n_part = S1(1)%n_part + S2(1)%n_part + V(1)%n_part
+
+    ! global helicity label of the subtree
+    V_out(:)%hf = S1(t(1,:))%hf + S2(t(2,:))%hf + V(t(3,:))%hf
+
+    call helbookkeeping_vert4(ntry, S1, S2, V, V_out, n, t)
+  end if
+
+end subroutine vert_SSV_V
+
+! **********************************************************************
+subroutine vert_VSS_V(ntry, V, S1, S2, V_out, n, t)
+! Two vector boson + two scalars vertex
+! ----------------------------------------------------------------------
+! ntry            : 1 (2) for 1st (subsequent) PS points
+! Incoming vector : V(1:n(1)) (light-cone representation)
+! Incoming scalars: Si(1:n(i))
+! Outgoing vector : V_out(1:n(4)) (light-cone representation)
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert4
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer(intkind2), intent(inout) :: n(4), t(3,n(4))
+  type(wfun),        intent(in)    :: V(n(1)), S1(n(2)), S2(n(3))
+  type(wfun),        intent(out)   :: V_out(n(4))
+  integer :: h
+
+  do h = 1, n(4)
+    V_out(h)%j = (S1(t(2,h))%j(1) * S2(t(3,h))%j(1)) * V(t(1,h))%j
+  end do
+
+  if (ntry == 1) then
+    ! index of subtree: 2^(i-1) + 2^(j-1) where i,j are indices for V and Q
+    V_out(:)%t = V(1)%t + S1(1)%t + S2(1)%t
+
+    ! n_part = number of external particles in the subtree
+    V_out(:)%n_part = V(1)%n_part + S1(1)%n_part + S2(1)%n_part
+
+    ! global helicity label of the subtree
+    V_out(:)%hf = V(t(1,:))%hf + S1(t(2,:))%hf + S2(t(3,:))%hf
+
+    call helbookkeeping_vert4(ntry, V, S1, S2, V_out, n, t)
+  end if
+
+end subroutine vert_VSS_V
+
+
+! **********************************************************************
+subroutine vert_SVV_S(ntry, S, V1, V2, S_out, n, t)
+! Two vector boson + two scalars vertex
+! ----------------------------------------------------------------------
+! ntry            : 1 (2) for 1st (subsequent) PS points
+! Incoming scalar : S(1:n(1))
+! Incoming vectors: Vi(1:n(i)) (light-cone representation)
+! Outgoing scalar : S_out(1:n(4))
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert4, checkzero_scalar
+  use ol_h_contractions_/**/REALKIND, only: cont_PP
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer(intkind2), intent(inout) :: n(4), t(3,n(4))
+  type(wfun),        intent(in)    :: S(n(1)), V1(n(2)), V2(n(3))
+  type(wfun),        intent(out)   :: S_out(n(4))
+  integer :: h
+
+  do h = 1, n(4)
+    S_out(h)%j(1) = S(t(1,h))%j(1) * cont_PP(V1(t(2,h))%j,V2(t(3,h))%j)
+  end do
+
+  if (ntry == 1) then
+    ! index of subtree: 2^(i-1) + 2^(j-1) where i,j are indices for V and Q
+    S_out(:)%t = S(1)%t + V1(1)%t + V2(1)%t
+
+    ! n_part = number of external particles in the subtree
+    S_out(:)%n_part = S(1)%n_part + V1(1)%n_part + V2(1)%n_part
+
+    ! global helicity label of the subtree
+    S_out(:)%hf = S(t(1,:))%hf + V1(t(2,:))%hf + V2(t(3,:))%hf
+    call checkzero_scalar(S_out)
+    call helbookkeeping_vert4(ntry, S, V1, V2, S_out, n, t)
+  end if
+
+end subroutine vert_SVV_S
+
+! **********************************************************************
+subroutine vert_CD_V(ntry, C, D, mom, V_out, n, t)
+! Ghost/anti-ghost/gluon vertex
+! ----------------------------------------------------------------------
+! ntry                : 1 (2) for 1st (subsequent) PS points
+! Incoming ghost      : C(1:n(1))
+! Incoming anti-ghost : D(1:n(2)), momentum P2
+! Outgoing gluon      : V_out(1:n(3))
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert3
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer(intkind2), intent(inout) :: n(3), t(2,n(3))
+  type(wfun),        intent(in)    :: C(n(1)), D(n(2))
+  integer,           intent(in)    :: mom
+  type(wfun),        intent(out)   :: V_out(n(3))
+  integer :: h
+
+  do h = 1, n(3)
+    V_out(h)%j = - C(t(1,h))%j(1) * D(t(2,h))%j(1) * get_LC_4(mom)
+  end do
+
+  if (ntry == 1) then
+    ! n_part = number of external particles in the subtree
+    V_out(:)%n_part = C(1)%n_part + D(1)%n_part
+
+    ! index of subtree: 2^(i-1) + 2^(j-1)
+    V_out(:)%t = C(1)%t + D(1)%t
+
+    ! global helicity label of the subtree
+    V_out(:)%hf = C(t(1,:))%hf + D(t(2,:))%hf
+
+    call helbookkeeping_vert3(ntry, C, D, V_out, n, t)
+  end if
+
+end subroutine vert_CD_V
+
+! **********************************************************************
+subroutine vert_DV_C(ntry, D, mom, V, D_out, n, t)
+! Anti-ghost/gluon/anti-ghost vertex
+! ----------------------------------------------------------------------
+! ntry                : 1 (2) for 1st (subsequent) PS points
+! Incoming anti-ghost : D(1:n(1)), momentum mom
+! Incoming gluon      : V(1:n(2))
+! Outgoing anti-ghost : D_out(1:n(3))
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert3, checkzero_scalar
+  use ol_h_contractions_/**/REALKIND, only: cont_PP
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer(intkind2), intent(inout) :: n(3), t(2,n(3))
+  type(wfun),        intent(in)    :: D(n(1)), V(n(2))
+  integer,           intent(in)    :: mom
+  type(wfun),        intent(out)   :: D_out(n(3))
+  integer :: h
+
+  do h = 1, n(3)
+    D_out(h)%j(1) = - D(t(1,h))%j(1) * cont_PP(get_LC_4(mom), V(t(2,h))%j)
+  end do
+
+  if (ntry == 1) then
+    ! n_part = number of external particles in the subtree
+    D_out(:)%n_part = D(1)%n_part + V(1)%n_part
+
+    ! index of subtree: 2^(i-1) + 2^(j-1)
+    D_out(:)%t = D(1)%t + V(1)%t
+
+    ! global helicity label of the subtree
+    D_out(:)%hf = D(t(1,:))%hf + V(t(2,:))%hf
+    call checkzero_scalar(D_out)
+    call helbookkeeping_vert3(ntry, D, V, D_out, n, t)
+  end if
+
+end subroutine vert_DV_C
+
+! **********************************************************************
+subroutine vert_VC_D(ntry, V, mom1, C, mom2, C_out, n, t)
+! Ghost/gluon/ghost vertex
+! ----------------------------------------------------------------------
+! ntry           : 1 (2) for 1st (subsequent) PS points
+! Incoming gluon : V(1:n(1)),    momentum mom1
+! Incoming ghost : C(1:n(2)),    momentum mom2
+! Outgoing ghost : C_out(1:n(3))
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert3, checkzero_scalar
+  use ol_h_contractions_/**/REALKIND, only: cont_PP
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer(intkind2), intent(inout) :: n(3), t(2,n(3))
+  type(wfun),        intent(in)    :: V(n(1)), C(n(2))
+  integer,           intent(in)    :: mom1, mom2
+  type(wfun),        intent(out)   :: C_out(n(3))
+  complex(REALKIND) :: P12(4)
+  integer :: h
+
+  P12 = get_LC_4(mom1) + get_LC_4(mom2)
+  do h = 1, n(3)
+    C_out(h)%j(1) = C(t(2,h))%j(1) * cont_PP(P12, V(t(1,h))%j)
+  end do
+
+  if (ntry == 1) then
+    ! n_part = number of external particles in the subtree
+    C_out(:)%n_part = V(1)%n_part + C(1)%n_part
+
+    ! index of subtree: 2^(i-1) + 2^(j-1)
+    C_out(:)%t = V(1)%t + C(1)%t
+
+    ! global helicity label of the subtree
+    C_out(:)%hf = V(t(1,:))%hf + C(t(2,:))%hf
+
+    call checkzero_scalar(C_out)
+    call helbookkeeping_vert3(ntry, V, C, C_out, n, t)
+  end if
+
+end subroutine vert_VC_D
 
 end module ol_hel_vertices_/**/REALKIND

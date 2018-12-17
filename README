@@ -55,11 +55,11 @@ Requirements
 
     gfortran 4.6 or later, or ifort
     Python 2.x starting with 2.4
-    Apache Subversion (optional, to install from SVN)
+    git (optional)
 
 You can either download OpenLoops from SVN (recommended)
 
-    svn checkout http://openloops.hepforge.org/svn/OpenLoops/branches/public OpenLoops
+    git clone https://gitlab.com/openloops/OpenLoops.git
 
 or from the OpenLoops web page
 

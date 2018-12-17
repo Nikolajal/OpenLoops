@@ -513,8 +513,6 @@ end function vamp2_dp_scaled
 
 
 
-#ifdef USE_qp
-
 subroutine vamp2_qp(vamp2, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, redlib, mode)
   use KIND_TYPES, only: DREALKIND, QREALKIND
   use ol_init, only: set_parameter, parameters_flush
@@ -552,8 +550,7 @@ end subroutine vamp2_qp
 
 function vamp2_qp_scaled(vamp2, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, redlib)
   use KIND_TYPES, only: DREALKIND, QREALKIND
-  use ol_parameters_decl_/**/DREALKIND, only: rescalefactor, scaling_mode
-  use ol_parameters_decl_/**/QREALKIND, only: rescalefactor_qp, rONE
+  use ol_parameters_decl_/**/DREALKIND, only: rescalefactor, scaling_mode, rONE
   use ol_loop_parameters_decl_/**/DREALKIND, only: deviation_mode, polecheck_is
   use ol_init, only: set_parameter, parameters_flush
   use ol_generic, only: relative_deviation
@@ -586,7 +583,6 @@ function vamp2_qp_scaled(vamp2, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, redlib)
   call vamp2_qp(vamp2, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, &
               & redlib=redlib_qp, mode=1)
   call set_parameter("scalefactor", rescalefactor)
-  call set_parameter("scalefactor", rescalefactor_qp)
   call parameters_flush()
   if (M2L0 == 0)  then
     ! loop induced: qp coefficient arrays are deallocated after every vamp2 call
@@ -633,9 +629,6 @@ function vamp2_qp_scaled(vamp2, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, redlib)
   end if
 end function vamp2_qp_scaled
 
-! #ifdef USE_qp
-#endif
-
 
 
 subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, &
@@ -663,9 +656,6 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
   real(DREALKIND) :: M2L1_rescue(0:2), M2L2_rescue(0:4), abs_kfactor, abs_kfactor_rescue
   type(me_cache), pointer :: cache
   integer :: mode2
-#ifndef USE_qp
-  logical, intent(in) :: vamp2qp
-#endif
   interface
     subroutine vamp2dp(P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, mode)
       use KIND_TYPES, only: DREALKIND
@@ -675,7 +665,6 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
       integer, intent(in), optional :: mode
     end subroutine vamp2dp
   end interface
-#ifdef USE_qp
   interface
     subroutine vamp2qp(P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, mode)
       use KIND_TYPES, only: DREALKIND, QREALKIND
@@ -685,7 +674,6 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
       integer, intent(in), optional :: mode
     end subroutine vamp2qp
   end interface
-#endif
 
   current_processname = processname
   last_relative_deviation = -1
@@ -742,7 +730,6 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
     call update_stability_histogram(processname, stability_histogram, last_relative_deviation, qp_eval, killed)
 
 
-#ifdef USE_qp
   else if (stability_mode == 13) then
     ! double precision + scaling with a single library
     ! + quad precision with (possibly) a different library
@@ -822,8 +809,6 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
     call last_scaling_result(M2L2_rescue(3), M2L2_rescue(4), last_relative_deviation)
     ! data: tree, loop, loop_scaled, qp, qp_scaled
     call write_result(processname, M2L2_rescue)
-! #ifndef USE_qp
-#endif
 
 
   else if (stability_mode >= 20 .and. stability_mode < 30) then
@@ -879,7 +864,6 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
         & M2L1(0), M2L1_rescue(0), M2L0, sum_M2tree, P_scatt)
     end if
 
-#ifdef USE_qp
     if (last_relative_deviation > abscorr_unst) then
       ! if the point was reevaluated and is considered unstable
       ! (last_relative_deviation=-1 if the point was not reevaluated)
@@ -946,14 +930,9 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
     end if
     call update_stability_histogram(processname // "_qp", stability_histogram_qp, &
       & last_relative_deviation, qp_eval, killed)
-! #ifndef USE_qp
-#endif
 
   else
     call ol_error(2,"unknown stability mode:" // to_string(stability_mode))
-#ifndef USE_qp
-    call ol_msg("Note that some modes are only available when quad precision support is enabled.")
-#endif
     call ol_fatal()
 
   end if

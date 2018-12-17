@@ -5,13 +5,12 @@
 !    Copyright (C) 2017-2018 Federico Buccioni, Jean-Nicolas Lang,             !
 !                            Stefano Pozzorini, Hantian Zhang and Max Zoller   !
 !                                                                              !
-!    trred has been developed by Jean-Nicolas Lang and Hantian Zhang           !
+!    trred has been developed by J.-N. Lang, H. Zhang and F. Buccioni          !
 !    trred is licenced under the GNU GPL version 3,                            !
 !    see COPYING for details.                                                  !
 !                                                                              !
 !******************************************************************************!
 
-!Last Modified: February 07, 2018
 
 ! Implements the n-th derivative of C0(-p^2,-p^2(1+\delta),m^2,m^2,m^2)
 
@@ -28,12 +27,12 @@ module c0_mmm_DP
   contains
 
   function C0_n_mmm(p2,m2,n) result(Cn)
-    complex(dp), intent(in) :: p2,m2
+    complex(dp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(dp) :: y,Cn,g,f
     integer       :: k
 
-    y = sqrt(1+4*m2/p2)
+    y = sqrt(1+4*m2(1)/p2)
 
     call gfnm(y,n,0,g,f)
     Cn = (-g*log((cone+y)/(-cone+y))/y + f)/p2
@@ -141,11 +140,11 @@ module c0_mmm_DP
   end subroutine table_update
 
   function C0_n_mmm_init(p2,m2,muUV2,muIR2,n) result(C0)
-    complex(dp), intent(in) :: p2,m2,muUV2,muIR2
+    complex(dp), intent(in) :: p2,m2(:),muUV2,muIR2
     integer,       intent(in) :: n
     complex(dp)             :: C0,y
 
-    y = sqrt(1+4*m2/p2)
+    y = sqrt(1+4*m2(1)/p2)
     call table_init(y, n)
     C0 = ( -edge_g(n) *log((cone+y)/(-cone+y))/y + edge_f(n) )/p2
     
@@ -153,11 +152,11 @@ module c0_mmm_DP
 
 
   function C0_n_mmm_update(p2,m2,muUV2,muIR2,n) result(C0)
-    complex(dp), intent(in) :: p2,m2,muUV2,muIR2
+    complex(dp), intent(in) :: p2,m2(:),muUV2,muIR2
     integer,       intent(in) :: n
     complex(dp)             :: C0,y
 
-    y = sqrt(1+4*m2/p2)
+    y = sqrt(1+4*m2(1)/p2)
     !call table_update(y, n, edge_g, edge_f, edge_f0, NewEdge_g, NewEdge_f, NewEdge_f0)
     call table_update(y, n)
     C0 = ( -NewEdge_g(n) *log((cone+y)/(-cone+y))/y + NewEdge_f(n) )/p2
@@ -180,12 +179,12 @@ module c0_mmm_QP
   contains
 
   function C0_n_mmm(p2,m2,n) result(Cn)
-    complex(qp), intent(in) :: p2,m2
+    complex(qp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(qp) :: y,Cn,g,f
     integer       :: k
 
-    y = sqrt(1+4*m2/p2)
+    y = sqrt(1+4*m2(1)/p2)
 
     call gfnm(y,n,0,g,f)
     Cn = (-g*log((cone+y)/(-cone+y))/y + f)/p2
@@ -293,11 +292,11 @@ module c0_mmm_QP
   end subroutine table_update
 
   function C0_n_mmm_init(p2,m2,muUV2,muIR2,n) result(C0)
-    complex(qp), intent(in) :: p2,m2,muUV2,muIR2
+    complex(qp), intent(in) :: p2,m2(:),muUV2,muIR2
     integer,       intent(in) :: n
     complex(qp)             :: C0,y
 
-    y = sqrt(1+4*m2/p2)
+    y = sqrt(1+4*m2(1)/p2)
     call table_init(y, n)
     C0 = ( -edge_g(n) *log((cone+y)/(-cone+y))/y + edge_f(n) )/p2
     
@@ -305,11 +304,11 @@ module c0_mmm_QP
 
 
   function C0_n_mmm_update(p2,m2,muUV2,muIR2,n) result(C0)
-    complex(qp), intent(in) :: p2,m2,muUV2,muIR2
+    complex(qp), intent(in) :: p2,m2(:),muUV2,muIR2
     integer,       intent(in) :: n
     complex(qp)             :: C0,y
 
-    y = sqrt(1+4*m2/p2)
+    y = sqrt(1+4*m2(1)/p2)
     !call table_update(y, n, edge_g, edge_f, edge_f0, NewEdge_g, NewEdge_f, NewEdge_f0)
     call table_update(y, n)
     C0 = ( -NewEdge_g(n) *log((cone+y)/(-cone+y))/y + NewEdge_f(n) )/p2

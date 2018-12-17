@@ -19,9 +19,8 @@ class ggttg_rescaling(unittest.TestCase):
 
         perm = [3, 4, 1, 2, 5]
         perm_str = '[' + ','.join(map(str, perm)) + ']'
-        with olsetup.suppress_stdout_stderr():
-          pr = Process(self.process + perm_str, LOOP)
-          me = pr.evaluate(pp)
+        pr = Process(self.process + perm_str, LOOP)
+        me = pr.evaluate(pp)
         m_exp = -0.0014891055057249885
         digits = -olhelper.digit_agreement(m_exp, me.loop.finite)
         self.assertGreater(digits, -14)
@@ -37,7 +36,6 @@ class ggttg_rescaling(unittest.TestCase):
         olhelper.stabilitymode(32)
         perm = [3, 4, 1, 2, 5]
         perm_str = '[' + ','.join(map(str, perm)) + ']'
-        with olsetup.suppress_stdout_stderr():
-          pr = Process(self.process + perm_str, LOOP)
-          me = pr.evaluate(pp)
+        pr = Process(self.process + perm_str, LOOP)
+        me = pr.evaluate(pp)
         self.assertGreater(me.acc, -32)

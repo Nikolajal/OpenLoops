@@ -1405,6 +1405,7 @@ module ol_hel_wavefunctions_/**/REALKIND
   private
   public :: wf_S, wf_V, wf_Q, wf_A
   public :: pol_wf_S, pol_wf_V, pol_wf_Q, pol_wf_A
+  public :: init_hybrid_wf, init_hybrid_exwf
   contains
 
 ! **********************************************************************
@@ -1968,5 +1969,46 @@ subroutine sort_hf_wf(wf)
   wf = wf_aux
 
 end subroutine sort_hf_wf
+
+! **********************************************************************
+subroutine init_hybrid_exwf(ex)
+! **********************************************************************
+  use KIND_TYPES, only: QREALKIND
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_loop_handling_/**/REALKIND, only: hp_mode
+  implicit none
+  type(wfun), intent(inout) :: ex(:)
+
+#ifdef PRECISION_dp
+  if (hp_mode .eq. 1) then
+    ex(:)%j_qp(1) = cmplx(ex(:)%j(1),kind=qp)
+    ex(:)%j_qp(2) = cmplx(ex(:)%j(2),kind=qp)
+    ex(:)%j_qp(3) = cmplx(ex(:)%j(3),kind=qp)
+    ex(:)%j_qp(4) = cmplx(ex(:)%j(4),kind=qp)
+  end if
+#endif
+end subroutine init_hybrid_exwf
+
+! **********************************************************************
+subroutine init_hybrid_wf(wf)
+! **********************************************************************
+  use KIND_TYPES, only: QREALKIND
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_loop_handling_/**/REALKIND, only: hp_mode
+  implicit none
+  type(wfun), intent(inout) :: wf(:,:)
+  integer :: swf1,swf2
+
+#ifdef PRECISION_dp
+  if (hp_mode .eq. 1) then
+    swf1 = size(wf,1)
+    swf2 = size(wf,2)
+    wf(:swf1,:swf2)%j_qp(1) = cmplx(wf(:swf1,:swf2)%j(1),kind=qp)
+    wf(:swf1,:swf2)%j_qp(2) = cmplx(wf(:swf1,:swf2)%j(2),kind=qp)
+    wf(:swf1,:swf2)%j_qp(3) = cmplx(wf(:swf1,:swf2)%j(3),kind=qp)
+    wf(:swf1,:swf2)%j_qp(4) = cmplx(wf(:swf1,:swf2)%j(4),kind=qp)
+  end if
+#endif
+end subroutine init_hybrid_wf
 
 end module ol_hel_wavefunctions_/**/REALKIND

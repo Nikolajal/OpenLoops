@@ -22,17 +22,30 @@ module ofred_basis_construction_/**/REALKIND
 
   use KIND_TYPES, only: REALKIND
 
-  ! Basis_Selection (criterion for the choice of the basis):
+  ! basis_selection (_4/_5) (criterion for the choice of the basis):
   !  - 0: the basis is built out of the first two momenta p1,p2
   !  - 1: gamma                    is maximized
   !  - 2: Delta (Gram-Determinant) is maximized
-  !
-  ! norm_mode (normalization in the choice of the basis):
+  integer, save :: basis_selection_4 = 2
+  integer, save :: basis_selection_5 = 2
+
+  ! norm_mode_gd2 (normalization in the choice of the basis):
   !  - 1: gamma or Delta are normalized to 1
   !  - 2: gamma or Delta are normalized to X, where X is the largest entry of the Gram Matrix.
   !       gamma/X, Delta/X^2
-  integer, save :: Basis_Selection = 2
-  integer, save :: norm_mode = 2
+  integer, save :: norm_mode_gd2 = 1
+
+  ! norm_mode_gd3 (criterion for for the choice of basis for 5pt reduction):
+  !  - 0: Delta3 (Rank3 Gram-Determinant) is maximized
+  !  - 1: ...
+  !  - 2: ..., inlcuding ...
+  integer, save :: norm_mode_gd3 = 2
+
+  ! Include \gamma/p_3 l_{3/4} terms in error estimator for open loops
+  logical, save :: gdm2_err_estim_OL = .true.
+  logical, save :: gdm2_err_estim_CL = .false.
+
+  logical, save :: l12_correction_stop_on_failure = .false.
 
 contains
 
@@ -85,23 +98,27 @@ subroutine construct_l1l2_1(mom1,mom2,alpha,gamma,l1,l2,r1,r2)
 !************************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_kinematics_/**/REALKIND, only: cont_LC_cntrv
-  use ol_parameters_decl_/**/REALKIND, only: CI
+  use ol_parameters_decl_/**/REALKIND, only: CI,cone,zero
   use ol_momenta_decl_/**/REALKIND, only: L, Q
+  use ol_debug, only: ol_error
+  use, intrinsic :: iso_fortran_env, only : stderr=>error_unit
   implicit none
   integer, intent(in) :: mom1, mom2
   complex(REALKIND), intent(out) :: gamma, alpha(2)
-  complex(REALKIND) :: sqrt_delta, one
+  complex(REALKIND) :: sqrt_delta
   complex(REALKIND), intent(out) :: l1(4), l2(4), r1(4), r2(4)
-  real(REALKIND) :: p1p2, x1, x2, x12, delta
-  complex(REALKIND) :: l1l1, l2l2
+  real(REALKIND) :: p1p2, x1, x2, x12, delta, l1acc(1:4), l2acc(1:4), norm
+  complex(REALKIND) :: l1l1, l2l2, lnew
+  integer :: i, sl
+  real(REALKIND) :: accthres = 10._/**/REALKIND**(1-real(precision(x1),REALKIND))
+  real(REALKIND) :: corrdiff
 
-  one = 1._/**/REALKIND
   p1p2 = REAL(cont_LC_cntrv(L(1:4,mom1),L(1:4,mom2)))
 
   x1 = REAL(L(5,mom1) + L(6,mom1))/p1p2
   x2 = REAL(L(5,mom2) + L(6,mom2))/p1p2
   x12 = x1*x2
-  delta = one - x12
+  delta = cone - x12
 
   if (delta > 0) then
     sqrt_delta = sqrt(delta)
@@ -109,25 +126,226 @@ subroutine construct_l1l2_1(mom1,mom2,alpha,gamma,l1,l2,r1,r2)
     sqrt_delta = - CI*sqrt(-delta)
   end if
 
-  alpha(1) = x1/(one + sqrt_delta)
-  alpha(2) = x2/(one + sqrt_delta)
+  alpha(1) = x1/(cone + sqrt_delta)
+  alpha(2) = x2/(cone + sqrt_delta)
 
   l1 = L(1:4,mom1) - alpha(1)*L(1:4,mom2)
+  norm = maxval(abs(l1))
+  sl = 1
+  do i = 1, 4
+    if (abs(L(i,mom1)-alpha(1)*L(i,mom2))/max(abs(L(i,mom1)),abs(alpha(1)*L(i,mom2))) .lt. &
+    accthres) then
+      l1(i) = zero
+      l1acc(i) = cone
+    else if (l1(i) .eq. zero) then
+      l1acc(i) = cone
+    else
+      l1acc(i) = abs(l1(i))/norm
+      if (l1acc(sl) .gt. l1acc(i)) then
+        sl = i
+      end if
+    end if
+  end do
+  if (l1acc(sl) .ne. cone) then
+    select case (sl)
+    case (1)
+      lnew = l1(3)*l1(4)/l1(2)
+      corrdiff = abs(lnew-l1(1))/norm
+      if (corrdiff .gt. 10*l1acc(1)) then
+        if (l12_correction_stop_on_failure) then
+          call ol_error("Mass correction of l1 failed.")
+          write(stderr,*) "case 11(1)"
+          write(stderr,*) "accthres:", accthres
+          write(stderr,*) "l1acc:", l1acc(1)
+          write(stderr,*) "corrdiff:", corrdiff
+          write(stderr,*) "lnew:", lnew
+          write(stderr,*) "l1(1):", l1(1)
+          write(stderr,*) "l1(2):", l1(2)
+          write(stderr,*) "l1(3):", l1(3)
+          write(stderr,*) "l1(4):", l1(4)
+          stop
+        end if
+      else
+        l1(1) = l1(3)*l1(4)/l1(2)
+      end if
+    case (2)
+      lnew = l1(3)*l1(4)/l1(1)
+      corrdiff = abs(lnew-l1(2))/norm
+      if (corrdiff .gt. 10*l1acc(2)) then
+        if (l12_correction_stop_on_failure) then
+          call ol_error("Mass correction of l1 failed.")
+          write(stderr,*) "case 11(2)"
+          write(stderr,*) "accthres:", accthres
+          write(stderr,*) "l1acc:", l1acc(2)
+          write(stderr,*) "corrdiff:", corrdiff
+          write(stderr,*) "lnew:", lnew
+          write(stderr,*) "l1(1):", l1(1)
+          write(stderr,*) "l1(2):", l1(2)
+          write(stderr,*) "l1(3):", l1(3)
+          write(stderr,*) "l1(4):", l1(4)
+          stop
+        end if
+      else
+        l1(2) = l1(3)*l1(4)/l1(1)
+      end if
+    case (3)
+      lnew = l1(1)*l1(2)/l1(4)
+      corrdiff = abs(lnew-l1(3))/norm
+      if (corrdiff .gt. 10*l1acc(3)) then
+        if (l12_correction_stop_on_failure) then
+          call ol_error("Mass correction of l1 failed.")
+          write(stderr,*) "case 11(3)"
+          write(stderr,*) "accthres:", accthres
+          write(stderr,*) "l1acc:", l1acc(3)
+          write(stderr,*) "corrdiff:", corrdiff
+          write(stderr,*) "lnew:", lnew
+          write(stderr,*) "l1(1):", l1(1)
+          write(stderr,*) "l1(2):", l1(2)
+          write(stderr,*) "l1(3):", l1(3)
+          write(stderr,*) "l1(4):", l1(4)
+          stop
+        end if
+      else
+        l1(3) = l1(1)*l1(2)/l1(4)
+      end if
+    case (4)
+      lnew = l1(1)*l1(2)/l1(3)
+      corrdiff = abs(lnew-l1(4))/norm
+      if (corrdiff .gt. 10*l1acc(4)) then
+        if (l12_correction_stop_on_failure) then
+          call ol_error("Mass correction of l1 failed.")
+          write(stderr,*) "case 11(4)"
+          write(stderr,*) "accthres:", accthres
+          write(stderr,*) "l1acc:", l1acc(4)
+          write(stderr,*) "corrdiff:", corrdiff
+          write(*,*) "delta:", delta
+          write(*,*) "x12:", x12
+          write(stderr,*) "lnew:", lnew
+          write(stderr,*) "l1(1):", l1(1)
+          write(stderr,*) "l1(2):", l1(2)
+          write(stderr,*) "l1(3):", l1(3)
+          write(stderr,*) "l1(4):", l1(4)
+          stop
+        end if
+      else
+        l1(4) = l1(1)*l1(2)/l1(3)
+      end if
+    end select
+  end if
+
   l2 = L(1:4,mom2) - alpha(2)*L(1:4,mom1)
+  norm = maxval(abs(l2))
+  sl = 1
+  do i = 1, 4
+    if (abs(L(i,mom2)-alpha(2)*L(i,mom1))/max(abs(L(i,mom2)),abs(alpha(2)*L(i,mom1))) .lt. &
+    accthres) then
+      l2(i) = zero
+      l2acc(i) = cone
+    else if (l2(i) .eq. zero) then
+      l2acc(i) = cone
+    else
+      l2acc(i) = abs(l2(i))/norm
+      if (l2acc(sl) .gt. l2acc(i)) then
+        sl = i
+      end if
+    end if
+  end do
+  if (l2acc(sl) .ne. cone) then
+    select case (sl)
+    case (1)
+      lnew = l2(3)*l2(4)/l2(2)
+      corrdiff = abs(lnew-l2(1))/norm
+      if (corrdiff .gt. 10*l2acc(1)) then
+        if (l12_correction_stop_on_failure) then
+          call ol_error("Mass correction of li failed.")
+          write(stderr,*) "case 12(1)"
+          write(stderr,*) "accthres:", accthres
+          write(stderr,*) "l2acc:", l2acc(1)
+          write(stderr,*) "corrdiff:", corrdiff
+          write(stderr,*) "lnew:", lnew
+          write(stderr,*) "l2(1):", l2(1)
+          write(stderr,*) "l2(2):", l2(2)
+          write(stderr,*) "l2(3):", l2(3)
+          write(stderr,*) "l2(4):", l2(4)
+          stop
+        end if
+      else
+        l2(1) = l2(3)*l2(4)/l2(2)
+      end if
+    case (2)
+      lnew = l2(3)*l2(4)/l2(1)
+      corrdiff = abs(lnew-l2(2))/norm
+      if (corrdiff .gt. 10*l2acc(2)) then
+        if (l12_correction_stop_on_failure) then
+          call ol_error("Mass correction of l2 failed.")
+          write(stderr,*) "case 12(2)"
+          write(stderr,*) "accthres:", accthres
+          write(stderr,*) "l2acc:", l2acc(2)
+          write(stderr,*) "corrdiff:", corrdiff
+          write(stderr,*) "lnew:", lnew
+          write(stderr,*) "l2(1):", l2(1)
+          write(stderr,*) "l2(2):", l2(2)
+          write(stderr,*) "l2(3):", l2(3)
+          write(stderr,*) "l2(4):", l2(4)
+          stop
+        end if
+      else
+        l2(2) = l2(3)*l2(4)/l2(1)
+      end if
+    case (3)
+      lnew = l2(1)*l2(2)/l2(4)
+      corrdiff = abs(lnew-l2(3))/norm
+      if (corrdiff .gt. 10*l2acc(3)) then
+        if (l12_correction_stop_on_failure) then
+          call ol_error("Mass correction of l2 failed.")
+          write(stderr,*) "case 12(3)"
+          write(stderr,*) "accthres:", accthres
+          write(stderr,*) "l2acc:", l2acc(3)
+          write(stderr,*) "corrdiff:", corrdiff
+          write(stderr,*) "lnew:", lnew
+          write(stderr,*) "l2(1):", l2(1)
+          write(stderr,*) "l2(2):", l2(2)
+          write(stderr,*) "l2(3):", l2(3)
+          write(stderr,*) "l2(4):", l2(4)
+          stop
+        end if
+      else
+        l2(3) = l2(1)*l2(2)/l2(4)
+      end if
+    case (4)
+      lnew = l2(1)*l2(2)/l2(3)
+      corrdiff = abs(lnew-l2(3))/norm
+      if (corrdiff .gt. 10*l2acc(4)) then
+        if (l12_correction_stop_on_failure) then
+          call ol_error("Mass correction of l2 failed.")
+          write(stderr,*) "case 12(4)"
+          write(stderr,*) "accthres:", accthres
+          write(stderr,*) "l2acc:", l2acc(4)
+          write(stderr,*) "corrdiff:", corrdiff
+          write(stderr,*) "lnew:", lnew
+          write(stderr,*) "l2(1):", l2(1)
+          write(stderr,*) "l2(2):", l2(2)
+          write(stderr,*) "l2(3):", l2(3)
+          write(stderr,*) "l2(4):", l2(4)
+          stop
+        end if
+      else
+        l2(4) = l2(1)*l2(2)/l2(3)
+      end if
+    end select
+  end if
 
-  l1l1 = l1(1)*l1(2) - l1(3)*l1(4)
-  l2l2 = l2(1)*l2(2) - l2(3)*l2(4)
+  if (delta > 0) then
+    l1(1) = cmplx(real(l1(1),kind=REALKIND),0._/**/REALKIND,kind=REALKIND)
+    l1(2) = cmplx(real(l1(2),kind=REALKIND),0._/**/REALKIND,kind=REALKIND)
+    l2(1) = cmplx(real(l2(1),kind=REALKIND),0._/**/REALKIND,kind=REALKIND)
+    l2(2) = cmplx(real(l2(2),kind=REALKIND),0._/**/REALKIND,kind=REALKIND)
+  end if
 
-  !! In the following l1, l2 are forced to be massless
-  !! TODO: improve the cleaning of l1,l2 components to guarentee the massless condition
-  if(l1l1 /= 0._/**/REALKIND) call correct_li(l1)
-  if(l2l2 /= 0._/**/REALKIND) call correct_li(l2)
+  r1 = (L(1:4,mom1) - x1*L(1:4,mom2))/(cone + sqrt_delta)
+  r2 = (L(1:4,mom2) - x2*L(1:4,mom1))/(cone + sqrt_delta)
 
-  r1 = (L(1:4,mom1) - x1*L(1:4,mom2))/(one + sqrt_delta)
-  r2 = (L(1:4,mom2) - x2*L(1:4,mom1))/(one + sqrt_delta)
-
-  !!gamma is defined as: 2*(l1*l2)
-  gamma = 4*p1p2*(delta/(one + sqrt_delta))
+  gamma = 4*p1p2*(delta/(cone + sqrt_delta))
 
 end subroutine construct_l1l2_1
 
@@ -180,24 +398,27 @@ subroutine construct_l3l4_1(l1,l2,l3,l4)
 ! Details on the l_3, l_4 in arXiv:1710.11452 sect. 5.1 formulas (113-118)
 !************************************************************************
   use KIND_TYPES, only: REALKIND
-  use ol_parameters_decl_/**/REALKIND, only: CI
+  use ol_parameters_decl_/**/REALKIND, only: CI,cone,zero
   implicit none
 
   complex(REALKIND), intent(in)  :: l1(1:4), l2(1:4)
   complex(REALKIND), intent(out) :: l3(1:4), l4(1:4)
   complex(REALKIND) :: b1, b2, b12, bi12, bi21, c1, c2
-  complex(REALKIND) :: OnePlusI, OneMinusI, zero, two
+  complex(REALKIND) :: OnePlusI, OneMinusI, two
 
-  OnePlusI  = 1._/**/REALKIND + CI
-  OneMinusI = 1._/**/REALKIND - CI
-  zero = 0._/**/REALKIND
-  two  = 2._/**/REALKIND
+  OnePlusI  = cone + CI
+  OneMinusI = cone - CI
+  two  = 2*cone
 
-  if (l1(2)==0._/**/REALKIND .AND. l2(2)==0._/**/REALKIND) then
+  if (l1(2)==zero .AND. l2(2)==zero) then
     l3 = zero
     l3(1) = two*sqrt((l1(1)+l1(2))*(l2(1)+l2(2)))
     l4 = l3
-  else if (l1(2)==0._/**/REALKIND) then
+  else if (l1(1)==zero .AND. l2(1)==zero) then
+    l3 = zero
+    l3(2) = two*sqrt((l1(1)+l1(2))*(l2(1)+l2(2)))
+    l4 = l3
+  else if (l1(2)==zero) then
     b1 = sqrt(l2(2))
     b2 = sqrt(l1(1)*two)
     c1 = b2/b1
@@ -210,7 +431,20 @@ subroutine construct_l3l4_1(l1,l2,l3,l4)
     l4(2) = zero
     l4(3) = -(OnePlusI)*c2
     l4(4) = zero
-  else if (l2(2)==0._/**/REALKIND) then
+  else if (l1(1)==zero) then
+    b1 = sqrt(l2(1))
+    b2 = sqrt(l1(2)*two)
+    c1 = b2/b1
+    c2 = b1*b2
+    l3(2) = -(OneMinusI)*l2(3)*c1
+    l3(1) = zero
+    l3(3) = zero
+    l3(4) = -(OneMinusI)*c2
+    l4(2) = -(OnePlusI)*l2(4)*c1
+    l4(1) = zero
+    l4(3) = -(OnePlusI)*c2
+    l4(4) = zero
+  else if (l2(2)==zero) then
     b1 = sqrt(l1(2))
     b2 = sqrt(l2(1)*two)
     c1 = b2/b1
@@ -223,20 +457,49 @@ subroutine construct_l3l4_1(l1,l2,l3,l4)
     l4(2) = zero
     l4(3) = zero
     l4(4) = -(OneMinusI)*c2
+  else if (l2(1)==zero) then
+    b1 = sqrt(l1(1))
+    b2 = sqrt(l2(2)*two)
+    c1 = b2/b1
+    c2 = b1*b2
+    l3(2) = -(OnePlusI)*l1(4)*c1
+    l3(1) = zero
+    l3(3) = -(OnePlusI)*c2
+    l3(4) = zero
+    l4(2) = -(OneMinusI)*l1(3)*c1
+    l4(1) = zero
+    l4(3) = zero
+    l4(4) = -(OneMinusI)*c2
   else
-    b1 = sqrt(l1(2))
-    b2 = sqrt(l2(2))
-    b12 = b1*b2
-    bi12 = b1/b2
-    bi21 = b2/b1
-    l3(1) = two*l1(4)*l2(3)/b12
-    l3(2) = two*b12
-    l3(3) = two*bi12*l2(3)
-    l3(4) = two*bi21*l1(4)
-    l4(1) = two*l1(3)*l2(4)/b12
-    l4(2) = l3(2)
-    l4(3) = two*bi21*l1(3)
-    l4(4) = two*bi12*l2(4)
+    if (min(abs(l1(2)),abs(l2(2))) .gt. min(abs(l1(1)),abs(l2(1)))) then
+      b1 = sqrt(l1(2))
+      b2 = sqrt(l2(2))
+      b12 = b1*b2
+      bi12 = b1/b2
+      bi21 = b2/b1
+      l3(1) = two*l1(4)*l2(3)/b12
+      l3(2) = two*b12
+      l3(3) = two*bi12*l2(3)
+      l3(4) = two*bi21*l1(4)
+      l4(1) = two*l1(3)*l2(4)/b12
+      l4(2) = l3(2)
+      l4(3) = two*bi21*l1(3)
+      l4(4) = two*bi12*l2(4)
+    else
+      b1 = sqrt(l1(1))
+      b2 = sqrt(l2(1))
+      b12 = b1*b2
+      bi12 = b1/b2
+      bi21 = b2/b1
+      l3(2) = two*l1(4)*l2(3)/b12
+      l3(1) = two*b12
+      l3(3) = two*bi12*l2(3)
+      l3(4) = two*bi21*l1(4)
+      l4(2) = two*l1(3)*l2(4)/b12
+      l4(1) = l3(1)
+      l4(3) = two*bi21*l1(3)
+      l4(4) = two*bi12*l2(4)
+    end if
   end if
 
 end subroutine construct_l3l4_1
@@ -583,13 +846,46 @@ subroutine construct_RedBasis(mom1,mom2,RedBasis)
   call LC_Contr2Cov(l4,l4_cv)
 
   RedBasis = basis(r1_cv,r2_cv,l3_cv,l4_cv,L33,L44,L34,&
-   r1Tb,r2Tb,gamma,alphas,mom1,mom2,p1,p2,li)
+   r1Tb,r2Tb,gamma,alphas,mom1,mom2,li)
 
 end subroutine construct_RedBasis
 
+!*******************************************************************
+subroutine normalize_gamma(gamma,mom1,mom2,mom3,gamma_norm)
+!******************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_kinematics_/**/REALKIND, only: cont_LC_cntrv, get_LC_5
+  implicit none
+
+  integer, intent(in) :: mom1, mom2, mom3
+  complex(REALKIND), intent(in) :: gamma
+  real(REALKIND), intent(out) :: gamma_norm
+  complex(REALKIND) :: p1(5), p2(5), p3(5)
+
+  complex(REALKIND) :: p1p1, p2p2, p3p3, p1p2, p1p3, p2p3
+  real(REALKIND) :: maxinv
+
+  p1 = get_LC_5(mom1)
+  p2 = get_LC_5(mom2)
+  p3 = get_LC_5(mom3)
+
+  p1p1 = p1(5)
+  p2p2 = p2(5)
+  p3p3 = p3(5)
+  p1p2 = cont_LC_cntrv(p1(1:4),p2(1:4))
+  p1p3 = cont_LC_cntrv(p1(1:4),p3(1:4))
+  p2p3 = cont_LC_cntrv(p2(1:4),p3(1:4))
+
+  maxinv = MAX(ABS(p1p1),ABS(p2p2),ABS(p3p3),ABS(p1p2),ABS(p1p3),ABS(p2p3))
+
+  gamma_norm = abs(gamma/maxinv)
+
+  gamma_norm = min(1._/**/REALKIND, abs(gamma_norm))
+
+end subroutine normalize_gamma
 
 ! ******************************************************************************
-subroutine construct_p3scalars(p3,RedBasis,p3scalars)
+subroutine construct_p3scalars(mom3,RedBasis,p3scalars,gd2,gd3)
 ! OpenLoops Reduction Step. Calculation of p3 dependent scalars
 ! ------------------------------------------------------------------------------
 ! Details on the reduction basis in arXiv:1710.11452 sect. 5.1
@@ -599,13 +895,18 @@ subroutine construct_p3scalars(p3,RedBasis,p3scalars)
 ! ******************************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: basis
+  use ol_kinematics_/**/REALKIND, only: get_LC_5
   implicit none
-  complex(REALKIND), intent(in)  :: p3(1:5)
+  integer,     intent(in) :: mom3
   type(basis), intent(in) :: RedBasis
   complex(REALKIND), intent(out) :: p3scalars(0:4)
-  complex(REALKIND) :: r1(1:4), r2(1:4), l3(1:4), l4(1:4)
+  real(REALKIND),    intent(out) :: gd2,gd3
+
+  complex(REALKIND) :: p3(1:5), r1(1:4), r2(1:4), l3(1:4), l4(1:4)
   complex(REALKIND) :: p3r1, p3r2, p3l3, p3l4
   complex(REALKIND) :: two = 2._/**/REALKIND
+
+  p3 = get_LC_5(mom3)
 
   p3r1 = SUM(p3(1:4)*RedBasis%vect1)
   p3r2 = SUM(p3(1:4)*RedBasis%vect2)
@@ -617,6 +918,11 @@ subroutine construct_p3scalars(p3,RedBasis,p3scalars)
   p3scalars(2) = (p3r2/p3l3)*two
   p3scalars(3) = p3l4/p3l3                  !! --> alpha formula (133)
   p3scalars(4) = p3(5)                      !! --> p3.p3
+
+  call normalize_gamma(RedBasis%gamma,RedBasis%mom1, &
+                       RedBasis%mom2,mom3,gd2)
+
+  call GramDeterminant3_2(RedBasis%mom1,RedBasis%mom2,mom3,gd3)
 
 end subroutine construct_p3scalars
 
@@ -632,52 +938,155 @@ subroutine construct_redset4(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,Red
 !******************************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_momenta_decl_/**/REALKIND, only: L
+#ifdef PRECISION_dp
+  use ol_momenta_decl_qp, only: L_QP=>L
+#endif
   use ol_data_types_/**/REALKIND, only: basis, redset4
   implicit none
   integer, intent(in)  :: mom1, mom2, mom3
   type(basis), intent(in) :: RedBasis12, RedBasis13, RedBasis23
   type(redset4), intent(out) :: RedSet
   complex(REALKIND) :: p1(1:5), p2(1:5), p3(1:5), scalars(0:4)
+  real(REALKIND) :: gd2,gd3
   logical :: b1, b2, b3
   integer :: perm(3)
 
-  p1(1:4) = L(1:4,mom1)
-  p1(5) = L(5,mom1) + L(6,mom1)
-  p2(1:4) = L(1:4,mom2)
-  p2(5) = L(5,mom2) + L(6,mom2)
-  p3(1:4) = L(1:4,mom3)
-  p3(5) = L(5,mom3) + L(6,mom3)
-
   !! Selection criterion
-  if(Basis_Selection == 0) then
-    b1 = .TRUE.
-    b2 = .FALSE.
-    b3 = .FALSE.
-  else if(Basis_Selection == 1) then
-    call basis_choice_1(p1,p2,p3,RedBasis12,RedBasis13,RedBasis23,b1,b2,b3)
-  else if(Basis_Selection == 2) then
-    call basis_choice_2(p1,p2,p3,RedBasis12,RedBasis13,RedBasis23,b1,b2,b3)
+  if(basis_selection_4 == 0) then
+    b1 = .true.
+    b2 = .false.
+    b3 = .false.
+  else if(basis_selection_4 == 1) then
+    call basis_choice_1(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,b1,b2,b3)
+  else if(basis_selection_4 == 2) then
+    call basis_choice_2(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,b1,b2,b3)
   end if
 
   !! Choice of the basis
   if (b3) then
-    call construct_p3scalars(p1,RedBasis23,scalars)
+    call construct_p3scalars(mom1,RedBasis23,scalars,gd2,gd3)
     perm = [2,3,1]
-    RedSet = redset4(RedBasis23,scalars,perm)
+    RedSet = redset4(RedBasis23,scalars,perm,mom1,gd2,gd3)
   else if (b2) then
-    call construct_p3scalars(p2,RedBasis13,scalars)
+    call construct_p3scalars(mom2,RedBasis13,scalars,gd2,gd3)
     perm = [1,3,2]
-    RedSet = redset4(RedBasis13,scalars,perm)
+    RedSet = redset4(RedBasis13,scalars,perm,mom2,gd2,gd3)
   else if (b1) then
-    call construct_p3scalars(p3,RedBasis12,scalars)
+    call construct_p3scalars(mom3,RedBasis12,scalars,gd2,gd3)
     perm = [1,2,3]
-    RedSet = redset4(RedBasis12,scalars,perm)
+    RedSet = redset4(RedBasis12,scalars,perm,mom3,gd2,gd3)
   end if
 
 end subroutine construct_redset4
 
+subroutine reconstruct_redset4(RedSet,RedSet_rec)
+! OpenLoops Reduction Step. Recomputes p3 dependent scalars given RedBasis
+! ------------------------------------------------------------------------------
+! RedBasis = input reduction basis
+! RedBasis_rec = reconstructed reduction basis
+! ******************************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_data_types_/**/REALKIND, only: redset4
+  implicit none
+  type(redset4), intent(in)  :: RedSet
+  type(redset4), intent(out) :: RedSet_rec
+
+  complex(REALKIND) :: scalars(0:4)
+  real(REALKIND)    :: gd2,gd3
+  integer           :: perm(3)
+
+  call construct_p3scalars(RedSet%mom3,RedSet%redbasis,scalars,gd2,gd3)
+  RedSet_rec = redset4(redbasis=RedSet%redbasis,p3scalars=scalars, &
+                       perm=RedSet%perm,mom3=RedSet%mom3,gd2=gd2,gd3=gd3)
+
+end subroutine reconstruct_redset4
+
+#ifdef PRECISION_dp
+subroutine upgrade_redset4(RedSet,RedSet_rec)
+! ------------------------------------------------------------------------------
+! RedBasis = input reduction basis
+! RedBasis_rec = upgraded reduction basis
+! ******************************************************************************
+  use KIND_TYPES, only: DREALKIND, QREALKIND
+  use ol_data_types_/**/DREALKIND, only: redset4_dp=>redset4
+  use ol_data_types_/**/QREALKIND, only: basis_qp=>basis, redset4_qp=>redset4
+  use ofred_basis_construction_/**/QREALKIND, only: construct_RedBasis_qp => construct_RedBasis, &
+                                                    construct_p3scalars_qp=>construct_p3scalars
+  implicit none
+  type(redset4_dp), intent(in)  :: RedSet
+  type(redset4_qp), intent(out) :: RedSet_rec
+  type(basis_qp)  :: Redbasis_rec
+
+  complex(QREALKIND) :: scalars(0:4)
+  real(QREALKIND)    :: gd2,gd3
+  integer            :: perm(3)
+
+  call construct_RedBasis_qp(RedSet%redbasis%mom1, &
+                             RedSet%redbasis%mom2, &
+                             Redbasis_rec)
+
+  call construct_p3scalars_qp(RedSet%mom3,Redbasis_rec,scalars,gd2,gd3)
+  RedSet_rec = redset4_qp(redbasis=Redbasis_rec,p3scalars=scalars, &
+                          perm=RedSet%perm,mom3=RedSet%mom3,gd2=gd2,gd3=gd3)
+
+end subroutine upgrade_redset4
+
+subroutine upgrade_redset5(RedSet,RedSet_rec)
+! ------------------------------------------------------------------------------
+! RedBasis = input reduction basis
+! RedBasis_rec = upgraded reduction basis
+! ******************************************************************************
+  use KIND_TYPES, only: DREALKIND, QREALKIND
+  use ol_data_types_/**/DREALKIND, only: redset5_dp=>redset5
+  use ol_data_types_/**/QREALKIND, only: basis_qp=>basis, redset5_qp=>redset5
+  use ofred_basis_construction_/**/QREALKIND, only: construct_RedBasis_qp => construct_RedBasis, &
+                                                    construct_p3scalars_qp=>construct_p3scalars
+  implicit none
+  type(redset5_dp), intent(in)  :: RedSet
+  type(redset5_qp), intent(out) :: RedSet_rec
+  type(basis_qp)  :: Redbasis_rec
+
+  complex(QREALKIND) :: scalars(0:4)
+  real(QREALKIND)    :: gd2,gd3
+  integer            :: perm(3)
+
+  call construct_RedBasis_qp(RedSet%redbasis%mom1, &
+                             RedSet%redbasis%mom2, &
+                             Redbasis_rec)
+  call construct_p3scalars_qp(RedSet%mom3,Redbasis_rec,scalars,gd2,gd3)
+  RedSet_rec = redset5_qp(redbasis=Redbasis_rec,p3scalars=scalars, &
+                          perm=RedSet%perm,mom3=RedSet%mom3,mom4=RedSet%mom4, &
+                          gd2=gd2,gd3=gd3)
+
+end subroutine upgrade_redset5
+#endif
+
+subroutine reconstruct_redset5(RedSet,RedSet_rec)
+! OpenLoops Reduction Step. Calculation of p3 dependent scalars
+! ------------------------------------------------------------------------------
+! RedBasis = input reduction basis
+! RedBasis_rec = reconstructed reduction basis
+! ******************************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_data_types_/**/REALKIND, only: redset5
+  implicit none
+  type(redset5), intent(in)  :: RedSet
+  type(redset5), intent(out) :: RedSet_rec
+
+  complex(REALKIND) :: scalars(0:4)
+  real(REALKIND)    :: gd2,gd3
+  integer           :: perm(3)
+
+  call construct_p3scalars(RedSet%mom3,RedSet%redbasis,scalars,gd2,gd3)
+  RedSet_rec = redset5(redbasis=RedSet%redbasis,p3scalars=scalars, &
+                       perm=RedSet%perm,mom3=RedSet%mom3,mom4=RedSet%mom4, &
+                       gd2=gd2,gd3=gd3)
+
+end subroutine reconstruct_redset5
+
+
 !*******************************************************************
-subroutine basis_choice_1(p1,p2,p3,bas1,bas2,bas3,v1,v2,v3)
+subroutine basis_choice_1(mom1,mom2,mom3,bas1,bas2,bas3,v1,v2,v3)
 !-------------------------------------------------------------------
 ! In this choice of basis, ABS(gamma) is maximed.
 ! ABS(gamma) can be normalized either to 1 or to the largest entry
@@ -685,22 +1094,28 @@ subroutine basis_choice_1(p1,p2,p3,bas1,bas2,bas3,v1,v2,v3)
 !*******************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: basis, redset4
-  use ol_kinematics_/**/REALKIND, only: cont_LC_cntrv
+  use ol_kinematics_/**/REALKIND, only: cont_LC_cntrv, get_LC_5
   implicit none
-  complex(REALKIND), intent(in)  :: p1(1:5), p2(1:5), p3(1:5)
-  type(basis), intent(in) :: bas1, bas2, bas3
-  logical, intent(out) :: v1, v2, v3
-  real(REALKIND) :: gamma12(3), inv1, inv2, inv3, p1p2, p1p3, p2p3
+  integer,     intent(in)  :: mom1, mom2, mom3
+  type(basis), intent(in)  :: bas1, bas2, bas3
+  logical,     intent(out) :: v1, v2, v3
 
-  v1 = .FALSE.
-  v2 = .FALSE.
-  v3 = .FALSE.
+  complex(REALKIND) :: p1(1:5), p2(1:5), p3(1:5)
+  real(REALKIND)    :: gamma12(3), inv1, inv2, inv3, p1p2, p1p3, p2p3
+
+  p1 = get_LC_5(mom1)
+  p2 = get_LC_5(mom2)
+  p3 = get_LC_5(mom3)
+
+  v1 = .false.
+  v2 = .false.
+  v3 = .false.
 
   gamma12(1) = ABS(bas1%gamma)
   gamma12(2) = ABS(bas2%gamma)
   gamma12(3) = ABS(bas3%gamma)
 
-  if(norm_mode == 2) then
+  if(norm_mode_gd2 == 2) then
     p1p2 = REAL(cont_LC_cntrv(p1(1:4),p2(1:4)))
     p1p3 = REAL(cont_LC_cntrv(p1(1:4),p3(1:4)))
     p2p3 = REAL(cont_LC_cntrv(p2(1:4),p3(1:4)))
@@ -716,15 +1131,15 @@ subroutine basis_choice_1(p1,p2,p3,bas1,bas2,bas3,v1,v2,v3)
 
   if (gamma12(2) .ge. gamma12(1)) then
     if (gamma12(3) .ge. gamma12(2)) then
-      v3 = .TRUE.
+      v3 = .true.
     else
-      v2 = .TRUE.
+      v2 = .true.
     end if
   else
      if (gamma12(3) .ge. gamma12(1)) then
-      v3 = .TRUE.
+      v3 = .true.
     else
-      v1 = .TRUE.
+      v1 = .true.
     end if
   end if
 
@@ -732,7 +1147,7 @@ end subroutine basis_choice_1
 
 
 !*******************************************************************
-subroutine basis_choice_2(p1,p2,p3,bas1,bas2,bas3,v1,v2,v3)
+subroutine basis_choice_2(mom1,mom2,mom3,bas1,bas2,bas3,v1,v2,v3)
 !-------------------------------------------------------------------
 ! In this choice of basis, ABS(Delta) is maximed.
 ! ABS(Delta) can be normalized either to 1 or to the largest entry
@@ -740,16 +1155,22 @@ subroutine basis_choice_2(p1,p2,p3,bas1,bas2,bas3,v1,v2,v3)
 !*******************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: basis, redset4
-  use ol_kinematics_/**/REALKIND, only: cont_LC_cntrv
+  use ol_kinematics_/**/REALKIND, only: cont_LC_cntrv, get_LC_5
   implicit none
-  complex(REALKIND), intent(in)  :: p1(1:5), p2(1:5), p3(1:5)
+  integer,     intent(in)  :: mom1, mom2, mom3
   type(basis), intent(in) :: bas1, bas2, bas3
   logical, intent(out) :: v1, v2, v3
-  real(REALKIND) :: delta12(3), inv1, inv2, inv3, p1p2, p1p3, p2p3
 
-  v1 = .FALSE.
-  v2 = .FALSE.
-  v3 = .FALSE.
+  complex(REALKIND) :: p1(1:5), p2(1:5), p3(1:5)
+  real(REALKIND)    :: delta12(3), inv1, inv2, inv3, p1p2, p1p3, p2p3
+
+  p1 = get_LC_5(mom1)
+  p2 = get_LC_5(mom2)
+  p3 = get_LC_5(mom3)
+
+  v1 = .false.
+  v2 = .false.
+  v3 = .false.
 
   p1p2 = REAL(cont_LC_cntrv(p1(1:4),p2(1:4)))
   p1p3 = REAL(cont_LC_cntrv(p1(1:4),p3(1:4)))
@@ -763,7 +1184,7 @@ subroutine basis_choice_2(p1,p2,p3,bas1,bas2,bas3,v1,v2,v3)
   inv2 = MAX(ABS(p1p3),ABS(p1(5)),ABS(p3(5)))
   inv3 = MAX(ABS(p2p3),ABS(p2(5)),ABS(p3(5)))
 
-  if(norm_mode == 2) then
+  if(norm_mode_gd2 == 2) then
     delta12(1) = delta12(1)/inv1**2
     delta12(2) = delta12(2)/inv2**2
     delta12(3) = delta12(3)/inv3**2
@@ -771,19 +1192,432 @@ subroutine basis_choice_2(p1,p2,p3,bas1,bas2,bas3,v1,v2,v3)
 
   if (delta12(2) .ge. delta12(1)) then
     if (delta12(3) .ge. delta12(2)) then
-      v3 = .TRUE.
+      v3 = .true.
     else
-      v2 = .TRUE.
+      v2 = .true.
     end if
   else
      if (delta12(3) .ge. delta12(1)) then
-      v3 = .TRUE.
+      v3 = .true.
     else
-      v1 = .TRUE.
+      v1 = .true.
     end if
   end if
 
 end subroutine basis_choice_2
+
+!*******************************************************************
+subroutine GDrank2_choice_1(mom1,mom2,mom3,mom4,bas12,bas13,bas14,bas23, &
+                            bas24,bas34,v12,v13,v14,v23,v24,v34)
+!-------------------------------------------------------------------
+! In this choice of basis, ABS(gamma) is maximed.
+! ABS(gamma) can be normalized either to 1 or to the largest entry
+! of the Gram Matrix G_ij = p_i p_j
+!*******************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_data_types_/**/REALKIND, only: basis, redset5
+  use ol_kinematics_/**/REALKIND, only: cont_LC_cntrv, get_LC_5
+  implicit none
+  integer,     intent(in)  :: mom1,mom2,mom3,mom4
+  type(basis), intent(in)  :: bas12,bas13,bas14,bas23,bas24,bas34
+  logical,     intent(out) :: v12, v13, v14, v23, v24, v34
+
+  complex(REALKIND) :: p1(1:5), p2(1:5), p3(1:5), p4(1:5)
+  real(REALKIND) :: gamma12(6), inv12, inv13, inv14, inv23, inv24, inv34, &
+                    p1p2, p1p3, p1p4, p2p3, p2p4, p3p4, max_value
+  integer :: idx, i
+
+  p1 = get_LC_5(mom1)
+  p2 = get_LC_5(mom2)
+  p3 = get_LC_5(mom3)
+  p4 = get_LC_5(mom4)
+
+  v12 = .false.
+  v13 = .false.
+  v14 = .false.
+  v23 = .false.
+  v24 = .false.
+  v34 = .false.
+
+  gamma12(1) = ABS(bas12%gamma)
+  gamma12(2) = ABS(bas13%gamma)
+  gamma12(3) = ABS(bas14%gamma)
+  gamma12(4) = ABS(bas23%gamma)
+  gamma12(5) = ABS(bas24%gamma)
+  gamma12(6) = ABS(bas34%gamma)
+
+  if(norm_mode_gd2 == 2) then
+    p1p2 = REAL(cont_LC_cntrv(p1(1:4),p2(1:4)))
+    p1p3 = REAL(cont_LC_cntrv(p1(1:4),p3(1:4)))
+    p1p4 = REAL(cont_LC_cntrv(p1(1:4),p4(1:4)))
+    p2p3 = REAL(cont_LC_cntrv(p2(1:4),p3(1:4)))
+    p2p4 = REAL(cont_LC_cntrv(p2(1:4),p4(1:4)))
+    p3p4 = REAL(cont_LC_cntrv(p3(1:4),p4(1:4)))
+
+    inv12 = MAX(ABS(p1p2),ABS(p1(5)),ABS(p2(5)))
+    inv13 = MAX(ABS(p1p3),ABS(p1(5)),ABS(p3(5)))
+    inv14 = MAX(ABS(p2p3),ABS(p1(5)),ABS(p4(5)))
+    inv23 = MAX(ABS(p1p2),ABS(p2(5)),ABS(p3(5)))
+    inv24 = MAX(ABS(p1p3),ABS(p2(5)),ABS(p4(5)))
+    inv34 = MAX(ABS(p2p3),ABS(p3(5)),ABS(p4(5)))
+
+    gamma12(1) = gamma12(1)/inv12
+    gamma12(2) = gamma12(2)/inv13
+    gamma12(3) = gamma12(3)/inv14
+    gamma12(4) = gamma12(4)/inv23
+    gamma12(5) = gamma12(5)/inv24
+    gamma12(6) = gamma12(6)/inv34
+  end if
+
+  max_value = 0._/**/REALKIND
+
+  do i = 1,6
+    if(gamma12(i) > max_value) then
+      max_value = gamma12(i)
+      idx = i
+    end if
+  end do
+
+  if (idx.eq.1) then
+    v12 =.true.
+  else if (idx.eq.2) then
+    v13 = .true.
+  else if (idx.eq.3) then
+    v14 = .true.
+  else if (idx.eq.4) then
+    v23 = .true.
+  else if (idx.eq.5) then
+    v24 = .true.
+  else if (idx.eq.6) then
+    v34 = .true.
+  end if
+
+
+end subroutine GDrank2_choice_1
+
+
+!*******************************************************************
+subroutine GDrank2_choice_2(mom1,mom2,mom3,mom4,bas12,bas13,bas14,bas23, &
+                            bas24,bas34,v12,v13,v14,v23,v24,v34)
+!-------------------------------------------------------------------
+! In this choice of basis, ABS(Delta) is maximed.
+! ABS(Delta) can be normalized either to 1 or to the largest entry
+! of the Gram Matrix squared (G_ij)^2 = (p_i p_j)^2
+!*******************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_data_types_/**/REALKIND, only: basis, redset5
+  use ol_kinematics_/**/REALKIND, only: cont_LC_cntrv, get_LC_5
+  implicit none
+
+  integer, intent(in) :: mom1,mom2,mom3,mom4
+  type(basis), intent(in) :: bas12,bas13,bas14,bas23,bas24,bas34
+  logical, intent(out) :: v12, v13, v14, v23, v24, v34
+
+  complex(REALKIND) :: p1(1:5), p2(1:5), p3(1:5), p4(1:5)
+  real(REALKIND) :: delta12(6), inv12, inv13, inv14, inv23, inv24, inv34, &
+                    p1p2, p1p3, p1p4, p2p3, p2p4, p3p4, max_value
+  integer :: idx, i
+
+  p1 = get_LC_5(mom1)
+  p2 = get_LC_5(mom2)
+  p3 = get_LC_5(mom3)
+  p4 = get_LC_5(mom4)
+
+  v12 = .false.
+  v13 = .false.
+  v14 = .false.
+  v23 = .false.
+  v24 = .false.
+  v34 = .false.
+
+  p1p2 = REAL(cont_LC_cntrv(p1(1:4),p2(1:4)))
+  p1p3 = REAL(cont_LC_cntrv(p1(1:4),p3(1:4)))
+  p1p4 = REAL(cont_LC_cntrv(p1(1:4),p4(1:4)))
+  p2p3 = REAL(cont_LC_cntrv(p2(1:4),p3(1:4)))
+  p2p4 = REAL(cont_LC_cntrv(p2(1:4),p4(1:4)))
+  p3p4 = REAL(cont_LC_cntrv(p3(1:4),p4(1:4)))
+
+  delta12(1) = ABS((p1p2)**2 - REAL(p1(5)*p2(5)))
+  delta12(2) = ABS((p1p3)**2 - REAL(p1(5)*p3(5)))
+  delta12(3) = ABS((p1p4)**2 - REAL(p1(5)*p4(5)))
+  delta12(4) = ABS((p2p3)**2 - REAL(p2(5)*p3(5)))
+  delta12(5) = ABS((p2p4)**2 - REAL(p2(5)*p4(5)))
+  delta12(6) = ABS((p3p4)**2 - REAL(p3(5)*p4(5)))
+
+  inv12 = MAX(ABS(p1p2),ABS(p1(5)),ABS(p2(5)))
+  inv13 = MAX(ABS(p1p3),ABS(p1(5)),ABS(p3(5)))
+  inv14 = MAX(ABS(p2p3),ABS(p1(5)),ABS(p4(5)))
+  inv23 = MAX(ABS(p1p2),ABS(p2(5)),ABS(p3(5)))
+  inv24 = MAX(ABS(p1p3),ABS(p2(5)),ABS(p4(5)))
+  inv34 = MAX(ABS(p2p3),ABS(p3(5)),ABS(p4(5)))
+
+  if(norm_mode_gd2 == 2) then
+    delta12(1) = delta12(1)/inv12**2
+    delta12(2) = delta12(2)/inv13**2
+    delta12(3) = delta12(3)/inv14**2
+    delta12(4) = delta12(4)/inv23**2
+    delta12(5) = delta12(5)/inv24**2
+    delta12(6) = delta12(6)/inv34**2
+  end if
+
+  max_value = 0._/**/REALKIND
+
+  do i = 1,6
+    if(delta12(i) > max_value) then
+      max_value = delta12(i)
+      idx = i
+    end if
+  end do
+
+  if (idx.eq.1) then
+    v12 =.true.
+  else if (idx.eq.2) then
+    v13 = .true.
+  else if (idx.eq.3) then
+    v14 = .true.
+  else if (idx.eq.4) then
+    v23 = .true.
+  else if (idx.eq.5) then
+    v24 = .true.
+  else if (idx.eq.6) then
+    v34 = .true.
+  end if
+
+end subroutine GDrank2_choice_2
+
+
+!*******************************************************************
+subroutine GramDeterminant3(p1,p2,p3,delta)
+!******************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_kinematics_/**/REALKIND, only: cont_LC_cntrv
+  implicit none
+
+  complex(REALKIND), intent(in) :: p1(5), p2(5), p3(5)
+  complex(REALKIND), intent(out) :: delta
+
+  complex(REALKIND) :: p1p1, p2p2, p3p3, p1p2, p1p3, p2p3
+  real(REALKIND) :: maxinv
+
+  p1p1 = p1(5)
+  p2p2 = p2(5)
+  p3p3 = p3(5)
+  p1p2 = cont_LC_cntrv(p1(1:4),p2(1:4))
+  p1p3 = cont_LC_cntrv(p1(1:4),p3(1:4))
+  p2p3 = cont_LC_cntrv(p2(1:4),p3(1:4))
+
+  maxinv = MAX(ABS(p1p1),ABS(p2p2),ABS(p3p3),ABS(p1p2),ABS(p1p3),ABS(p2p3))
+
+  delta = p1p1*p2p2*p3p3 + 2*p1p2*p2p3*p1p3 -&
+          p1p3*p2p2*p1p3 - p1p1*p2p3*p2p3 - p3p3*p1p2*p1p2
+
+  delta = delta/(maxinv**3)
+
+end subroutine GramDeterminant3
+
+!*******************************************************************
+subroutine GramDeterminant3_2(mom1,mom2,mom3,delta)
+!******************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_kinematics_/**/REALKIND, only: cont_LC_cntrv, get_LC_5
+  implicit none
+
+  integer,        intent(in)  :: mom1,mom2,mom3
+  real(REALKIND), intent(out) :: delta
+
+  complex(REALKIND) :: p1(5),p2(5),p3(5)
+  real(REALKIND)    :: p1p1,p2p2,p3p3,p1p2,p1p3,p2p3
+  real(REALKIND)    :: maxinv
+
+  p1 = get_LC_5(mom1)
+  p2 = get_LC_5(mom2)
+  p3 = get_LC_5(mom3)
+
+  p1p1 = real(p1(5))
+  p2p2 = real(p2(5))
+  p3p3 = real(p3(5))
+  p1p2 = real(cont_LC_cntrv(p1(1:4),p2(1:4)))
+  p1p3 = real(cont_LC_cntrv(p1(1:4),p3(1:4)))
+  p2p3 = real(cont_LC_cntrv(p2(1:4),p3(1:4)))
+
+  maxinv = MAX(ABS(p1p1),ABS(p2p2),ABS(p3p3),ABS(p1p2),ABS(p1p3),ABS(p2p3))
+
+  delta = p1p1*p2p2*p3p3 + 2*p1p2*p2p3*p1p3 - &
+          p1p3*p2p2*p1p3 - p1p1*p2p3*p2p3 - p3p3*p1p2*p1p2
+
+  delta = delta/(maxinv**3)
+
+end subroutine GramDeterminant3_2
+
+! ******************************************************************************
+subroutine construct_basis_redset5(mom1,mom2,mom3,RedBasis12,RedBasis13, &
+                                   RedBasis23,RedSet,perm_in,mom4)
+! OpenLoops Reduction Step. Choice of the basis and assembling of the reduction set
+! ------------------------------------------------------------------------------
+! p_i = input momenta i = 1,2,3
+! RedBasis_ij = input reduction bases built out of momenta p_i,p_j
+! RedSet = output data type containing the chosen reduction basis and the
+!          corresponding set of p_3 scalars.
+! ******************************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_data_types_/**/REALKIND, only: basis, redset5
+  implicit none
+  integer,        intent(in)  :: mom1,mom2,mom3,perm_in(4), mom4
+  type(basis),    intent(in)  :: RedBasis12, RedBasis13, RedBasis23
+  type(redset5),  intent(out) :: RedSet
+
+  complex(REALKIND) :: scalars(0:4)
+  real(REALKIND)    :: gd2,gd3
+
+  logical :: b1, b2, b3
+  integer :: perm(4)
+
+  !! Selection criterion
+  if(basis_selection_5 == 0) then
+    b1 = .true.
+    b2 = .false.
+    b3 = .false.
+  else if(basis_selection_5 == 1) then
+    call basis_choice_1(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,b1,b2,b3)
+  else if(basis_selection_5 == 2) then
+    call basis_choice_2(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,b1,b2,b3)
+  end if
+
+  !! Choice of the basis
+  if (b3) then
+    call construct_p3scalars(mom1,RedBasis23,scalars,gd2,gd3)
+    perm = [perm_in(2),perm_in(3),perm_in(1),perm_in(4)]
+    RedSet = redset5(RedBasis23,scalars,perm,mom1,mom4,gd2,gd3)
+  else if (b2) then
+    call construct_p3scalars(mom2,RedBasis13,scalars,gd2,gd3)
+    perm = [perm_in(1),perm_in(3),perm_in(2),perm_in(4)]
+    RedSet = redset5(RedBasis13,scalars,perm,mom2,mom4,gd2,gd3)
+  else if (b1) then
+    call construct_p3scalars(mom3,RedBasis12,scalars,gd2,gd3)
+    perm = [perm_in(1),perm_in(2),perm_in(3),perm_in(4)]
+    RedSet = redset5(RedBasis12,scalars,perm,mom3,mom4,gd2,gd3)
+  end if
+
+end subroutine construct_basis_redset5
+
+! ******************************************************************************
+subroutine construct_redset5(mom1,mom2,mom3,mom4,RedBasis12,&
+  RedBasis13,RedBasis14,RedBasis23,RedBasis24,RedBasis34,RedSet)
+! OpenLoops Reduction Step. Choice of the basis and assembling of the reduction set
+! ------------------------------------------------------------------------------
+! p_i = input momenta i = 1,2,3,4
+! RedBasis_ij = input reduction bases built out of momenta p_i,p_j
+! RedSet = output data type containing the chosen reduction basis and the
+!          corresponding set of p_3 scalars.
+! ******************************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_data_types_/**/REALKIND, only: basis, redset5
+  implicit none
+  integer,       intent(in)  :: mom1,mom2,mom3,mom4
+  type(basis),   intent(in)  :: RedBasis12,RedBasis13,RedBasis14, &
+                                RedBasis23,RedBasis24,RedBasis34
+  type(redset5), intent(out) :: RedSet
+
+  complex(REALKIND) :: scalars1(0:4),scalars2(0:4)
+  real(REALKIND)    :: alfa_max1,alfa_max2,gd21,gd22,gd31,gd32
+  logical :: b12,b13,b14,b23,b24,b34
+  integer :: perm(4)
+
+  !! Selection criterion
+  if(basis_selection_5 == 0) then
+    b12 = .true.
+    b13 = .false.
+    b14 = .false.
+    b23 = .false.
+    b24 = .false.
+    b34 = .false.
+
+  else if(basis_selection_5 == 1) then
+    call GDrank2_choice_1(mom1,mom2,mom3,mom4,RedBasis12,RedBasis13,RedBasis14,&
+      RedBasis23,RedBasis24,RedBasis34,b12,b13,b14,b23,b24,b34)
+  else if(basis_selection_5 == 2) then
+    call GDrank2_choice_2(mom1,mom2,mom3,mom4,RedBasis12,RedBasis13,RedBasis14,&
+      RedBasis23,RedBasis24,RedBasis34,b12,b13,b14,b23,b24,b34)
+  end if
+
+  if (b12) then
+    if (choose_basis(mom3,mom4,RedBasis12)) then
+      perm = [1,2,3,4]
+      RedSet = redset5(RedBasis12,scalars1,perm,mom3,mom4,gd21,gd31)
+    else
+      perm = [1,2,4,3]
+      RedSet = redset5(RedBasis12,scalars2,perm,mom4,mom3,gd22,gd32)
+    end if
+  else if (b13) then
+    if (choose_basis(mom2,mom4,RedBasis13)) then
+      perm = [1,3,2,4]
+      RedSet = redset5(RedBasis13,scalars1,perm,mom2,mom4,gd21,gd31)
+    else
+      perm = [1,3,4,2]
+      RedSet = redset5(RedBasis13,scalars2,perm,mom4,mom2,gd22,gd32)
+    end if
+  else if (b14) then
+    if (choose_basis(mom2,mom3,RedBasis14)) then
+      perm = [1,4,2,3]
+      RedSet = redset5(RedBasis14,scalars1,perm,mom2,mom3,gd21,gd31)
+    else
+      perm = [1,4,3,2]
+      RedSet = redset5(RedBasis14,scalars2,perm,mom3,mom2,gd22,gd32)
+    end if
+  else if (b23) then
+    if (choose_basis(mom1,mom4,RedBasis23)) then
+      perm = [2,3,1,4]
+      RedSet = redset5(RedBasis23,scalars1,perm,mom1,mom4,gd21,gd31)
+    else
+      perm = [2,3,4,1]
+      RedSet = redset5(RedBasis23,scalars2,perm,mom4,mom1,gd22,gd32)
+    end if
+  else if (b24) then
+    if (choose_basis(mom1,mom3,RedBasis24)) then
+      perm = [2,4,1,3]
+      RedSet = redset5(RedBasis24,scalars1,perm,mom1,mom3,gd21,gd31)
+    else
+      perm = [2,4,3,1]
+      RedSet = redset5(RedBasis24,scalars2,perm,mom3,mom1,gd22,gd32)
+    end if
+  else if (b34) then
+    if (choose_basis(mom1,mom2,RedBasis34)) then
+      perm = [3,4,1,2]
+      RedSet = redset5(RedBasis34,scalars1,perm,mom1,mom2,gd21,gd31)
+    else
+      perm = [3,4,2,1]
+      RedSet = redset5(RedBasis34,scalars2,perm,mom2,mom1,gd22,gd32)
+    end if
+  end if
+
+  contains
+
+  function choose_basis(m1,m2,RB)
+    type(basis),   intent(in) :: RB
+    integer,       intent(in) :: m1,m2
+    complex(REALKIND) :: B31,B32
+    logical :: choose_basis
+
+    call construct_p3scalars(m1,RB,scalars1,gd21,gd31)
+    call construct_p3scalars(m2,RB,scalars2,gd22,gd32)
+    if (norm_mode_gd3 .eq. 0) then
+      choose_basis = abs(gd31) .gt. abs(gd32)
+    else
+      if (norm_mode_gd3 .eq. 2) then
+        B31 = 2*(RB%gamma)*scalars1(0)
+        B32 = 2*(RB%gamma)*scalars2(0)
+      else
+        B31 = 0
+        B32 = 0
+      end if
+      alfa_max1 = max(abs(scalars1(1)),abs(scalars1(2)),abs(B31))
+      alfa_max2 = max(abs(scalars2(1)),abs(scalars2(2)),abs(B32))
+      choose_basis = alfa_max1 .lt. alfa_max2
+    end if
+
+  end function choose_basis
+
+end subroutine construct_redset5
 
 end module ofred_basis_construction_/**/REALKIND
 
@@ -797,6 +1631,9 @@ end module ofred_basis_construction_/**/REALKIND
 module ofred_reduction_/**/REALKIND
   use KIND_TYPES, only: REALKIND
   use ol_debug, only: ol_error
+  use ol_parameters_decl_/**/REALKIND, only: hp_mode,hp_alloc_mode
+  use ofred_basis_construction_/**/REALKIND, only: gdm2_err_estim_OL, &
+                                                   gdm2_err_estim_CL
 
   implicit none
 
@@ -807,6 +1644,52 @@ module ofred_reduction_/**/REALKIND
   interface Hotf_4pt_reduction
     module procedure Hotf_4pt_red, Hotf_4pt_red_R1
   end interface
+
+  interface Hotf_4pt_reduction_last
+    module procedure Hotf_4pt_red_last, Hotf_4pt_red_last_R1
+  end interface
+
+  interface otf_5pt_reduction
+    module procedure otf_5pt_red
+  end interface
+
+  interface Hotf_5pt_reduction
+    module procedure Hotf_5pt_red, Hotf_5pt_red_R1
+  end interface
+
+  interface Hotf_5pt_reduction_last
+    module procedure Hotf_5pt_red_last, Hotf_5pt_red_last_R1
+  end interface
+
+  interface valid_4pt
+    module procedure valid_4pt_hol, valid_4pt_hcl
+  end interface
+
+  interface valid_5pt
+    module procedure valid_5pt_hol, valid_5pt_hcl
+  end interface
+
+  interface err_estim_4pt
+    module procedure err_estim_4pt_hol, err_estim_4pt_hcl
+  end interface
+
+  interface err_estim_5pt
+    module procedure err_estim_5pt_hol, err_estim_5pt_hcl
+  end interface
+
+  interface trigger_upgrade
+    module procedure trigger_upgrade_hcl, trigger_upgrade_hol
+  end interface
+
+#ifdef PRECISION_dp
+  interface downgrade_4pt
+    module procedure downgrade_4pt_hol,downgrade_4pt_hcl
+  end interface
+
+  interface downgrade_5pt
+    module procedure downgrade_5pt_hol,downgrade_5pt_hcl
+  end interface
+#endif
 
 contains
 
@@ -828,7 +1711,7 @@ subroutine LC_Cov2Contr(v_cov,v_ctrv)
 end subroutine LC_Cov2Contr
 
 ! ******************************************************************************
-subroutine tadpole_assignment(msq,mass,B0coeff,Gtad)
+subroutine tadpole_assignment(msq,mass,B0coeff,GTad)
 ! ------------------------------------------------------------------------------
 ! It assigns the coefficient to a tadpole after the reduction of a tensor bubble
 ! which follows from the reduction of a tensor triangle.
@@ -837,25 +1720,32 @@ subroutine tadpole_assignment(msq,mass,B0coeff,Gtad)
 ! msq     = masses squared in the parent triangle
 ! mass    = mass in the tadpole
 ! B0coeff = coefficients of the tadpole from the reduction of the tensor bubble
-! Gtad    = output tadpole coefficient
+! GTad    = output tadpole coefficient
 ! ******************************************************************************
   use KIND_TYPES, only: REALKIND
   implicit none
   complex(REALKIND), intent(in) :: msq(0:2), mass, B0coeff(1:4,0:2)
   complex(REALKIND), intent(out) :: GTad(1)
 
+  !! (m,m,m)
   if(mass == msq(0) .AND. mass == msq(1) .AND. mass == msq(2)) then
     GTad(1) = msq(0)*(B0coeff(2,0) + B0coeff(2,1) + B0coeff(2,2))
+  !! (m,m,m2)
   else if(mass == msq(0) .AND. mass == msq(1)) then
     GTad(1) = msq(0)*(B0coeff(2,1) + B0coeff(2,2) + B0coeff(3,2) + B0coeff(2,0))
+  !! (m,m1,m)
   else if(mass == msq(0) .AND. mass == msq(2)) then
     GTad(1) = msq(0)*(B0coeff(2,1) + B0coeff(3,1) + B0coeff(2,2) + B0coeff(3,0))
+  !! (m0,m,m)
   else if(mass == msq(1) .AND. mass == msq(2)) then
     GTad(1) = msq(1)*(B0coeff(2,0) + B0coeff(3,0) + B0coeff(3,1) + B0coeff(3,2))
+  !! (m,m1,m2)
   else if(mass == msq(0)) then
     GTad(1) = msq(0)*(B0coeff(2,1) + B0coeff(2,2))
+  !! (m0,m,m2)
   else if(mass == msq(1)) then
     GTad(1) = msq(1)*(B0coeff(2,0) + B0coeff(3,2))
+  !! (m0,m1,m)
   else if(mass == msq(2)) then
     GTad(1) = msq(2)*(B0coeff(3,0) + B0coeff(3,1))
   end if
@@ -924,7 +1814,7 @@ subroutine twopoint_reduction(Gin,p,msq,B0coeff)
   complex(REALKIND), intent(out) :: B0coeff(1:4)
   complex(REALKIND) :: tempcoeff(1:4)
   real(REALKIND) :: thres_exp
-  complex(REALKIND) :: pp(6:15), r1contr, Gmunu, PPmunu, PPmunu_psq, PPmunu_m0, PP_m0m1
+  complex(REALKIND) :: pp(6:15), PPmu, Gmunu, PPmunu, PPmunu_psq, PPmunu_m0, PP_m0m1
   real(REALKIND) :: zero = 0._/**/REALKIND, one = 1._/**/REALKIND, two = 2._/**/REALKIND
   complex(REALKIND) :: psq_m0, xi, f0, f1, f2, f3, f4, f5, z0
   integer :: i, j, n
@@ -1029,7 +1919,7 @@ subroutine twopoint_reduction(Gin,p,msq,B0coeff)
       else
         PP_m0m1 = PPmunu/(msq(0)-msq(1))
 
-        tempcoeff(2) = f0*((3*Gmunu+(f0/3)*PP_m0m1)+((3*f1-f0)*Gmunu+f0*f1*PP_m0m1)*xi + &
+        tempcoeff(2) =f0*((3*Gmunu+(f0/3)*PP_m0m1)+((3*f1-f0)*Gmunu+f0*f1*PP_m0m1)*xi + &
         f1*(3*f1*Gmunu + f0*(f0+2*f1)*PP_m0m1)*xi**2)
 
         tempcoeff(3) = ((f0*f1-f0**2-(f1**2)/3)*PP_m0m1 - 3*f1*Gmunu) + &
@@ -1052,39 +1942,46 @@ subroutine twopoint_reduction(Gin,p,msq,B0coeff)
   !--------------------- Reduction of the rank-1 part ---------------------*
   !------------------------------------------------------------------------*
 
-  r1contr = SUM(Gin(2:5)*p(1:4))/2
+  PPmu = SUM(Gin(2:5)*p(1:4))/2
 
-  !Massless bubble first
+  !Massless bubble
   if(msq(0) == msq(1) .AND. msq(0) == 0._/**/REALKIND) then
     if (onshell_zero) then
       B0coeff(1) = Gin(1)
     else
-      B0coeff(1) = Gin(1) - r1contr
+      B0coeff(1) = Gin(1) - PPmu
     end if
 
   !Bubble with same masses, both different from zero
   else if(msq(0) == msq(1)) then
-    B0coeff(1) = Gin(1) - r1contr
+    B0coeff(1) = Gin(1) - PPmu
 
   !Bubble with different masses
   else
     xi = p(5)/(msq(0)-msq(1))
     !Exact reduction formula
     if(ABS(xi) > thres_exp) then
-      B0coeff(1) = Gin(1) - ((msq(0)-msq(1))/p(5) + one)*r1contr
-      B0coeff(2) = r1contr/p(5)
+      B0coeff(1) = Gin(1) - ((msq(0)-msq(1))/p(5) + one)*PPmu
+      B0coeff(2) = PPmu/p(5)
       B0coeff(3) = -B0coeff(2)
     !Expansion
     else
-
       f0 = msq(0)/(msq(0)-msq(1))
       f1 = msq(1)/(msq(0)-msq(1))
-
-      B0coeff(1) = Gin(1)
-      B0coeff(2) = -f0/2 - f0*f1*xi - ((f0*f1*(2*f0+3*f1))/2)*xi**2
-      B0coeff(3) = (f0-f1/2) + xi*f0**2 + ((2*f0+3*f1)*(f0**2)/2)*xi**2
-      B0coeff(4) = (-(f0+f1)/4 + (one/6 - f0*(f0+f1)/2)*xi + &
-      (-3*f0**3 + f1**3 - 47*f1*f0**2 - 11*f0*f1**2)*(xi**2)/24)
+      !p^2 = 0 case
+      if(abs(xi) == 0._/**/REALKIND) then
+        B0coeff(1) = Gin(1)
+        B0coeff(2) = (-f0**2)*PPmu/msq(0)
+        B0coeff(3) = f1*(2*f0-f1)*PPmu/msq(1)
+        B0coeff(4) = -(f0+f1)*PPmu/2
+      ! Expansion for p^2!=0 up to order xi^2
+      else
+        B0coeff(1) = Gin(1)
+        B0coeff(2) = f0*(-f0-2*f0*f1*xi -((2*f0+3*f1)*f0*f1)*xi**2)*(PPmu/msq(0))
+        B0coeff(3) = f1*((2*f0-f1) +2*xi*f0**2 + (xi**2)*(2*f0+3*f1)*f0**2)*(PPmu/msq(1))
+        B0coeff(4) = (-(f0 +f1)/2 + xi*(one/3 - f0*(f0+f1)) + (-3*f0**3 - 47*f1*f0**2 - &
+        11*f0*f1**2 + f1**3)*xi**2/12)*PPmu
+      end if
     end if
 
   end if
@@ -1259,9 +2156,10 @@ subroutine otf_3pt_rank1_red_last(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1,Gout
 ! ******************************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: basis
+  use ol_kinematics_/**/REALKIND, only: get_LC_mass2
   complex(REALKIND), intent(in)  :: Gin_A(5)
-  type(basis), intent(in) :: RedBasis
-  complex(REALKIND), intent(in) :: msq(0:2)
+  type(basis),       intent(in)  :: RedBasis
+  complex(REALKIND), intent(in)  :: msq(0:2)
   complex(REALKIND), intent(out) :: Gout_A(1), Gout_A0(1), Gout_A1(1), Gout_A2(1)
 
   complex(REALKIND) :: fk0(2), v1(4), v2(4), Gv1, Gv2
@@ -1269,8 +2167,8 @@ subroutine otf_3pt_rank1_red_last(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1,Gout
   call LC_Cov2Contr(RedBasis%vect1,v1)
   call LC_Cov2Contr(RedBasis%vect2,v2)
 
-  fk0(1) = msq(1) - msq(0) - RedBasis%p1mom(5)
-  fk0(2) = msq(2) - msq(0) - RedBasis%p2mom(5)
+  fk0(1) = msq(1) - msq(0) - get_LC_mass2(RedBasis%mom1)
+  fk0(2) = msq(2) - msq(0) - get_LC_mass2(RedBasis%mom2)
 
   Gv1 = 2*SUM(Gin_A(2:5)*v1)
   Gv2 = 2*SUM(Gin_A(2:5)*v2)
@@ -1300,8 +2198,8 @@ A0msq, A0_0, A0_1, A0_2)
 ! ******************************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: basis
-  use ol_momenta_decl_/**/REALKIND, only: L
-  use ol_loop_handling_/**/REALKIND, only: G_TensorShift
+  use ol_loop_handling_/**/REALKIND, only: G_TensorShift_otf
+  use ol_kinematics_/**/REALKIND, only: get_LC_4, get_LC_5, get_LC_mass2
   use ol_debug, only: ol_error, ol_msg
   complex(REALKIND), intent(in)  :: Gin_A(15)
   type(basis), intent(in) :: RedBasis
@@ -1331,8 +2229,8 @@ A0msq, A0_0, A0_1, A0_2)
   call LC_Cov2Contr(l2,v2)
 
   !! f_{k0} = {m_k}^2 - {m_0}^2 - {p_k}^2
-  fk0(1) = msq(1) - msq(0) - RedBasis%p1mom(5)
-  fk0(2) = msq(2) - msq(0) - RedBasis%p2mom(5)
+  fk0(1) = msq(1) - msq(0) - get_LC_mass2(RedBasis%mom1)
+  fk0(2) = msq(2) - msq(0) - get_LC_mass2(RedBasis%mom2)
 
   call threepoint_reduction(Gin_A(6:15),RedBasis,msq(0),fk0,gammas,&
   l1,l2,v1,v2,RedCoeff)
@@ -1357,12 +2255,11 @@ A0msq, A0_0, A0_1, A0_2)
   Gtmp_A2(1) = Gtmp_A2(1) + B0_2(1)
 
   !! Reduction of the rank-1 bubbles
-  k2(1:4)  = L(1:4,RedBasis%mom2-RedBasis%mom1)
-  k2(5)    =   L(5,RedBasis%mom2-RedBasis%mom1) + L(6,RedBasis%mom2-RedBasis%mom1)
-  call G_TensorShift(Gtmp_A0,-RedBasis%p1mom(1:4))
+  k2 = get_LC_5(RedBasis%mom2-RedBasis%mom1)
+  call G_TensorShift_otf(Gtmp_A0,-get_LC_4(RedBasis%mom1))
   call twopoint_reduction(Gtmp_A0,k2,(/msq(1),msq(2)/),B0coeff(:,0))
-  call twopoint_reduction(Gtmp_A1,RedBasis%p2mom,(/msq(0),msq(2)/),B0coeff(:,1))
-  call twopoint_reduction(Gtmp_A2,RedBasis%p1mom,(/msq(0),msq(1)/),B0coeff(:,2))
+  call twopoint_reduction(Gtmp_A1,get_LC_5(RedBasis%mom2),(/msq(0),msq(2)/),B0coeff(:,1))
+  call twopoint_reduction(Gtmp_A2,get_LC_5(RedBasis%mom1),(/msq(0),msq(1)/),B0coeff(:,2))
 
   Gout_A0(1) =  B0coeff(1,0)
   Gout_A1(1) =  B0coeff(1,1)
@@ -1374,8 +2271,21 @@ A0msq, A0_0, A0_1, A0_2)
   !! Tadpoles
   if(present(A0msq)) then
     if (size(A0msq) == 3) then
-      call ol_msg(1,"OTF-Triangle Reduction. Reduction with three different masses not ready")
-      stop
+      if(A0msq(1) == 0._/**/REALKIND) then
+        A0_0 = zero
+      else
+        A0_0 = A0msq(1)*(B0coeff(2,1) + B0coeff(2,2))
+      end if
+      if(A0msq(2) == 0._/**/REALKIND) then
+        A0_1 = zero
+      else
+        A0_1 = A0msq(2)*(B0coeff(2,0) + B0coeff(3,2))
+      end if
+      if(A0msq(3) == 0._/**/REALKIND) then
+        A0_2 = zero
+      else
+        A0_2 = A0msq(3)*(B0coeff(3,0) + B0coeff(3,1))
+      end if
     else if (size(A0msq) == 2) then
       if(A0msq(1) == 0._/**/REALKIND .AND. A0msq(2) == 0._/**/REALKIND) then
         A0_0 = zero
@@ -1419,8 +2329,8 @@ A0msq, A0_0, A0_1, A0_2)
 ! ******************************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: basis
-  use ol_momenta_decl_/**/REALKIND, only: L
-  use ol_loop_handling_/**/REALKIND, only: G_TensorShift
+  use ol_kinematics_/**/REALKIND, only: get_LC_4, get_LC_5, get_LC_mass2
+  use ol_loop_handling_/**/REALKIND, only: G_TensorShift_otf
   use ol_debug, only: ol_error, ol_msg
   complex(REALKIND), intent(in)  :: Gin_A(35)
   type(basis), intent(in) :: RedBasis
@@ -1444,7 +2354,7 @@ A0msq, A0_0, A0_1, A0_2)
 
   !! ------------ Reduction of the rank-3 triangle ------------
 
-  p12 = RedBasis%p1mom(1:4) + RedBasis%p2mom(1:4)
+  p12 = get_LC_4(RedBasis%mom1) + get_LC_4(RedBasis%mom2)
 
   !! gamma and gamma^2
   gammas(1) = RedBasis%gamma
@@ -1459,8 +2369,8 @@ A0msq, A0_0, A0_1, A0_2)
   call LC_Cov2Contr(l2,v2)
 
   !! f_{k0} = {m_k}^2 - {m_0}^2 - {p_k}^2
-  fk0(1) = msq(1) - msq(0) - RedBasis%p1mom(5)
-  fk0(2) = msq(2) - msq(0) - RedBasis%p2mom(5)
+  fk0(1) = msq(1) - msq(0) - get_LC_mass2(RedBasis%mom1)
+  fk0(2) = msq(2) - msq(0) - get_LC_mass2(RedBasis%mom2)
 
   !! rank-2 component of the rank-3 numerator, i.e. q^\mu q^\nu q^rho = q^\mu (q^\nu q^rho)
   G_r2 = 0._/**/REALKIND
@@ -1539,12 +2449,11 @@ A0msq, A0_0, A0_1, A0_2)
   end if
 
   !! ------------ Reduction of the rank-2 bubbles ------------
-  k2(1:4)  = L(1:4,RedBasis%mom2-RedBasis%mom1)
-  k2(5)    =   L(5,RedBasis%mom2-RedBasis%mom1) + L(6,RedBasis%mom2-RedBasis%mom1)
-  call G_TensorShift(Sub_A0,-RedBasis%p1mom(1:4))
+  k2 = get_LC_5(RedBasis%mom2-RedBasis%mom1)
+  call G_TensorShift_otf(Sub_A0,-get_LC_4(RedBasis%mom1))
   call twopoint_reduction(Sub_A0,k2,(/msq(1),msq(2)/),B0coeff(:,0))
-  call twopoint_reduction(Sub_A1,RedBasis%p2mom,(/msq(0),msq(2)/),B0coeff(:,1))
-  call twopoint_reduction(Sub_A2,RedBasis%p1mom,(/msq(0),msq(1)/),B0coeff(:,2))
+  call twopoint_reduction(Sub_A1,get_LC_5(RedBasis%mom2),(/msq(0),msq(2)/),B0coeff(:,1))
+  call twopoint_reduction(Sub_A2,get_LC_5(RedBasis%mom1),(/msq(0),msq(1)/),B0coeff(:,2))
 
   !! Scalar Bubbles
   Gout_A0 = B0coeff(1,0) + Gout_A0(1)
@@ -1557,8 +2466,9 @@ A0msq, A0_0, A0_1, A0_2)
   !! Tadpoles
   if(present(A0msq)) then
     if (size(A0msq) == 3) then
-      call ol_msg(1,"OTF-Triangle Reduction. Reduction with three different masses not ready")
-      stop
+        call tadpole_assignment(msq,A0msq(1),B0coeff,A0_0)
+        call tadpole_assignment(msq,A0msq(2),B0coeff,A0_1)
+        call tadpole_assignment(msq,A0msq(3),B0coeff,A0_2)
     else if (size(A0msq) == 2) then
       if(A0msq(1) == 0._/**/REALKIND .AND. A0msq(2) == 0._/**/REALKIND) then
         A0_0 = 0._/**/REALKIND
@@ -1805,6 +2715,7 @@ subroutine otf_4pt_red(Gin_A,RedSet_4,msq_in,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout
 ! **********************************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: basis, redset4
+  use ol_kinematics_/**/REALKIND, only: get_LC_mass2
   implicit none
   complex(REALKIND), dimension(4,15,4), intent(in) :: Gin_A
   type(redset4), intent(in) :: RedSet_4
@@ -1841,8 +2752,8 @@ subroutine otf_4pt_red(Gin_A,RedSet_4,msq_in,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout
   end if
 
   !! f_{k0} = {m_k}^2 - {m_0}^2 - {p_k}^2
-  fk0(1) = msq(1) - msq(0) - Red_Basis%p1mom(5)
-  fk0(2) = msq(2) - msq(0) - Red_Basis%p2mom(5)
+  fk0(1) = msq(1) - msq(0) - get_LC_mass2(Red_Basis%mom1)
+  fk0(2) = msq(2) - msq(0) - get_LC_mass2(Red_Basis%mom2)
   fk0(3) = msq(3) - msq(0) - p3_scalars(4)
 
   !! gamma and gamma^2
@@ -1933,6 +2844,7 @@ subroutine otf_4pt_rank2_red_last(Gin_A,RedSet_4,msq_in,Gout_A,Gout_A0,Gout_A1,G
 ! **********************************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: basis, redset4
+  use ol_kinematics_/**/REALKIND, only: get_LC_mass2
   implicit none
   complex(REALKIND), intent(in)  :: Gin_A(15)
   type(redset4), intent(in) :: RedSet_4
@@ -1967,8 +2879,8 @@ subroutine otf_4pt_rank2_red_last(Gin_A,RedSet_4,msq_in,Gout_A,Gout_A0,Gout_A1,G
   end if
 
   !! f_{k0} = {m_k}^2 - {m_0}^2 - {p_k}^2
-  fk0(1) = msq(1) - msq(0) - Red_Basis%p1mom(5)
-  fk0(2) = msq(2) - msq(0) - Red_Basis%p2mom(5)
+  fk0(1) = msq(1) - msq(0) - get_LC_mass2(Red_Basis%mom1)
+  fk0(2) = msq(2) - msq(0) - get_LC_mass2(Red_Basis%mom2)
   fk0(3) = msq(3) - msq(0) - p3_scalars(4)
 
   !! gamma and gamma^2
@@ -2025,14 +2937,15 @@ subroutine otf_4pt_rank1_red_last(Gin_A,RedSet_4,msq_in,Gout_A,Gout_A0,Gout_A1,G
 ! **********************************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: basis, redset4
+  use ol_kinematics_/**/REALKIND, only: get_LC_mass2,cont_LC_cntrv
   implicit none
-  complex(REALKIND), intent(in)  :: Gin_A(5)
-  type(redset4), intent(in) :: RedSet_4
+  complex(REALKIND), intent(in) :: Gin_A(5)
+  type(redset4),     intent(in) :: RedSet_4
   complex(REALKIND), intent(in) :: msq_in(0:3)
   complex(REALKIND), dimension(1), intent(out) :: Gout_A, Gout_A0, Gout_A1, Gout_A2, Gout_A3
-  complex(REALKIND) :: alpha0, alpha1, alpha2, alpha3, gamma, p3_scalars(0:4)
-  complex(REALKIND) :: l1(4), l2(4), l3(4), l4(4), fk0(3), msq(0:3)
-  complex(REALKIND) :: Gv1, Gv2, Gl3, Gl4, Gtmp_A1(1), Gtmp_A2(1), Gtmp_A3(1)
+  complex(REALKIND) :: alpha0,alpha1,alpha2,alpha3,gamma,p3_scalars(0:4)
+  complex(REALKIND) :: l1(4),l2(4),l3(4),l4(4),fk0(3),msq(0:3)
+  complex(REALKIND) :: Gv1,Gv2,Gl3,Gl4,Gtmp_A1(1),Gtmp_A2(1),Gtmp_A3(1)
   type(basis) :: Red_Basis
   logical :: perm(3)
 
@@ -2063,8 +2976,8 @@ subroutine otf_4pt_rank1_red_last(Gin_A,RedSet_4,msq_in,Gout_A,Gout_A0,Gout_A1,G
   end if
 
   !! f_{k0} = {m_k}^2 - {m_0}^2 - {p_k}^2
-  fk0(1) = msq(1) - msq(0) - Red_Basis%p1mom(5)
-  fk0(2) = msq(2) - msq(0) - Red_Basis%p2mom(5)
+  fk0(1) = msq(1) - msq(0) - get_LC_mass2(Red_Basis%mom1)
+  fk0(2) = msq(2) - msq(0) - get_LC_mass2(Red_Basis%mom2)
   fk0(3) = msq(3) - msq(0) - RedSet_4%p3scalars(4)
 
   call LC_Cov2Contr(Red_Basis%vect1,l1)
@@ -2100,71 +3013,2426 @@ subroutine otf_4pt_rank1_red_last(Gin_A,RedSet_4,msq_in,Gout_A,Gout_A0,Gout_A1,G
 end subroutine otf_4pt_rank1_red_last
 
 
+! ******************************************************************************
+subroutine otf_5pt_red(Gin_A,RedSet_5,msq_in,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
+                       Gout_A3,Gout_A4,Gout_R1)
+! ------------------------------------------------------------------------------
+! OpenLoops on-the-fly reduction step. Reduction of an open rank-2 5-pt segment
+! ------------------------------------------------------------------------------
+! Gin_A    = input open-loop
+! RedSet_5 = input Reduction Set containig the basis and p3scalars
+! msq_in   = array of the squared masses m0^2, m1^2, m2^2, m3^2, m4^2
+! Gout_A   = unpinched reduced open-loop
+! Gout_Ai  = output reduced open-loops. Subtopology with Di propagator pinched
+! Gout_R1  = R1-rational contribution. Present for UV divergent integrals
+! ******************************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_data_types_/**/REALKIND, only: basis, redset5
+  use ol_kinematics_/**/REALKIND, only: get_LC_mass2
+  implicit none
+  complex(REALKIND), dimension(4,15,4), intent(in)  :: Gin_A
+  type(redset5),                        intent(in)  :: RedSet_5
+  complex(REALKIND),                    intent(in)  :: msq_in(0:4)
+  complex(REALKIND), dimension(4,5,4),  intent(out) :: Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4
+  complex(REALKIND), optional,          intent(out) :: Gout_R1(4,1,4)
+
+  complex(REALKIND), dimension(4,5,4) :: Gtmp_A1,Gtmp_A2,Gtmp_A3,Gtmp_A4
+  complex(REALKIND) :: gammas(2),p3_scalars(0:4)
+  type(basis) :: Red_Basis
+  integer :: a,b,l,perm(4)
+  logical :: zerocheck
+  complex(REALKIND) :: fk0(3),msq(0:4),RedCoeff(4,5,5),l1(4),l2(4),v1(4),v2(4)
+
+  Red_Basis = RedSet_5%redbasis
+  p3_scalars = RedSet_5%p3scalars
+  perm = RedSet_5%perm
+
+  msq(0) = msq_in(0)
+  if (perm(1) == 1) then
+    if (perm(2) == 2) then
+      if (perm(3) == 3) then
+        ! 1,2,3,4 permutation
+        msq = msq_in
+      else
+        ! 1,2,4,3 permutation
+        msq(1) = msq_in(1)
+        msq(2) = msq_in(2)
+        msq(3) = msq_in(4)
+        msq(4) = msq_in(3)
+      end if
+    else if (perm(2) == 3) then
+      if (perm(3) == 2) then
+        ! 1,3,2,4 permutation
+        msq(1) = msq_in(1)
+        msq(2) = msq_in(3)
+        msq(3) = msq_in(2)
+        msq(4) = msq_in(4)
+      else
+        ! 1,3,4,2 permutation
+        msq(1) = msq_in(1)
+        msq(2) = msq_in(3)
+        msq(3) = msq_in(4)
+        msq(4) = msq_in(2)
+      end if
+    else if (perm(2) == 4) then
+      if (perm(3) == 2) then
+        ! 1,4,2,3 permutation
+        msq(1) = msq_in(1)
+        msq(2) = msq_in(4)
+        msq(3) = msq_in(2)
+        msq(4) = msq_in(3)
+      else
+        ! 1,4,3,2 permutation
+        msq(1) = msq_in(1)
+        msq(2) = msq_in(4)
+        msq(3) = msq_in(3)
+        msq(4) = msq_in(2)
+      end if
+    end if
+
+  else if (perm(1) == 2) then
+    if (perm(2) == 3) then
+      if (perm(3) == 1) then
+        ! 2,3,1,4 permutation
+        msq(1) = msq_in(2)
+        msq(2) = msq_in(3)
+        msq(3) = msq_in(1)
+        msq(4) = msq_in(4)
+      else
+        ! 2,3,4,1 permutation
+        msq(1) = msq_in(2)
+        msq(2) = msq_in(3)
+        msq(3) = msq_in(4)
+        msq(4) = msq_in(1)
+      end if
+    else if(perm(2) == 4) then
+      if (perm(3) == 1) then
+        ! 2,4,1,3 permutation
+        msq(1) = msq_in(2)
+        msq(2) = msq_in(4)
+        msq(3) = msq_in(1)
+        msq(4) = msq_in(3)
+      else
+        ! 2,4,3,1 permutation
+        msq(1) = msq_in(2)
+        msq(2) = msq_in(4)
+        msq(3) = msq_in(3)
+        msq(4) = msq_in(1)
+      end if
+    end if
+
+  else if (perm(1) == 3) then
+    if (perm(2) == 4) then
+      if (perm(3) == 1) then
+        ! 3,4,1,2 permutation
+        msq(1) = msq_in(3)
+        msq(2) = msq_in(4)
+        msq(3) = msq_in(1)
+        msq(4) = msq_in(2)
+      else
+        !3,4,2,1 permutation
+        msq(1) = msq_in(3)
+        msq(2) = msq_in(4)
+        msq(3) = msq_in(2)
+        msq(4) = msq_in(1)
+      end if
+    end if
+
+  end if
+
+  !! f_{k0} = {m_k}^2 - {m_0}^2 - {p_k}^2
+  fk0(1) = msq(1) - msq(0) - get_LC_mass2(Red_Basis%mom1)
+  fk0(2) = msq(2) - msq(0) - get_LC_mass2(Red_Basis%mom2)
+  fk0(3) = msq(3) - msq(0) - p3_scalars(4)
+
+  !! gamma and gamma^2
+  gammas(1) = Red_Basis%gamma
+  gammas(2) = gammas(1)**2
+
+  !! l1_{\mu}, l2_{\mu}
+  l1 = Red_Basis%vect1
+  l2 = Red_Basis%vect2
+
+  !! l1^{\mu}, l2^{\mu}
+  call LC_Cov2Contr(l1,v1)
+  call LC_Cov2Contr(l2,v2)
+
+  do a = 1, 4
+
+    call fourpoint_reduction_OL(Gin_A(:,:,a),Red_Basis,p3_scalars,msq(0),fk0,gammas,&
+    l1,l2,v1,v2,RedCoeff)
+
+    Gout_A(:,1:5,a) = RedCoeff(:,1:5,1) + Gin_A(:,1:5,a)
+
+    Gout_A0(:,:,a) = RedCoeff(:,:,2)
+    Gtmp_A1(:,:,a) = RedCoeff(:,:,3)
+    Gtmp_A2(:,:,a) = RedCoeff(:,:,4)
+    Gtmp_A3(:,:,a) = RedCoeff(:,:,5)
+    Gtmp_A4(:,:,a) = 0._/**/REALKIND
+
+  end do
+
+  if (perm(1) == 1) then
+    if (perm(2) == 2) then
+      if (perm(3) == 3) then
+        ! 1,2,3,4 permutation
+        Gout_A1 = Gtmp_A1
+        Gout_A2 = Gtmp_A2
+        Gout_A3 = Gtmp_A3
+        Gout_A4 = Gtmp_A4
+      else
+        ! 1,2,4,3 permutation
+        Gout_A1 = Gtmp_A1
+        Gout_A2 = Gtmp_A2
+        Gout_A3 = Gtmp_A4
+        Gout_A4 = Gtmp_A3
+      end if
+    else if (perm(2) == 3) then
+      if (perm(3) == 2) then
+        ! 1,3,2,4 permutation
+        Gout_A1 = Gtmp_A1
+        Gout_A2 = Gtmp_A3
+        Gout_A3 = Gtmp_A2
+        Gout_A4 = Gtmp_A4
+      else
+        ! 1,3,4,2 permutation
+        Gout_A1 = Gtmp_A1
+        Gout_A2 = Gtmp_A4
+        Gout_A3 = Gtmp_A2
+        Gout_A4 = Gtmp_A3
+      end if
+    else if (perm(2) == 4) then
+      if (perm(3) == 2) then
+        ! 1,4,2,3 permutation
+        Gout_A1 = Gtmp_A1
+        Gout_A2 = Gtmp_A3
+        Gout_A3 = Gtmp_A4
+        Gout_A4 = Gtmp_A2
+      else
+        ! 1,4,3,2 permutation
+        Gout_A1 = Gtmp_A1
+        Gout_A2 = Gtmp_A4
+        Gout_A3 = Gtmp_A3
+        Gout_A4 = Gtmp_A2
+      end if
+    end if
+
+  else if (perm(1) == 2) then
+    if (perm(2) == 3) then
+      if (perm(3) == 1) then
+        ! 2,3,1,4 permutation
+        Gout_A1 = Gtmp_A3
+        Gout_A2 = Gtmp_A1
+        Gout_A3 = Gtmp_A2
+        Gout_A4 = Gtmp_A4
+      else
+        ! 2,3,4,1 permutation
+        Gout_A1 = Gtmp_A4
+        Gout_A2 = Gtmp_A1
+        Gout_A3 = Gtmp_A2
+        Gout_A4 = Gtmp_A3
+      end if
+    else if(perm(2) == 4) then
+      if (perm(3) == 1) then
+        ! 2,4,1,3 permutation
+        Gout_A1 = Gtmp_A3
+        Gout_A2 = Gtmp_A1
+        Gout_A3 = Gtmp_A4
+        Gout_A4 = Gtmp_A2
+      else
+        ! 2,4,3,1 permutation
+        Gout_A1 = Gtmp_A4
+        Gout_A2 = Gtmp_A1
+        Gout_A3 = Gtmp_A3
+        Gout_A4 = Gtmp_A2
+      end if
+    end if
+
+  else if (perm(1) == 3) then
+    if (perm(2) == 4) then
+      if (perm(3) == 1) then
+        ! 3,4,1,2 permutation
+        Gout_A1 = Gtmp_A3
+        Gout_A2 = Gtmp_A4
+        Gout_A3 = Gtmp_A1
+        Gout_A4 = Gtmp_A2
+      else
+        !3,4,2,1 permutation
+        Gout_A1 = Gtmp_A4
+        Gout_A2 = Gtmp_A3
+        Gout_A3 = Gtmp_A1
+        Gout_A4 = Gtmp_A2
+      end if
+    end if
+
+  end if
+
+  !! Assignment of the rational R1 contribution
+  if(present(Gout_R1)) Gout_R1(:,1,:) = - Gout_A0(:,1,:)
+
+end subroutine otf_5pt_red
+
+! ******************************************************************************
+subroutine otf_5pt_reduction_last(Gin_A,RedSet_5,msq_in,Gout_A,Gout_A0, &
+                                  Gout_A1,Gout_A2,Gout_A3,Gout_A4,Gout_R1)
+! ******************************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_data_types_/**/REALKIND, only: redset5
+  implicit none
+  complex(REALKIND), intent(in)  :: Gin_A(:)
+  type(redset5), intent(in) :: RedSet_5
+  complex(REALKIND), intent(in) :: msq_in(0:4)
+  complex(REALKIND), intent(out) :: Gout_A(:), Gout_A0(:), Gout_A1(:), Gout_A2(:), Gout_A3(:), Gout_A4(:)
+  complex(REALKIND), optional, intent(out) :: Gout_R1
+
+  !! Rank-2 reduction
+  if(size(Gin_A)==15) then
+    if(present(Gout_R1)) then
+      call otf_5pt_rank2_red_last(Gin_A,RedSet_5,msq_in,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4,Gout_R1)
+    else
+      call otf_5pt_rank2_red_last(Gin_A,RedSet_5,msq_in,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4)
+    end if
+
+  else
+    call ol_error("Reduction of a rank 1 higher point (N>=5) function should in loopreduction module")
+  end if
+
+end subroutine otf_5pt_reduction_last
+
+! ******************************************************************************
+subroutine otf_5pt_rank2_red_last(Gin_A,RedSet_5,msq_in,Gout_A,Gout_A0, &
+                                  Gout_A1,Gout_A2,Gout_A3,Gout_A4,Gout_R1)
+! ----------------------------------------------------------------------------------
+! OpenLoops on-the-fly reduction step. Reduction of a closed rank-2 5-pt segment.
+! No R1-rational terms contributing to a rank-2 box
+! ----------------------------------------------------------------------------------
+! Gin_A    = input open-loop
+! RedSet_5 = input Reduction Set containig the basis and p3scalars
+! msq_in   = array of the squared masses m0^2, m1^2, m2^2, m3^2
+! Gout_A   = unpinched reduced open-loop
+! Gout_Ai  = output reduced open-loops. Subtopology with Di propagator pinched
+! **********************************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_data_types_/**/REALKIND, only: basis, redset5
+  use ol_kinematics_/**/REALKIND, only: get_LC_mass2
+  implicit none
+  complex(REALKIND), intent(in)  :: Gin_A(15)
+  type(redset5), intent(in) :: RedSet_5
+  complex(REALKIND), intent(in) :: msq_in(0:4)
+  complex(REALKIND), intent(out), dimension(5) :: Gout_A, Gout_A0, Gout_A1, Gout_A2, Gout_A3, Gout_A4
+  complex(REALKIND), optional, intent(out) :: Gout_R1
+
+  complex(REALKIND) :: RedCoeff(5,5), fk0(3), p3_scalars(0:4), msq(0:4), gammas(2)
+  complex(REALKIND) :: l1(4), l2(4), v1(4), v2(4)
+  complex(REALKIND), dimension(5) :: Gtmp_A1, Gtmp_A2, Gtmp_A3, Gtmp_A4
+  type(basis) :: Red_Basis
+  integer :: perm(4)
+
+  Red_Basis = RedSet_5%redbasis
+  p3_scalars = RedSet_5%p3scalars
+  perm = RedSet_5%perm
+
+  msq(0) = msq_in(0)
+  if (perm(1) == 1) then
+    if (perm(2) == 2) then
+      if (perm(3) == 3) then
+        ! 1,2,3,4 permutation
+        msq = msq_in
+      else
+        ! 1,2,4,3 permutation
+        msq(1) = msq_in(1)
+        msq(2) = msq_in(2)
+        msq(3) = msq_in(4)
+        msq(4) = msq_in(3)
+      end if
+    else if (perm(2) == 3) then
+      if (perm(3) == 2) then
+        ! 1,3,2,4 permutation
+        msq(1) = msq_in(1)
+        msq(2) = msq_in(3)
+        msq(3) = msq_in(2)
+        msq(4) = msq_in(4)
+      else
+        ! 1,3,4,2 permutation
+        msq(1) = msq_in(1)
+        msq(2) = msq_in(3)
+        msq(3) = msq_in(4)
+        msq(4) = msq_in(2)
+      end if
+    else if (perm(2) == 4) then
+      if (perm(3) == 2) then
+        ! 1,4,2,3 permutation
+        msq(1) = msq_in(1)
+        msq(2) = msq_in(4)
+        msq(3) = msq_in(2)
+        msq(4) = msq_in(3)
+      else
+        ! 1,4,3,2 permutation
+        msq(1) = msq_in(1)
+        msq(2) = msq_in(4)
+        msq(3) = msq_in(3)
+        msq(4) = msq_in(2)
+      end if
+    end if
+
+  else if (perm(1) == 2) then
+    if (perm(2) == 3) then
+      if (perm(3) == 1) then
+        ! 2,3,1,4 permutation
+        msq(1) = msq_in(2)
+        msq(2) = msq_in(3)
+        msq(3) = msq_in(1)
+        msq(4) = msq_in(4)
+      else
+        ! 2,3,4,1 permutation
+        msq(1) = msq_in(2)
+        msq(2) = msq_in(3)
+        msq(3) = msq_in(4)
+        msq(4) = msq_in(1)
+      end if
+    else if(perm(2) == 4) then
+      if (perm(3) == 1) then
+        ! 2,4,1,3 permutation
+        msq(1) = msq_in(2)
+        msq(2) = msq_in(4)
+        msq(3) = msq_in(1)
+        msq(4) = msq_in(3)
+      else
+        ! 2,4,3,1 permutation
+        msq(1) = msq_in(2)
+        msq(2) = msq_in(4)
+        msq(3) = msq_in(3)
+        msq(4) = msq_in(1)
+      end if
+    end if
+
+  else if (perm(1) == 3) then
+    if (perm(2) == 4) then
+      if (perm(3) == 1) then
+        ! 3,4,1,2 permutation
+        msq(1) = msq_in(3)
+        msq(2) = msq_in(4)
+        msq(3) = msq_in(1)
+        msq(4) = msq_in(2)
+      else
+        !3,4,2,1 permutation
+        msq(1) = msq_in(3)
+        msq(2) = msq_in(4)
+        msq(3) = msq_in(2)
+        msq(4) = msq_in(1)
+      end if
+    end if
+
+  end if
+
+  !! f_{k0} = {m_k}^2 - {m_0}^2 - {p_k}^2
+  fk0(1) = msq(1) - msq(0) - get_LC_mass2(Red_Basis%mom1)
+  fk0(2) = msq(2) - msq(0) - get_LC_mass2(Red_Basis%mom2)
+  fk0(3) = msq(3) - msq(0) - p3_scalars(4)
+
+  !! gamma and gamma^2
+  gammas(1) = Red_Basis%gamma
+  gammas(2) = gammas(1)**2
+
+  !! l1_{\mu}, l2_{\mu}
+  l1 = Red_Basis%vect1
+  l2 = Red_Basis%vect2
+
+  !! l1^{\mu}, l2^{\mu}
+  call LC_Cov2Contr(l1,v1)
+  call LC_Cov2Contr(l2,v2)
+
+  call fourpoint_reduction(Gin_A(6:15),Red_Basis,p3_scalars,msq(0),fk0,gammas,&
+        l1,l2,v1,v2,RedCoeff)
+
+  Gout_A(:) = RedCoeff(:,1) + Gin_A(1:5)
+  Gout_A0   = RedCoeff(:,2)
+  Gtmp_A1   = RedCoeff(:,3)
+  Gtmp_A2   = RedCoeff(:,4)
+  Gtmp_A3   = RedCoeff(:,5)
+  Gtmp_A4   = 0._/**/REALKIND
+
+  if(present(Gout_R1)) Gout_R1 = - Gout_A0(1)
+
+  if (perm(1) == 1) then
+    if (perm(2) == 2) then
+      if (perm(3) == 3) then
+        ! 1,2,3,4 permutation
+        Gout_A1 = Gtmp_A1
+        Gout_A2 = Gtmp_A2
+        Gout_A3 = Gtmp_A3
+        Gout_A4 = Gtmp_A4
+      else
+        ! 1,2,4,3 permutation
+        Gout_A1 = Gtmp_A1
+        Gout_A2 = Gtmp_A2
+        Gout_A3 = Gtmp_A4
+        Gout_A4 = Gtmp_A3
+      end if
+    else if (perm(2) == 3) then
+      if (perm(3) == 2) then
+        ! 1,3,2,4 permutation
+        Gout_A1 = Gtmp_A1
+        Gout_A2 = Gtmp_A3
+        Gout_A3 = Gtmp_A2
+        Gout_A4 = Gtmp_A4
+      else
+        ! 1,3,4,2 permutation
+        Gout_A1 = Gtmp_A1
+        Gout_A2 = Gtmp_A4
+        Gout_A3 = Gtmp_A2
+        Gout_A4 = Gtmp_A3
+      end if
+    else if (perm(2) == 4) then
+      if (perm(3) == 2) then
+        ! 1,4,2,3 permutation
+        Gout_A1 = Gtmp_A1
+        Gout_A2 = Gtmp_A3
+        Gout_A3 = Gtmp_A4
+        Gout_A4 = Gtmp_A2
+      else
+        ! 1,4,3,2 permutation
+        Gout_A1 = Gtmp_A1
+        Gout_A2 = Gtmp_A4
+        Gout_A3 = Gtmp_A3
+        Gout_A4 = Gtmp_A2
+      end if
+    end if
+
+  else if (perm(1) == 2) then
+    if (perm(2) == 3) then
+      if (perm(3) == 1) then
+        ! 2,3,1,4 permutation
+        Gout_A1 = Gtmp_A3
+        Gout_A2 = Gtmp_A1
+        Gout_A3 = Gtmp_A2
+        Gout_A4 = Gtmp_A4
+      else
+        ! 2,3,4,1 permutation
+        Gout_A1 = Gtmp_A4
+        Gout_A2 = Gtmp_A1
+        Gout_A3 = Gtmp_A2
+        Gout_A4 = Gtmp_A3
+      end if
+    else if(perm(2) == 4) then
+      if (perm(3) == 1) then
+        ! 2,4,1,3 permutation
+        Gout_A1 = Gtmp_A3
+        Gout_A2 = Gtmp_A1
+        Gout_A3 = Gtmp_A4
+        Gout_A4 = Gtmp_A2
+      else
+        ! 2,4,3,1 permutation
+        Gout_A1 = Gtmp_A4
+        Gout_A2 = Gtmp_A1
+        Gout_A3 = Gtmp_A3
+        Gout_A4 = Gtmp_A2
+      end if
+    end if
+
+  else if (perm(1) == 3) then
+    if (perm(2) == 4) then
+      if (perm(3) == 1) then
+        ! 3,4,1,2 permutation
+        Gout_A1 = Gtmp_A3
+        Gout_A2 = Gtmp_A4
+        Gout_A3 = Gtmp_A1
+        Gout_A4 = Gtmp_A2
+      else
+        !3,4,2,1 permutation
+        Gout_A1 = Gtmp_A4
+        Gout_A2 = Gtmp_A3
+        Gout_A3 = Gtmp_A1
+        Gout_A4 = Gtmp_A2
+      end if
+    end if
+
+  end if
+
+end subroutine otf_5pt_rank2_red_last
+
+! ******************************************************************************
+function valid_4pt_hol(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_R1)
+! ------------------------------------------------------------------------------
+! Intitialises OL/CL and returns whether further processing is required
+! ******************************************************************************
+  use ol_data_types_/**/REALKIND, only: hol
+  use ol_loop_handling_/**/REALKIND, only: hybrid_zero_mode
+  type(hol), intent(in)    :: Gin_A
+  type(hol), intent(inout) :: Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3
+  type(hol), optional, intent(inout) :: Gout_R1
+  logical :: valid_4pt_hol
+
+  Gout_A%hf(:) = Gin_A%hf(:)
+  Gout_A0%hf(:) = Gin_A%hf(:)
+  Gout_A1%hf(:) = Gin_A%hf(:)
+  Gout_A2%hf(:) = Gin_A%hf(:)
+  Gout_A3%hf(:) = Gin_A%hf(:)
+  if(present(Gout_R1)) then
+      Gout_R1%hf(:) = Gin_A%hf(:)
+  end if
+
+  Gout_A%mode = Gin_A%mode
+  Gout_A0%mode = Gin_A%mode
+  Gout_A1%mode = Gin_A%mode
+  Gout_A2%mode = Gin_A%mode
+  Gout_A3%mode = Gin_A%mode
+  Gout_A%error = 0
+  Gout_A0%error = 0
+  Gout_A1%error = 0
+  Gout_A2%error = 0
+  Gout_A3%error = 0
+  Gout_A%hit = 0
+  Gout_A0%hit = 0
+  Gout_A1%hit = 0
+  Gout_A2%hit = 0
+  Gout_A3%hit = 0
+
+  if(present(Gout_R1)) then
+    Gout_R1%mode = Gin_A%mode
+    Gout_R1%error = 0
+    Gout_R1%hit = 0
+  end if
+
+  if (Gin_A%mode .eq. hybrid_zero_mode) then
+    valid_4pt_hol = .false.
+    Gout_A%j = 0
+    Gout_A0%j = 0
+    Gout_A1%j = 0
+    Gout_A2%j = 0
+    Gout_A3%j = 0
+
+    if(present(Gout_R1)) then
+      Gout_R1%j = 0
+    end if
+#ifdef PRECISION_dp
+    if (hp_mode .eq. 1) then
+      if (hp_alloc_mode .eq. 0) then
+        Gout_A%j_qp = 0
+        Gout_A0%j_qp = 0
+        Gout_A1%j_qp = 0
+        Gout_A2%j_qp = 0
+        Gout_A3%j_qp = 0
+        if(present(Gout_R1)) then
+          Gout_R1%j_qp = 0
+        end if
+      end if
+    end if
+#endif
+  else
+    valid_4pt_hol = .true.
+  end if
+
+end function valid_4pt_hol
+
+function valid_4pt_hcl(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_R1)
+  use ol_data_types_/**/REALKIND, only: hcl
+  use ol_loop_handling_/**/REALKIND, only: hybrid_zero_mode
+  type(hcl),           intent(in)    :: Gin_A
+  type(hcl),           intent(inout) :: Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3
+  type(hcl), optional, intent(inout) :: Gout_R1
+  logical :: valid_4pt_hcl
+
+  Gout_A%mode = Gin_A%mode
+  Gout_A0%mode = Gin_A%mode
+  Gout_A1%mode = Gin_A%mode
+  Gout_A2%mode = Gin_A%mode
+  Gout_A3%mode = Gin_A%mode
+
+  Gout_A%error = 0
+  Gout_A0%error = 0
+  Gout_A1%error = 0
+  Gout_A2%error = 0
+  Gout_A3%error = 0
+
+  Gout_A%hit = 0
+  Gout_A0%hit = 0
+  Gout_A1%hit = 0
+  Gout_A2%hit = 0
+  Gout_A3%hit = 0
+
+  if(present(Gout_R1)) then
+    Gout_R1%mode = Gin_A%mode
+    Gout_R1%error = 0
+    Gout_R1%hit = 0
+  end if
+
+  if (Gin_A%mode .eq. hybrid_zero_mode) then
+    valid_4pt_hcl = .false.
+    Gout_A%cmp = 0
+    Gout_A0%cmp = 0
+    Gout_A1%cmp = 0
+    Gout_A2%cmp = 0
+    Gout_A3%cmp = 0
+
+    if(present(Gout_R1)) then
+      Gout_R1%cmp = 0
+    end if
+
+#ifdef PRECISION_dp
+    if (hp_mode .eq. 1) then
+      if (hp_alloc_mode .eq. 0) then
+        Gout_A%cmp_qp = 0
+        Gout_A0%cmp_qp = 0
+        Gout_A1%cmp_qp = 0
+        Gout_A2%cmp_qp = 0
+        Gout_A3%cmp_qp = 0
+        if(present(Gout_R1)) then
+          Gout_R1%cmp_qp = 0
+        end if
+      end if
+    end if
+#endif
+  else
+    valid_4pt_hcl = .true.
+  end if
+
+end function valid_4pt_hcl
+
+function valid_5pt_hol(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4,Gout_R1) result(valid_hol)
+  use ol_data_types_/**/REALKIND, only: hol
+  use ol_loop_handling_/**/REALKIND, only: hybrid_zero_mode
+  type(hol), intent(in)    :: Gin_A
+  type(hol), intent(inout) :: Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4
+  type(hol), optional, intent(inout) :: Gout_R1
+  logical :: valid_hol
+
+  Gout_A%hf(:) = Gin_A%hf(:)
+  Gout_A0%hf(:) = Gin_A%hf(:)
+  Gout_A1%hf(:) = Gin_A%hf(:)
+  Gout_A2%hf(:) = Gin_A%hf(:)
+  Gout_A3%hf(:) = Gin_A%hf(:)
+  Gout_A4%hf(:) = Gin_A%hf(:)
+  if(present(Gout_R1)) then
+      Gout_R1%hf(:) = Gin_A%hf(:)
+  end if
+
+  Gout_A%mode = Gin_A%mode
+  Gout_A0%mode = Gin_A%mode
+  Gout_A1%mode = Gin_A%mode
+  Gout_A2%mode = Gin_A%mode
+  Gout_A3%mode = Gin_A%mode
+  Gout_A4%mode = Gin_A%mode
+  Gout_A%error = 0
+  Gout_A0%error = 0
+  Gout_A1%error = 0
+  Gout_A2%error = 0
+  Gout_A3%error = 0
+  Gout_A4%error = 0
+  Gout_A%hit = 0
+  Gout_A0%hit = 0
+  Gout_A1%hit = 0
+  Gout_A2%hit = 0
+  Gout_A3%hit = 0
+  Gout_A4%hit = 0
+  if(present(Gout_R1)) then
+    Gout_R1%mode = Gin_A%mode
+    Gout_R1%error = 0
+    Gout_R1%hit = 0
+  end if
+
+  if (Gin_A%mode .eq. hybrid_zero_mode) then
+    valid_hol = .false.
+    Gout_A%j = 0
+    Gout_A0%j = 0
+    Gout_A1%j = 0
+    Gout_A2%j = 0
+    Gout_A3%j = 0
+    Gout_A4%j = 0
+
+    if(present(Gout_R1)) then
+      Gout_R1%j = 0
+    end if
+
+#ifdef PRECISION_dp
+    if (hp_mode .eq. 1) then
+      if (hp_alloc_mode .eq. 0) then
+        Gout_A%j_qp = 0
+        Gout_A0%j_qp = 0
+        Gout_A1%j_qp = 0
+        Gout_A2%j_qp = 0
+        Gout_A3%j_qp = 0
+        Gout_A4%j_qp = 0
+        if(present(Gout_R1)) then
+          Gout_R1%j_qp = 0
+        end if
+      end if
+    end if
+#endif
+  else
+    valid_hol = .true.
+  end if
+
+end function valid_5pt_hol
+
+function valid_5pt_hcl(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4,Gout_R1) result(valid_hol)
+  use ol_data_types_/**/REALKIND, only: hcl
+  use ol_loop_handling_/**/REALKIND, only: hybrid_zero_mode
+  type(hcl), intent(in)    :: Gin_A
+  type(hcl), intent(inout) :: Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4
+  type(hcl), optional, intent(inout) :: Gout_R1
+  logical :: valid_hol
+
+  Gout_A%mode = Gin_A%mode
+  Gout_A0%mode = Gin_A%mode
+  Gout_A1%mode = Gin_A%mode
+  Gout_A2%mode = Gin_A%mode
+  Gout_A3%mode = Gin_A%mode
+  Gout_A4%mode = Gin_A%mode
+  Gout_A%error = 0
+  Gout_A0%error = 0
+  Gout_A1%error = 0
+  Gout_A2%error = 0
+  Gout_A3%error = 0
+  Gout_A4%error = 0
+  Gout_A%hit = 0
+  Gout_A0%hit = 0
+  Gout_A1%hit = 0
+  Gout_A2%hit = 0
+  Gout_A3%hit = 0
+  Gout_A4%hit = 0
+
+  if (present(Gout_R1)) then
+    Gout_R1%mode = Gin_A%mode
+    Gout_R1%error = 0
+    Gout_R1%hit = 0
+  end if
+
+  if (Gin_A%mode .eq. hybrid_zero_mode) then
+    valid_hol = .false.
+    Gout_A%cmp = 0
+    Gout_A0%cmp = 0
+    Gout_A1%cmp = 0
+    Gout_A2%cmp = 0
+    Gout_A3%cmp = 0
+    Gout_A4%cmp = 0
+
+    if(present(Gout_R1)) then
+      Gout_R1%cmp = 0
+    end if
+
+#ifdef PRECISION_dp
+    if (hp_mode .eq. 1) then
+      if (hp_alloc_mode .eq. 0) then
+        Gout_A%cmp_qp = 0
+        Gout_A0%cmp_qp = 0
+        Gout_A1%cmp_qp = 0
+        Gout_A2%cmp_qp = 0
+        Gout_A3%cmp_qp = 0
+        Gout_A4%cmp_qp = 0
+        if(present(Gout_R1)) then
+          Gout_R1%cmp_qp = 0
+        end if
+      end if
+    end if
+#endif
+  else
+    valid_hol = .true.
+  end if
+
+end function valid_5pt_hcl
+
+subroutine trigger_upgrade_hol(alfa_max,gamman,Gin)
+  use ol_parameters_decl_/**/REALKIND, only: hp_step_thres,hp_err_thres
+  use ol_data_types_/**/REALKIND, only: hol
+#ifdef PRECISION_dp
+  use ol_loop_handling_/**/REALKIND, only: upgrade_qp
+#endif
+  real(REALKIND), intent(in)    :: alfa_max,gamman
+  type(hol),      intent(inout) :: Gin
+  integer :: i
+
+  if (alfa_max > hp_step_thres .and. Gin%error + alfa_max > hp_err_thres) then
+#ifdef PRECISION_dp
+    if (hp_mode .eq. 1) then
+      call upgrade_qp(Gin)
+      Gin%hit = Gin%hit + 1
+    end if
+#endif
+  else if (-log10(gamman) > hp_step_thres .and. Gin%error - log10(gamman) > hp_err_thres) then
+#ifdef PRECISION_dp
+    if (hp_mode .eq. 1) then
+      call upgrade_qp(Gin)
+      Gin%hit = Gin%hit + 1
+    end if
+#endif
+  end if
+
+end subroutine trigger_upgrade_hol
+
+subroutine trigger_upgrade_hcl(alfa_max,gamman,Gin)
+  use ol_parameters_decl_/**/REALKIND, only: hp_step_thres,hp_err_thres
+  use ol_data_types_/**/REALKIND, only: hcl
+#ifdef PRECISION_dp
+  use ol_loop_handling_/**/REALKIND, only: upgrade_qp
+#endif
+  real(REALKIND), intent(in)    :: alfa_max,gamman
+  type(hcl),      intent(inout) :: Gin
+
+  if (alfa_max > hp_step_thres .and. Gin%error + alfa_max > hp_err_thres) then
+#ifdef PRECISION_dp
+    if (hp_mode .eq. 1) then
+      call upgrade_qp(Gin)
+    end if
+#endif
+  else if (-log10(gamman) > hp_step_thres .and. Gin%error -log10(gamman) > hp_err_thres) then
+#ifdef PRECISION_dp
+    if (hp_mode .eq. 1) then
+      call upgrade_qp(Gin)
+    end if
+#endif
+  end if
+
+end subroutine trigger_upgrade_hcl
+
+! -----------------------------------------------------------------------------
+! Check error and qp_trigger settings
+!  -----------------------------------------------------------------------------
+
+subroutine err_estim_4pt_hol(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_R1)
+  use ol_data_types_/**/REALKIND, only: hol,REALKIND,QREALKIND,redset4
+  use ol_parameters_decl_/**/REALKIND, only: max_error
+  use ol_parameters_decl_/**/DREALKIND, only: hp_gamma_trig, &
+                                              hp_alloc_mode, &
+                                              hybrid_dp_mode
+#ifdef PRECISION_dp
+  use ol_loop_handling_/**/REALKIND, only: hol_alloc_hybrid
+#endif
+  implicit none
+  type(redset4),       intent(in)    :: RedSet
+  type(hol),           intent(inout) :: Gin_A
+  type(hol),           intent(inout) :: Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3
+  type(hol), optional, intent(inout) :: Gout_R1
+  real(REALKIND)    :: alfa_max,alfa(3), gamma_inv
+  complex(REALKIND) :: B3coeff
+  integer           :: hit,mode,perm(3)
+
+  perm =RedSet%perm
+  B3coeff = (RedSet%redbasis%gamma)*(RedSet%p3scalars(0))*2._/**/REALKIND
+  alfa = [abs(RedSet%p3scalars(1)), abs(RedSet%p3scalars(2)), abs(B3coeff)]
+  alfa = log10(alfa)
+
+  if (hp_gamma_trig) then
+    gamma_inv=log10( 1._/**/REALKIND / RedSet%gd2**2)
+  else
+    gamma_inv=0
+  end if
+
+  if (gdm2_err_estim_OL .eqv. .true.) then
+    alfa_max = max(alfa(1),alfa(2))
+  else
+    alfa_max = max(alfa(1),alfa(2),alfa(3))
+  end if
+
+  Gout_A%error = Gin_A%error + max(alfa(1),alfa(2),alfa(3),gamma_inv)
+  Gout_A0%error = Gin_A%error + max(alfa(1),alfa(2),alfa(3),gamma_inv)
+  if (perm(1)+perm(2) == 3) then
+    ! perm = 1,2,3
+    Gout_A1%error = Gin_A%error + max(alfa(1),gamma_inv)
+    Gout_A2%error = Gin_A%error + max(alfa(2),gamma_inv)
+    Gout_A3%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+  else if (perm(1)+perm(2) == 4) then
+    ! perm = 1,3,2
+    Gout_A1%error = Gin_A%error + max(alfa(1),gamma_inv)
+    Gout_A3%error = Gin_A%error + max(alfa(2),gamma_inv)
+    Gout_A2%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+  else if (perm(1)+perm(2) == 5) then
+    ! perm = 2,3,1
+    Gout_A2%error = Gin_A%error + max(alfa(1),gamma_inv)
+    Gout_A3%error = Gin_A%error + max(alfa(2),gamma_inv)
+    Gout_A1%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+  end if
+
+  call trigger_upgrade(alfa_max,RedSet%gd2,Gin_A)
+
+  hit = Gin_A%hit
+  mode = Gin_A%mode
+  Gout_A%mode = mode
+  Gout_A0%mode = mode
+  Gout_A1%mode = mode
+  Gout_A2%mode = mode
+  Gout_A3%mode = mode
+
+  Gout_A%hit = hit
+  Gout_A0%hit = hit
+  Gout_A1%hit = hit
+  Gout_A2%hit = hit
+  Gout_A3%hit = hit
+
+  if(present(Gout_R1)) then
+    Gout_R1%error = Gout_A%error
+    Gout_R1%mode = mode
+    Gout_R1%hit = hit
+  end if
+
+#ifdef PRECISION_dp
+  if (hp_alloc_mode .gt. 1 .and. mode .gt. hybrid_dp_mode) then
+    call hol_alloc_hybrid(Gout_A)
+    call hol_alloc_hybrid(Gout_A0)
+    call hol_alloc_hybrid(Gout_A1)
+    call hol_alloc_hybrid(Gout_A2)
+    call hol_alloc_hybrid(Gout_A3)
+    if(present(Gout_R1)) call hol_alloc_hybrid(Gout_R1)
+  end if
+#endif
+
+  if (Gout_A%error > max_error) max_error = Gout_A%error
+
+end subroutine err_estim_4pt_hol
+
+subroutine err_estim_4pt_hcl(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_R1)
+  use ol_data_types_/**/REALKIND, only: hcl,REALKIND,QREALKIND,redset4
+  use ol_parameters_decl_/**/REALKIND, only: max_error
+  use ol_parameters_decl_/**/DREALKIND, only: hp_gamma_trig, &
+                                              hp_alloc_mode, &
+                                              hybrid_dp_mode
+#ifdef PRECISION_dp
+  use ol_loop_handling_/**/REALKIND, only: hcl_alloc_hybrid
+#endif
+  implicit none
+  type(redset4),       intent(in)    :: RedSet
+  type(hcl),           intent(inout) :: Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3
+  type(hcl), optional, intent(inout) :: Gout_R1
+  real(REALKIND)    :: alfa_max,alfa(3), gamma_inv
+  complex(REALKIND) :: B3coeff
+  integer           :: hit,mode,perm(3)
+
+  perm =RedSet%perm
+  B3coeff = (RedSet%redbasis%gamma)*(RedSet%p3scalars(0))*2._/**/REALKIND
+  alfa = [abs(RedSet%p3scalars(1)), abs(RedSet%p3scalars(2)), abs(B3coeff)]
+  alfa = log10(alfa)
+
+  if (hp_gamma_trig) then
+    gamma_inv=log10( 1._/**/REALKIND / RedSet%gd2**2)
+  else
+    gamma_inv=0
+  end if
+
+  if (gdm2_err_estim_CL .eqv. .true.) then
+    alfa_max = max(alfa(1),alfa(2))
+  else
+    alfa_max = max(alfa(1),alfa(2),alfa(3))
+  end if
+
+  Gout_A%error = Gin_A%error + max(alfa_max,gamma_inv)
+  Gout_A0%error = Gin_A%error + max(alfa_max,gamma_inv)
+  if (perm(1)+perm(2) == 3) then
+    ! perm = 1,2,3
+    Gout_A1%error = Gin_A%error + max(alfa(1),gamma_inv)
+    Gout_A2%error = Gin_A%error + max(alfa(2),gamma_inv)
+    Gout_A3%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+  else if (perm(1)+perm(2) == 4) then
+    ! perm = 1,3,2
+    Gout_A1%error = Gin_A%error + max(alfa(1),gamma_inv)
+    Gout_A3%error = Gin_A%error + max(alfa(2),gamma_inv)
+    Gout_A2%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+  else if (perm(1)+perm(2) == 5) then
+    ! perm = 2,3,1
+    Gout_A2%error = Gin_A%error + max(alfa(1),gamma_inv)
+    Gout_A3%error = Gin_A%error + max(alfa(2),gamma_inv)
+    Gout_A1%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+  end if
+
+  call trigger_upgrade(alfa_max,RedSet%gd2,Gin_A)
+
+  hit = Gin_A%hit
+  mode = Gin_A%mode
+  Gout_A%mode = mode
+  Gout_A0%mode = mode
+  Gout_A1%mode = mode
+  Gout_A2%mode = mode
+  Gout_A3%mode = mode
+
+  Gout_A%hit = hit
+  Gout_A0%hit = hit
+  Gout_A1%hit = hit
+  Gout_A2%hit = hit
+  Gout_A3%hit = hit
+
+  if(present(Gout_R1)) then
+    Gout_R1%error = Gout_A%error
+    Gout_R1%mode = mode
+    Gout_R1%hit = hit
+  end if
+
+#ifdef PRECISION_dp
+  if (hp_alloc_mode .gt. 1 .and. mode .gt. hybrid_dp_mode) then
+    call hcl_alloc_hybrid(Gout_A)
+    call hcl_alloc_hybrid(Gout_A0)
+    call hcl_alloc_hybrid(Gout_A1)
+    call hcl_alloc_hybrid(Gout_A2)
+    call hcl_alloc_hybrid(Gout_A3)
+    if(present(Gout_R1)) call hcl_alloc_hybrid(Gout_R1)
+  end if
+#endif
+
+  if (Gout_A%error > max_error) max_error = Gout_A%error
+
+end subroutine err_estim_4pt_hcl
+
+subroutine err_estim_5pt_hol(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
+                             Gout_A3,Gout_A4,Gout_R1)
+  use ol_data_types_/**/REALKIND, only: hol,REALKIND,QREALKIND,redset5
+  use ol_parameters_decl_/**/REALKIND, only: max_error
+  use ol_parameters_decl_/**/DREALKIND, only: hp_gamma_trig, &
+                                              hp_alloc_mode, &
+                                              hybrid_dp_mode
+#ifdef PRECISION_dp
+  use ol_loop_handling_/**/REALKIND, only: hol_alloc_hybrid
+#endif
+  implicit none
+  type(redset5),       intent(in)    :: RedSet
+  type(hol),           intent(inout) :: Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
+                                        Gout_A3,Gout_A4
+  type(hol), optional, intent(inout) :: Gout_R1
+  real(REALKIND)    :: alfa_max,alfa(3),gamma_inv
+  complex(REALKIND) :: B3coeff
+  integer           :: hit,mode,perm(4)
+
+  perm = RedSet%perm
+  B3coeff = (RedSet%redbasis%gamma)*(RedSet%p3scalars(0))*2
+  alfa = [abs(RedSet%p3scalars(1)), abs(RedSet%p3scalars(2)), abs(B3coeff)]
+  alfa = log10(alfa)
+
+  if (hp_gamma_trig) then
+    gamma_inv=log10( 1._/**/REALKIND / RedSet%gd2**2)
+  else
+    gamma_inv=0
+  end if
+
+  if (gdm2_err_estim_OL .eqv. .true.) then
+    alfa_max = max(alfa(1),alfa(2))
+  else
+    alfa_max = max(alfa(1),alfa(2),alfa(3))
+  end if
+
+  Gout_A%error = Gin_A%error + max(alfa(1),alfa(2),alfa(3),gamma_inv)
+  Gout_A0%error = Gin_A%error + max(alfa(1),alfa(2),alfa(3),gamma_inv)
+  if (perm(1) == 1) then
+    if (perm(2) == 2) then
+      if (perm(3) == 3) then
+        ! 1,2,3,4 permutation
+        Gout_A1%error = Gin_A%error + max(alfa(1),gamma_inv)
+        Gout_A2%error = Gin_A%error + max(alfa(2),gamma_inv)
+        Gout_A3%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+      else
+        ! 1,2,4,3 permutation
+        Gout_A1%error = Gin_A%error + max(alfa(1),gamma_inv)
+        Gout_A2%error = Gin_A%error + max(alfa(2),gamma_inv)
+        Gout_A4%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+      end if
+    else if (perm(2) == 3) then
+      if (perm(3) == 2) then
+        ! 1,3,2,4 permutation
+        Gout_A1%error = Gin_A%error + max(alfa(1),gamma_inv)
+        Gout_A3%error = Gin_A%error + max(alfa(2),gamma_inv)
+        Gout_A2%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+      else
+        ! 1,3,4,2 permutation
+        Gout_A1%error = Gin_A%error + max(alfa(1),gamma_inv)
+        Gout_A3%error = Gin_A%error + max(alfa(2),gamma_inv)
+        Gout_A4%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+      end if
+    else if (perm(2) == 4) then
+      if (perm(3) == 2) then
+        ! 1,4,2,3 permutation
+        Gout_A1%error = Gin_A%error + max(alfa(1),gamma_inv)
+        Gout_A4%error = Gin_A%error + max(alfa(2),gamma_inv)
+        Gout_A2%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+        Gout_A3%error = 0
+      else
+        ! 1,4,3,2 permutation
+        Gout_A1%error = Gin_A%error + max(alfa(1),gamma_inv)
+        Gout_A4%error = Gin_A%error + max(alfa(2),gamma_inv)
+        Gout_A3%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+    end if
+
+    else if (perm(1) == 2) then
+      if (perm(2) == 3) then
+        if (perm(3) == 1) then
+          ! 2,3,1,4 permutation
+          Gout_A2%error = Gin_A%error + max(alfa(1),gamma_inv)
+          Gout_A3%error = Gin_A%error + max(alfa(2),gamma_inv)
+          Gout_A1%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+        else
+          ! 2,3,4,1 permutation
+          Gout_A2%error = Gin_A%error + max(alfa(1),gamma_inv)
+          Gout_A3%error = Gin_A%error + max(alfa(2),gamma_inv)
+          Gout_A4%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+        end if
+      else if(perm(2) == 4) then
+        if (perm(3) == 1) then
+          ! 2,4,1,3 permutation
+          Gout_A2%error = Gin_A%error + max(alfa(1),gamma_inv)
+          Gout_A4%error = Gin_A%error + max(alfa(2),gamma_inv)
+          Gout_A1%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+        else
+          ! 2,4,3,1 permutation
+          Gout_A2%error = Gin_A%error + max(alfa(1),gamma_inv)
+          Gout_A4%error = Gin_A%error + max(alfa(2),gamma_inv)
+          Gout_A3%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+        end if
+      end if
+    end if
+  end if
+
+  call trigger_upgrade(alfa_max,RedSet%gd2,Gin_A)
+
+  hit = Gin_A%hit
+  mode = Gin_A%mode
+  Gout_A%mode = mode
+  Gout_A0%mode = mode
+  Gout_A1%mode = mode
+  Gout_A2%mode = mode
+  Gout_A3%mode = mode
+  Gout_A4%mode = mode
+
+  Gout_A%hit = hit
+  Gout_A0%hit = hit
+  Gout_A1%hit = hit
+  Gout_A2%hit = hit
+  Gout_A3%hit = hit
+  Gout_A4%hit = hit
+
+  if(present(Gout_R1)) then
+    Gout_R1%error = Gout_A%error
+    Gout_R1%mode = mode
+    Gout_R1%hit = hit
+  end if
+
+#ifdef PRECISION_dp
+  if (hp_alloc_mode .gt. 1 .and. mode .gt. hybrid_dp_mode) then
+    call hol_alloc_hybrid(Gout_A)
+    call hol_alloc_hybrid(Gout_A0)
+    call hol_alloc_hybrid(Gout_A1)
+    call hol_alloc_hybrid(Gout_A2)
+    call hol_alloc_hybrid(Gout_A3)
+    call hol_alloc_hybrid(Gout_A4)
+    if(present(Gout_R1)) call hol_alloc_hybrid(Gout_R1)
+  end if
+#endif
+
+  if (Gout_A%error > max_error) max_error = Gout_A%error
+
+end subroutine err_estim_5pt_hol
+
+subroutine err_estim_5pt_hcl(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
+                             Gout_A3,Gout_A4,Gout_R1)
+  use ol_data_types_/**/REALKIND, only: hcl,REALKIND,QREALKIND,redset5
+  use ol_parameters_decl_/**/REALKIND, only: max_error
+  use ol_parameters_decl_/**/DREALKIND, only: hp_gamma_trig, &
+                                              hp_alloc_mode, &
+                                              hybrid_dp_mode
+#ifdef PRECISION_dp
+  use ol_loop_handling_/**/REALKIND, only: hcl_alloc_hybrid
+#endif
+  implicit none
+  type(redset5),       intent(in)    :: RedSet
+  type(hcl),           intent(inout) :: Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
+                                        Gout_A3,Gout_A4
+  type(hcl), optional, intent(inout) :: Gout_R1
+  real(REALKIND)    :: alfa_max,alfa(3),gamma_inv
+  complex(REALKIND) :: B3coeff
+  integer           :: hit,mode,perm(4)
+
+  perm = RedSet%perm
+
+  if (hp_gamma_trig) then
+    gamma_inv=log10( 1._/**/REALKIND / RedSet%gd2**2)
+  else
+    gamma_inv=0
+  end if
+
+  B3coeff = (RedSet%redbasis%gamma)*(RedSet%p3scalars(0))*2
+  alfa = [abs(RedSet%p3scalars(1)), abs(RedSet%p3scalars(2)), abs(B3coeff)]
+  alfa = log10(alfa)
+
+  if (gdm2_err_estim_CL .eqv. .true.) then
+    alfa_max = max(alfa(1),alfa(2))
+  else
+    alfa_max = max(alfa(1),alfa(2),alfa(3))
+  end if
+
+  Gout_A%error = Gin_A%error + max(alfa_max,gamma_inv)
+  Gout_A0%error = Gin_A%error + max(alfa_max,gamma_inv)
+  if (perm(1) == 1) then
+    if (perm(2) == 2) then
+      if (perm(3) == 3) then
+        ! 1,2,3,4 permutation
+        Gout_A1%error = Gin_A%error + max(alfa(1),gamma_inv)
+        Gout_A2%error = Gin_A%error + max(alfa(2),gamma_inv)
+        Gout_A3%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+      else
+        ! 1,2,4,3 permutation
+        Gout_A1%error = Gin_A%error + max(alfa(1),gamma_inv)
+        Gout_A2%error = Gin_A%error + max(alfa(2),gamma_inv)
+        Gout_A4%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+      end if
+    else if (perm(2) == 3) then
+      if (perm(3) == 2) then
+        ! 1,3,2,4 permutation
+        Gout_A1%error = Gin_A%error + max(alfa(1),gamma_inv)
+        Gout_A3%error = Gin_A%error + max(alfa(2),gamma_inv)
+        Gout_A2%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+      else
+        ! 1,3,4,2 permutation
+        Gout_A1%error = Gin_A%error + max(alfa(1),gamma_inv)
+        Gout_A3%error = Gin_A%error + max(alfa(2),gamma_inv)
+        Gout_A4%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+      end if
+    else if (perm(2) == 4) then
+      if (perm(3) == 2) then
+        ! 1,4,2,3 permutation
+        Gout_A1%error = Gin_A%error + max(alfa(1),gamma_inv)
+        Gout_A4%error = Gin_A%error + max(alfa(2),gamma_inv)
+        Gout_A2%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+      else
+        ! 1,4,3,2 permutation
+        Gout_A1%error = Gin_A%error + max(alfa(1),gamma_inv)
+        Gout_A4%error = Gin_A%error + max(alfa(2),gamma_inv)
+        Gout_A3%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+    end if
+
+    else if (perm(1) == 2) then
+      if (perm(2) == 3) then
+        if (perm(3) == 1) then
+          ! 2,3,1,4 permutation
+          Gout_A2%error = Gin_A%error + max(alfa(1),gamma_inv)
+          Gout_A3%error = Gin_A%error + max(alfa(2),gamma_inv)
+          Gout_A1%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+        else
+          ! 2,3,4,1 permutation
+          Gout_A2%error = Gin_A%error + max(alfa(1),gamma_inv)
+          Gout_A3%error = Gin_A%error + max(alfa(2),gamma_inv)
+          Gout_A4%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+        end if
+      else if(perm(2) == 4) then
+        if (perm(3) == 1) then
+          ! 2,4,1,3 permutation
+          Gout_A2%error = Gin_A%error + max(alfa(1),gamma_inv)
+          Gout_A4%error = Gin_A%error + max(alfa(2),gamma_inv)
+          Gout_A1%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+        else
+          ! 2,4,3,1 permutation
+          Gout_A2%error = Gin_A%error + max(alfa(1),gamma_inv)
+          Gout_A4%error = Gin_A%error + max(alfa(2),gamma_inv)
+          Gout_A3%error = Gin_A%error + max(alfa(3),gamma_inv/2)
+        end if
+      end if
+    end if
+  end if
+
+  call trigger_upgrade(alfa_max,RedSet%gd2,Gin_A)
+
+  hit = Gin_A%hit
+  mode = Gin_A%mode
+  Gout_A%mode = mode
+  Gout_A0%mode = mode
+  Gout_A1%mode = mode
+  Gout_A2%mode = mode
+  Gout_A3%mode = mode
+  Gout_A4%mode = mode
+
+  Gout_A%hit = hit
+  Gout_A0%hit = hit
+  Gout_A1%hit = hit
+  Gout_A2%hit = hit
+  Gout_A3%hit = hit
+  Gout_A4%hit = hit
+
+  if(present(Gout_R1)) then
+    Gout_R1%error = Gout_A%error
+    Gout_R1%mode = mode
+    Gout_R1%hit = hit
+  end if
+
+#ifdef PRECISION_dp
+  if (hp_alloc_mode .gt. 1 .and. mode .gt. hybrid_dp_mode) then
+    call hcl_alloc_hybrid(Gout_A)
+    call hcl_alloc_hybrid(Gout_A0)
+    call hcl_alloc_hybrid(Gout_A1)
+    call hcl_alloc_hybrid(Gout_A2)
+    call hcl_alloc_hybrid(Gout_A3)
+    call hcl_alloc_hybrid(Gout_A4)
+    if(present(Gout_R1)) call hcl_alloc_hybrid(Gout_R1)
+  end if
+#endif
+
+  if (Gout_A%error > max_error) max_error = Gout_A%error
+
+end subroutine err_estim_5pt_hcl
+
+
+! -----------------------------------------------------------------------------
+! Downgrade to dp for unnecessary reduction coefficients from B1, B2, B3
+!  -----------------------------------------------------------------------------
+
+#ifdef PRECISION_dp
+subroutine downgrade_4pt_hol(RedSet,mode_in,Gout_A1,Gout_A2,Gout_A3)
+  use ol_data_types_/**/REALKIND, only: hol,REALKIND,redset4
+  use ol_parameters_decl_/**/REALKIND, only: hp_step_thres,hybrid_dp_mode
+  implicit none
+  type(redset4), intent(in)     :: RedSet
+  integer,       intent(in)    :: mode_in
+  type(hol),     intent(inout) :: Gout_A1,Gout_A2,Gout_A3
+  real(REALKIND) :: alfa(3)
+  integer        :: perm(3)
+
+    if ((-log10(RedSet%gd2) > hp_step_thres)) return
+
+    alfa = [abs(RedSet%p3scalars(1)), abs(RedSet%p3scalars(2)), &
+            abs((RedSet%redbasis%gamma)*(RedSet%p3scalars(0))*2)]
+    alfa = log10(alfa)
+
+    perm = RedSet%perm
+    if (mode_in == hybrid_dp_mode) then
+    if (perm(1)+perm(2) == 3) then
+      ! perm = 1,2,3
+      call downgrade(Gout_A1,Gout_A2,Gout_A3)
+    else if (perm(1)+perm(2) == 4) then
+      ! perm = 1,3,2
+      call downgrade(Gout_A1,Gout_A3,Gout_A2)
+    else if (perm(1)+perm(2) == 5) then
+      ! perm = 2,3,1
+      call downgrade(Gout_A2,Gout_A3,Gout_A1)
+    end if
+  end if
+
+  contains
+
+  subroutine downgrade(Gout_P1,Gout_P2,Gout_P3)
+    use ol_parameters_decl_/**/REALKIND, only: hp_step_thres,hp_err_thres
+    use ol_loop_handling_/**/REALKIND, only: downgrade_dp
+    type(hol), intent(inout) :: Gout_P1,Gout_P2,Gout_P3
+    if (alfa(1) < hp_step_thres .and. Gout_P1%error <  hp_err_thres) then
+      call downgrade_dp(Gout_P1)
+    end if
+    if (alfa(2) < hp_step_thres .and. Gout_P2%error <  hp_err_thres) then
+      call downgrade_dp(Gout_P2)
+    end if
+    if (alfa(3) < hp_step_thres .and. Gout_P3%error <  hp_err_thres) then
+      call downgrade_dp(Gout_P3)
+    end if
+  end subroutine downgrade
+
+end subroutine downgrade_4pt_hol
+
+subroutine downgrade_4pt_hcl(RedSet,mode_in,Gout_A1,Gout_A2,Gout_A3)
+  use ol_data_types_/**/REALKIND, only: hcl,REALKIND,redset4
+  use ol_parameters_decl_/**/REALKIND, only: hp_step_thres,hybrid_dp_mode
+  implicit none
+  type(redset4), intent(in)    :: RedSet
+  integer,       intent(in)    :: mode_in
+  type(hcl),     intent(inout) :: Gout_A1,Gout_A2,Gout_A3
+  real(REALKIND) :: alfa(3)
+  integer        :: perm(3)
+
+    if ((-log10(RedSet%gd2) > hp_step_thres)) return
+
+    alfa = [abs(RedSet%p3scalars(1)), abs(RedSet%p3scalars(2)), &
+            abs((RedSet%redbasis%gamma)*(RedSet%p3scalars(0))*2)]
+    alfa = log10(alfa)
+
+    perm = RedSet%perm
+    if (mode_in == hybrid_dp_mode) then
+    if (perm(1)+perm(2) == 3) then
+      ! perm = 1,2,3
+      call downgrade(Gout_A1,Gout_A2,Gout_A3)
+    else if (perm(1)+perm(2) == 4) then
+      ! perm = 1,3,2
+      call downgrade(Gout_A1,Gout_A3,Gout_A2)
+    else if (perm(1)+perm(2) == 5) then
+      ! perm = 2,3,1
+      call downgrade(Gout_A2,Gout_A3,Gout_A1)
+    end if
+  end if
+
+  contains
+
+  subroutine downgrade(Gout_P1,Gout_P2,Gout_P3)
+    use ol_parameters_decl_/**/REALKIND, only: hp_step_thres,hp_err_thres
+    use ol_loop_handling_/**/REALKIND, only: downgrade_dp
+    type(hcl), intent(inout) :: Gout_P1,Gout_P2,Gout_P3
+    if (alfa(1) < hp_step_thres .and. Gout_P1%error <  hp_err_thres) then
+      call downgrade_dp(Gout_P1)
+    end if
+    if (alfa(2) < hp_step_thres .and. Gout_P2%error <  hp_err_thres) then
+      call downgrade_dp(Gout_P2)
+    end if
+    if (alfa(3) < hp_step_thres .and. Gout_P3%error <  hp_err_thres) then
+      call downgrade_dp(Gout_P3)
+    end if
+  end subroutine downgrade
+
+end subroutine downgrade_4pt_hcl
+
+subroutine downgrade_5pt_hol(RedSet,mode_in,Gout_A1,Gout_A2,Gout_A3,Gout_A4)
+  use ol_data_types_/**/REALKIND, only: hol,REALKIND,redset5
+  use ol_parameters_decl_/**/REALKIND, only: hp_step_thres,hybrid_dp_mode
+  implicit none
+  type(redset5), intent(in)    :: RedSet
+  integer,       intent(in)    :: mode_in
+  type(hol),     intent(inout) :: Gout_A1,Gout_A2,Gout_A3,Gout_A4
+  real(REALKIND) :: alfa(3)
+  integer        :: perm(4)
+
+  if ((-log10(RedSet%gd2) > hp_step_thres)) return
+
+  alfa = [abs(RedSet%p3scalars(1)), abs(RedSet%p3scalars(2)), &
+          abs((RedSet%redbasis%gamma)*(RedSet%p3scalars(0))*2)]
+  alfa = log10(alfa)
+
+  perm = RedSet%perm
+
+  if (mode_in == hybrid_dp_mode) then
+    if (perm(1) == 1) then
+      if (perm(2) == 2) then
+        if (perm(3) == 3) then
+          ! 1,2,3,4 permutation
+          call downgrade(Gout_A1,Gout_A2,Gout_A3)
+        else
+          ! 1,2,4,3 permutation
+          call downgrade(Gout_A1,Gout_A2,Gout_A4)
+        end if
+      else if (perm(2) == 3) then
+        if (perm(3) == 2) then
+          ! 1,3,2,4 permutation
+          call downgrade(Gout_A1,Gout_A3,Gout_A2)
+        else
+          ! 1,3,4,2 permutation
+          call downgrade(Gout_A1,Gout_A3,Gout_A4)
+        end if
+      else if (perm(2) == 4) then
+        if (perm(3) == 2) then
+          ! 1,4,2,3 permutation
+          call downgrade(Gout_A1,Gout_A4,Gout_A2)
+        else
+          ! 1,4,3,2 permutation
+          call downgrade(Gout_A1,Gout_A4,Gout_A3)
+        end if
+      end if
+
+    else if (perm(1) == 2) then
+      if (perm(2) == 3) then
+        if (perm(3) == 1) then
+          ! 2,3,1,4 permutation
+          call downgrade(Gout_A2,Gout_A3,Gout_A1)
+        else
+          ! 2,3,4,1 permutation
+          call downgrade(Gout_A2,Gout_A3,Gout_A4)
+        end if
+      else if(perm(2) == 4) then
+        if (perm(3) == 1) then
+          ! 2,4,1,3 permutation
+          call downgrade(Gout_A2,Gout_A4,Gout_A1)
+        else
+          ! 2,4,3,1 permutation
+          call downgrade(Gout_A2,Gout_A4,Gout_A3)
+        end if
+      end if
+    end if
+  end if
+
+  contains
+
+  subroutine downgrade(Gout_P1,Gout_P2,Gout_P3)
+    use ol_parameters_decl_/**/REALKIND, only: hp_step_thres,hp_err_thres
+    use ol_loop_handling_/**/REALKIND, only: downgrade_dp
+    type(hol), intent(inout) :: Gout_P1,Gout_P2,Gout_P3
+    if (alfa(1) < hp_step_thres .and. Gout_P1%error <  hp_err_thres) then
+      call downgrade_dp(Gout_P1)
+    end if
+    if (alfa(2) < hp_step_thres .and. Gout_P2%error <  hp_err_thres) then
+      call downgrade_dp(Gout_P2)
+    end if
+    if (alfa(3) < hp_step_thres .and. Gout_P3%error <  hp_err_thres) then
+      call downgrade_dp(Gout_P3)
+    end if
+  end subroutine downgrade
+
+end subroutine downgrade_5pt_hol
+
+subroutine downgrade_5pt_hcl(RedSet,mode_in,Gout_A1,Gout_A2,Gout_A3,Gout_A4)
+  use ol_data_types_/**/REALKIND, only: hcl,REALKIND,redset5
+  use ol_parameters_decl_/**/REALKIND, only: hp_step_thres,hybrid_dp_mode
+  implicit none
+  type(redset5), intent(in)    :: RedSet
+  integer,       intent(in)    :: mode_in
+  type(hcl),     intent(inout) :: Gout_A1,Gout_A2,Gout_A3,Gout_A4
+  real(REALKIND) :: alfa(3)
+  integer        :: perm(4)
+
+  if ((-log10(RedSet%gd2) > hp_step_thres)) return
+
+  alfa = [abs(RedSet%p3scalars(1)), abs(RedSet%p3scalars(2)), &
+          abs((RedSet%redbasis%gamma)*(RedSet%p3scalars(0))*2)]
+  alfa = log10(alfa)
+
+  perm = RedSet%perm
+
+  if (mode_in == hybrid_dp_mode) then
+    if (perm(1) == 1) then
+      if (perm(2) == 2) then
+        if (perm(3) == 3) then
+          ! 1,2,3,4 permutation
+          call downgrade(Gout_A1,Gout_A2,Gout_A3)
+        else
+          ! 1,2,4,3 permutation
+          call downgrade(Gout_A1,Gout_A2,Gout_A4)
+        end if
+      else if (perm(2) == 3) then
+        if (perm(3) == 2) then
+          ! 1,3,2,4 permutation
+          call downgrade(Gout_A1,Gout_A3,Gout_A2)
+        else
+          ! 1,3,4,2 permutation
+          call downgrade(Gout_A1,Gout_A3,Gout_A4)
+        end if
+      else if (perm(2) == 4) then
+        if (perm(3) == 2) then
+          ! 1,4,2,3 permutation
+          call downgrade(Gout_A1,Gout_A4,Gout_A2)
+        else
+          ! 1,4,3,2 permutation
+          call downgrade(Gout_A1,Gout_A4,Gout_A3)
+        end if
+      end if
+
+    else if (perm(1) == 2) then
+      if (perm(2) == 3) then
+        if (perm(3) == 1) then
+          ! 2,3,1,4 permutation
+          call downgrade(Gout_A2,Gout_A3,Gout_A1)
+        else
+          ! 2,3,4,1 permutation
+          call downgrade(Gout_A2,Gout_A3,Gout_A4)
+        end if
+      else if(perm(2) == 4) then
+        if (perm(3) == 1) then
+          ! 2,4,1,3 permutation
+          call downgrade(Gout_A2,Gout_A4,Gout_A1)
+        else
+          ! 2,4,3,1 permutation
+          call downgrade(Gout_A2,Gout_A4,Gout_A3)
+        end if
+      end if
+    end if
+  end if
+
+  contains
+
+  subroutine downgrade(Gout_P1,Gout_P2,Gout_P3)
+    use ol_parameters_decl_/**/REALKIND, only: hp_step_thres,hp_err_thres
+    use ol_loop_handling_/**/REALKIND, only: downgrade_dp
+    type(hcl), intent(inout) :: Gout_P1,Gout_P2,Gout_P3
+    if (alfa(1) < hp_step_thres .and. Gout_P1%error <  hp_err_thres) then
+      call downgrade_dp(Gout_P1)
+    end if
+    if (alfa(2) < hp_step_thres .and. Gout_P2%error <  hp_err_thres) then
+      call downgrade_dp(Gout_P2)
+    end if
+    if (alfa(3) < hp_step_thres .and. Gout_P3%error <  hp_err_thres) then
+      call downgrade_dp(Gout_P3)
+    end if
+  end subroutine downgrade
+
+end subroutine downgrade_5pt_hcl
+
+#endif
+
 ! =============================================================================
 !                      HELICITY BOOKKEEPING INTERFACE
 ! -----------------------------------------------------------------------------
 ! Reduction steps for all the non-vanishing helicitiy configurations
 ! =============================================================================
 
-! ******************************************************************************************
-subroutine Hotf_4pt_red(Gin_A,RedSet_4,msq, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,nhel)
-! ------------------------------------------------------------------------------------------
+! ******************************************************************************
+subroutine Hotf_4pt_red(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
+                        Gout_A3,nhel)
+! ------------------------------------------------------------------------------
 ! On-the-fly reduction for 4-pt segments. No R1 rational contributions
-! ******************************************************************************************
-  use KIND_TYPES, only: REALKIND
+! ******************************************************************************
+  use KIND_TYPES, only: REALKIND,QREALKIND
   use ol_data_types_/**/REALKIND, only: redset4, hol
+  use ofred_basis_construction_/**/REALKIND, only: reconstruct_redset4
+  use ol_kinematics_/**/REALKIND, only: get_mass2
+#ifdef PRECISION_dp
+  use ol_data_types_/**/QREALKIND, only: redset4_qp=>redset4
+  use ofred_basis_construction_/**/REALKIND, only: upgrade_redset4
+  use ofred_reduction_/**/QREALKIND, only: otf_4pt_red_qp=>otf_4pt_red
+  use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hol_dealloc_hybrid
+  use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
+  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
+                                              hp_alloc_mode
   implicit none
-  type(redset4), intent(in) :: RedSet_4
-  complex(REALKIND), intent(in) :: msq(0:3)
-  type(hol), intent(in) :: Gin_A
-  type(hol), intent(out) :: Gout_A, Gout_A0, Gout_A1, Gout_A2, Gout_A3
-  integer, intent(in) :: nhel
-  integer :: h
+  type(redset4), intent(in)    :: RedSet_4
+  integer,       intent(in)    :: msq(0:3)
+  integer,       intent(in)    :: nhel
+  type(hol),     intent(inout) :: Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3
+  integer           :: h, mode_in
+#ifdef PRECISION_dp
+  type(redset4_qp) :: RedSet_4_qp
+#endif
 
-  !! Assignment of helicities for the reduced subtopologies
-  Gout_A%hf(:)  = Gin_A%hf(:)
-  Gout_A0%hf(:) = Gin_A%hf(:)
-  Gout_A1%hf(:) = Gin_A%hf(:)
-  Gout_A2%hf(:) = Gin_A%hf(:)
-  Gout_A3%hf(:) = Gin_A%hf(:)
+  mode_in = Gin_A%mode
 
-  do h = 1, nhel
-    call otf_4pt_red(Gin_A%j(:,:,:,h),RedSet_4, msq, Gout_A%j(:,:,:,h), &
-         Gout_A0%j(:,:,:,h),Gout_A1%j(:,:,:,h), Gout_A2%j(:,:,:,h),Gout_A3%j(:,:,:,h))
-  end do
+  if (.not. valid_4pt(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3)) return
+  call err_estim_4pt(RedSet_4,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3)
+
+
+#ifdef PRECISION_dp
+  if (Gin_A%mode .ne. hybrid_qp_mode) then
+#endif
+    do h = 1, nhel
+      call otf_4pt_red(Gin_A%j(:,:,:,h),   &
+                       RedSet_4,           &
+                       get_mass2(msq),      &
+                       Gout_A%j(:,:,:,h),  &
+                       Gout_A0%j(:,:,:,h), &
+                       Gout_A1%j(:,:,:,h), &
+                       Gout_A2%j(:,:,:,h), &
+                       Gout_A3%j(:,:,:,h))
+    end do
+#ifdef PRECISION_dp
+  else
+    ! TODO:  <14-11-18, J.-N. Lang> !
+    ! do we need to initialise?
+    Gout_A%j = 0
+    Gout_A0%j = 0
+    Gout_A1%j = 0
+    Gout_A2%j = 0
+    Gout_A3%j = 0
+  end if
+#endif
+
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gout_A)) then
+
+    call upgrade_redset4(RedSet_4, RedSet_4_qp)
+    do h = 1, nhel
+      call otf_4pt_red_qp(Gin_A%j_qp(:,:,:,h),   &
+                          RedSet_4_qp,           &
+                          get_mass2_qp(msq),      &
+                          Gout_A%j_qp(:,:,:,h),  &
+                          Gout_A0%j_qp(:,:,:,h), &
+                          Gout_A1%j_qp(:,:,:,h), &
+                          Gout_A2%j_qp(:,:,:,h), &
+                          Gout_A3%j_qp(:,:,:,h))
+    end do
+
+    call downgrade_4pt(RedSet_4,mode_in,Gout_A1,Gout_A2,Gout_A3)
+    call hol_dealloc_hybrid(Gin_A)
+
+  else if (hp_mode .eq. 1) then
+    if (hp_alloc_mode .eq. 0) then
+      Gout_A%j_qp = 0
+      Gout_A0%j_qp = 0
+      Gout_A1%j_qp = 0
+      Gout_A2%j_qp = 0
+      Gout_A3%j_qp = 0
+    end if
+  end if
+
+#endif
+
 
 end subroutine Hotf_4pt_red
 
 
-! ************************************************************************************************
-subroutine Hotf_4pt_red_R1(Gin_A,RedSet_4,msq, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_R1,nhel)
-! ------------------------------------------------------------------------------------------------
+! ******************************************************************************
+subroutine Hotf_4pt_red_R1(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
+                           Gout_A3,Gout_R1,nhel)
+! ------------------------------------------------------------------------------
 ! On-the-fly reduction for 4-pt segments with R1-rational contribution
-! ************************************************************************************************
-  use KIND_TYPES, only: REALKIND
-  use ol_data_types_/**/REALKIND, only: redset4, hol
+! ******************************************************************************
+  use KIND_TYPES, only: REALKIND,QREALKIND
+  use ol_data_types_/**/REALKIND, only: redset4,hol
+  use ol_kinematics_/**/REALKIND, only: get_mass2
+#ifdef PRECISION_dp
+  use ol_data_types_/**/QREALKIND, only: redset4_qp=>redset4
+  use ofred_basis_construction_/**/REALKIND, only: upgrade_redset4
+  use ofred_reduction_/**/QREALKIND, only: otf_4pt_red_qp=>otf_4pt_red
+  use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hol_dealloc_hybrid
+  use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
+  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
+                                              hp_alloc_mode
   implicit none
-  type(redset4), intent(in) :: RedSet_4
-  complex(REALKIND), intent(in) :: msq(0:3)
-  type(hol), intent(in) :: Gin_A
-  type(hol), intent(out) :: Gout_A, Gout_A0, Gout_A1, Gout_A2, Gout_A3, Gout_R1
-  integer, intent(in) :: nhel
-  integer :: h
+  type(redset4), intent(in)    :: RedSet_4
+  integer,       intent(in)    :: msq(0:3)
+  type(hol),     intent(inout) :: Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3, &
+                                  Gout_R1
+  integer,       intent(in)    :: nhel
+  integer :: h, mode_in
+#ifdef PRECISION_dp
+  type(redset4_qp) :: RedSet_4_qp
+#endif
 
-  !! Assignment of helicities for the reduced subtopologies
-  Gout_A%hf(:)  = Gin_A%hf(:)
-  Gout_A0%hf(:) = Gin_A%hf(:)
-  Gout_A1%hf(:) = Gin_A%hf(:)
-  Gout_A2%hf(:) = Gin_A%hf(:)
-  Gout_A3%hf(:) = Gin_A%hf(:)
-  Gout_R1%hf(:) = Gin_A%hf(:)
+  mode_in = Gin_A%mode
 
-  do h = 1, nhel
-    call otf_4pt_red(Gin_A%j(:,:,:,h),RedSet_4, msq, Gout_A%j(:,:,:,h), &
-         Gout_A0%j(:,:,:,h),Gout_A1%j(:,:,:,h), Gout_A2%j(:,:,:,h),Gout_A3%j(:,:,:,h),&
-         Gout_R1%j(:,:,:,h))
-  end do
+  if (.not. valid_4pt(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_R1)) return
+  call err_estim_4pt(RedSet_4,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_R1)
+
+
+#ifdef PRECISION_dp
+  if (Gin_A%mode.ne.hybrid_qp_mode) then
+#endif
+    do h = 1, nhel
+      call otf_4pt_red(Gin_A%j(:,:,:,h),   &
+                       RedSet_4,           &
+                       get_mass2(msq),      &
+                       Gout_A%j(:,:,:,h),  &
+                       Gout_A0%j(:,:,:,h), &
+                       Gout_A1%j(:,:,:,h), &
+                       Gout_A2%j(:,:,:,h), &
+                       Gout_A3%j(:,:,:,h), &
+                       Gout_R1%j(:,:,:,h))
+    end do
+#ifdef PRECISION_dp
+  else
+    Gout_A%j = 0
+    Gout_A0%j = 0
+    Gout_A1%j = 0
+    Gout_A2%j = 0
+    Gout_A3%j = 0
+    Gout_R1%j = 0
+  end if
+#endif
+
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gout_A)) then
+    call upgrade_redset4(RedSet_4, RedSet_4_qp)
+    do h = 1, nhel
+     call otf_4pt_red_qp(Gin_A%j_qp(:,:,:,h),   &
+                         RedSet_4_qp,           &
+                         get_mass2_qp(msq),      &
+                         Gout_A%j_qp(:,:,:,h),  &
+                         Gout_A0%j_qp(:,:,:,h), &
+                         Gout_A1%j_qp(:,:,:,h), &
+                         Gout_A2%j_qp(:,:,:,h), &
+                         Gout_A3%j_qp(:,:,:,h), &
+                         Gout_R1%j_qp(:,:,:,h))
+    end do
+
+    call downgrade_4pt(RedSet_4,mode_in,Gout_A1,Gout_A2,Gout_A3)
+    call hol_dealloc_hybrid(Gin_A)
+
+  else if (hp_mode .eq. 1) then
+    if (hp_alloc_mode .eq. 0) then
+      Gout_A%j_qp = 0
+      Gout_A0%j_qp = 0
+      Gout_A1%j_qp = 0
+      Gout_A2%j_qp = 0
+      Gout_A3%j_qp = 0
+      Gout_R1%j_qp = 0
+    end if
+  end if
+
+#endif
+
 
 end subroutine Hotf_4pt_red_R1
+
+
+! ******************************************************************************
+subroutine Hotf_5pt_red(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
+                        Gout_A3,Gout_A4,nhel)
+! ------------------------------------------------------------------------------
+! On-the-fly reduction for 5-pt segments. No R1 rational contributions
+! ******************************************************************************
+  use KIND_TYPES, only: REALKIND,QREALKIND
+  use ol_data_types_/**/REALKIND, only: redset5,hol
+  use ol_parameters_decl_/**/REALKIND, only: rzero
+  use ol_kinematics_/**/REALKIND, only: get_mass2
+#ifdef PRECISION_dp
+  use ol_data_types_/**/QREALKIND, only: redset5_qp=>redset5
+  use ofred_basis_construction_/**/REALKIND, only: upgrade_redset5
+  use ofred_reduction_/**/QREALKIND, only: otf_5pt_red_qp=>otf_5pt_red
+  use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hol_dealloc_hybrid
+  use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
+  use ol_loop_handling_/**/REALKIND, only: hybrid_zero_mode
+  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
+                                              hp_alloc_mode
+  implicit none
+  type(redset5), intent(in)    :: RedSet_5
+  integer,       intent(in)    :: msq(0:4)
+  type(hol),     intent(inout) :: Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
+                                  Gout_A3,Gout_A4
+  integer,       intent(in)    :: nhel
+  integer :: h, mode_in
+#ifdef PRECISION_dp
+  type(redset5_qp) :: RedSet_5_qp
+#endif
+
+  mode_in = Gin_A%mode
+
+  if (.not. valid_5pt(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4)) return
+  call err_estim_5pt(RedSet_5,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4)
+
+#ifdef PRECISION_dp
+  if (Gin_A%mode .ne. hybrid_qp_mode) then
+#endif
+    do h = 1, nhel
+        call otf_5pt_red(Gin_A%j(:,:,:,h),   &
+                         RedSet_5,           &
+                         get_mass2(msq),      &
+                         Gout_A%j(:,:,:,h),  &
+                         Gout_A0%j(:,:,:,h), &
+                         Gout_A1%j(:,:,:,h), &
+                         Gout_A2%j(:,:,:,h), &
+                         Gout_A3%j(:,:,:,h), &
+                         Gout_A4%j(:,:,:,h))
+    end do
+#ifdef PRECISION_dp
+  else
+    Gout_A%j = 0
+    Gout_A0%j = 0
+    Gout_A1%j = 0
+    Gout_A2%j = 0
+    Gout_A3%j = 0
+    Gout_A4%j = 0
+  end if
+#endif
+
+
+  if ( RedSet_5%perm(4).eq.1 ) then
+    Gout_A1%mode = hybrid_zero_mode
+    Gout_A1%error = rzero
+  else if ( RedSet_5%perm(4).eq.2 ) then
+    Gout_A2%mode = hybrid_zero_mode
+    Gout_A2%error = rzero
+  else if ( RedSet_5%perm(4).eq.3 ) then
+    Gout_A3%mode = hybrid_zero_mode
+    Gout_A3%error = rzero
+  else if ( RedSet_5%perm(4).eq.4 ) then
+    Gout_A4%mode = hybrid_zero_mode
+    Gout_A4%error = rzero
+  end if
+
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gout_A)) then
+    call upgrade_redset5(RedSet_5,RedSet_5_qp)
+    do h = 1, nhel
+      call otf_5pt_red_qp(Gin_A%j_qp(:,:,:,h),   &
+                          RedSet_5_qp,           &
+                          get_mass2_qp(msq),      &
+                          Gout_A%j_qp(:,:,:,h),  &
+                          Gout_A0%j_qp(:,:,:,h), &
+                          Gout_A1%j_qp(:,:,:,h), &
+                          Gout_A2%j_qp(:,:,:,h), &
+                          Gout_A3%j_qp(:,:,:,h), &
+                          Gout_A4%j_qp(:,:,:,h))
+    end do
+
+    call downgrade_5pt(RedSet_5,mode_in,Gout_A1,Gout_A2,Gout_A3,Gout_A4)
+    call hol_dealloc_hybrid(Gin_A)
+
+  else if (hp_mode .eq. 1) then
+    if (hp_alloc_mode .eq. 0) then
+      Gout_A%j_qp = 0
+      Gout_A0%j_qp = 0
+      Gout_A1%j_qp = 0
+      Gout_A2%j_qp = 0
+      Gout_A3%j_qp = 0
+      Gout_A4%j_qp = 0
+    end if
+  end if
+#endif
+
+end subroutine Hotf_5pt_red
+
+
+! ******************************************************************************
+subroutine Hotf_5pt_red_R1(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
+                           Gout_A2,Gout_A3,Gout_A4,Gout_R1,nhel)
+! ------------------------------------------------------------------------------
+! On-the-fly reduction for 5-pt segments with R1-rational contribution
+! ******************************************************************************
+  use KIND_TYPES, only: REALKIND,QREALKIND
+  use ol_data_types_/**/REALKIND, only: redset5,hol
+  use ol_parameters_decl_/**/REALKIND, only: rzero
+  use ol_kinematics_/**/REALKIND, only: get_mass2
+#ifdef PRECISION_dp
+  use ol_data_types_/**/QREALKIND, only: redset5_qp=>redset5
+  use ofred_basis_construction_/**/REALKIND, only: upgrade_redset5
+  use ofred_reduction_/**/QREALKIND, only: otf_5pt_red_qp=>otf_5pt_red
+  use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hol_dealloc_hybrid
+  use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
+  use ol_loop_handling_/**/REALKIND, only: hybrid_zero_mode
+  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
+                                              hp_alloc_mode
+  implicit none
+  type(redset5), intent(in)    :: RedSet_5
+  integer,       intent(in)    :: msq(0:4)
+  type(hol),     intent(inout) :: Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
+                                  Gout_A3,Gout_A4,Gout_R1
+  integer,       intent(in)    :: nhel
+  integer :: h,mode_in
+#ifdef PRECISION_dp
+  type(redset5_qp) :: RedSet_5_qp
+#endif
+
+  mode_in = Gin_A%mode
+
+  if (.not. valid_5pt(Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4,Gout_R1)) return
+  call err_estim_5pt(RedSet_5,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4,Gout_R1)
+
+#ifdef PRECISION_dp
+  if (Gin_A%mode.ne.hybrid_qp_mode) then
+#endif
+    do h = 1, nhel
+        call otf_5pt_red(Gin_A%j(:,:,:,h),   &
+                         RedSet_5,           &
+                         get_mass2(msq),      &
+                         Gout_A%j(:,:,:,h),  &
+                         Gout_A0%j(:,:,:,h), &
+                         Gout_A1%j(:,:,:,h), &
+                         Gout_A2%j(:,:,:,h), &
+                         Gout_A3%j(:,:,:,h), &
+                         Gout_A4%j(:,:,:,h), &
+                         Gout_R1%j(:,:,:,h))
+    end do
+#ifdef PRECISION_dp
+  else
+    Gout_A%j = 0
+    Gout_A0%j = 0
+    Gout_A1%j = 0
+    Gout_A2%j = 0
+    Gout_A3%j = 0
+    Gout_A4%j = 0
+    Gout_R1%j = 0
+  end if
+#endif
+
+
+  if (RedSet_5%perm(4) .eq. 1 ) then
+    Gout_A1%mode = hybrid_zero_mode
+    Gout_A1%error = rzero
+  else if (RedSet_5%perm(4) .eq. 2) then
+    Gout_A2%mode = hybrid_zero_mode
+    Gout_A2%error = rzero
+  else if (RedSet_5%perm(4) .eq. 3) then
+    Gout_A3%mode = hybrid_zero_mode
+    Gout_A3%error = rzero
+  else if (RedSet_5%perm(4) .eq. 4) then
+    Gout_A4%mode = hybrid_zero_mode
+    Gout_A4%error = rzero
+  end if
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gout_A)) then
+    call upgrade_redset5(RedSet_5, RedSet_5_qp)
+    do h = 1, nhel
+      call otf_5pt_red_qp(Gin_A%j_qp(:,:,:,h),   &
+                          RedSet_5_qp,           &
+                          get_mass2_qp(msq),      &
+                          Gout_A%j_qp(:,:,:,h),  &
+                          Gout_A0%j_qp(:,:,:,h), &
+                          Gout_A1%j_qp(:,:,:,h), &
+                          Gout_A2%j_qp(:,:,:,h), &
+                          Gout_A3%j_qp(:,:,:,h), &
+                          Gout_A4%j_qp(:,:,:,h), &
+                          Gout_R1%j_qp(:,:,:,h))
+    end do
+
+    call downgrade_5pt(RedSet_5,mode_in,Gout_A1,Gout_A2,Gout_A3,Gout_A4)
+    call hol_dealloc_hybrid(Gin_A)
+
+  else if (hp_mode .eq. 1) then
+    if (hp_alloc_mode .eq. 0) then
+      Gout_A%j_qp = 0
+      Gout_A0%j_qp = 0
+      Gout_A1%j_qp = 0
+      Gout_A2%j_qp = 0
+      Gout_A3%j_qp = 0
+      Gout_A4%j_qp = 0
+      Gout_R1%j_qp = 0
+    end if
+  end if
+#endif
+
+end subroutine Hotf_5pt_red_R1
+
+
+! =============================================================================
+!                      Closed-loop reduction INTERFACE
+! -----------------------------------------------------------------------------
+! Reduction steps for closed-loop derived data type
+! =============================================================================
+
+
+! ******************************************************************************
+subroutine Hotf_4pt_red_last(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1, &
+                             Gout_A2,Gout_A3)
+! ******************************************************************************
+  use KIND_TYPES, only: REALKIND,QREALKIND
+  use ol_data_types_/**/REALKIND, only: redset4, hcl
+  use ol_kinematics_/**/REALKIND, only: get_mass2
+#ifdef PRECISION_dp
+  use ol_data_types_/**/QREALKIND, only: redset4_qp=>redset4
+  use ofred_basis_construction_/**/REALKIND, only: upgrade_redset4
+  use ofred_reduction_/**/QREALKIND, only: otf_4pt_reduction_last_qp=>otf_4pt_reduction_last
+  use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hcl_dealloc_hybrid
+  use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
+  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
+                                              hp_alloc_mode
+  implicit none
+  type(redset4),   intent(in)    :: RedSet_4
+  integer,         intent(in)    :: msq(0:3)
+  type(hcl),       intent(inout) :: Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3
+  integer :: mode_in
+#ifdef PRECISION_dp
+  type(redset4_qp) :: RedSet_4_qp
+#endif
+
+  mode_in = Gin_A%mode
+
+  if (.not. valid_4pt(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3)) return
+  call err_estim_4pt(RedSet_4,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3)
+
+#ifdef PRECISION_dp
+  if (Gin_A%mode .ne. hybrid_qp_mode) then
+#endif
+    call otf_4pt_reduction_last(Gin_A%cmp,     &
+                                RedSet_4,      &
+                                get_mass2(msq),&
+                                Gout_A%cmp,    &
+                                Gout_A0%cmp,   &
+                                Gout_A1%cmp,   &
+                                Gout_A2%cmp,   &
+                                Gout_A3%cmp)
+#ifdef PRECISION_dp
+  else
+    Gout_A%cmp = 0
+    Gout_A0%cmp = 0
+    Gout_A1%cmp = 0
+    Gout_A2%cmp = 0
+    Gout_A3%cmp = 0
+  end if
+#endif
+
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gout_A)) then
+    call upgrade_redset4(RedSet_4,RedSet_4_qp)
+    call otf_4pt_reduction_last_qp(Gin_A%cmp_qp,      &
+                                   RedSet_4_qp,       &
+                                   get_mass2_qp(msq), &
+                                   Gout_A%cmp_qp(:),  &
+                                   Gout_A0%cmp_qp(:), &
+                                   Gout_A1%cmp_qp(:), &
+                                   Gout_A2%cmp_qp(:), &
+                                   Gout_A3%cmp_qp(:))
+    call downgrade_4pt(RedSet_4,mode_in,Gout_A1,Gout_A2,Gout_A3)
+    call hcl_dealloc_hybrid(Gin_A)
+  else if (hp_mode .eq. 1) then
+    if (hp_alloc_mode .eq. 0) then
+      Gout_A%cmp_qp = 0
+      Gout_A0%cmp_qp = 0
+      Gout_A1%cmp_qp = 0
+      Gout_A2%cmp_qp = 0
+      Gout_A3%cmp_qp = 0
+    end if
+  end if
+#endif
+
+end subroutine Hotf_4pt_red_last
+
+! ******************************************************************************
+subroutine Hotf_4pt_red_last_R1(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1, &
+                                Gout_A2,Gout_A3,Gout_R1)
+! ******************************************************************************
+  use KIND_TYPES, only: REALKIND, QREALKIND
+  use ol_data_types_/**/REALKIND, only: redset4, hcl
+  use ol_kinematics_/**/REALKIND, only: get_mass2
+#ifdef PRECISION_dp
+  use ol_data_types_/**/QREALKIND, only: redset4_qp=>redset4
+  use ofred_basis_construction_/**/REALKIND, only: upgrade_redset4
+  use ofred_reduction_/**/QREALKIND, only:  &
+    otf_4pt_reduction_last_qp=>otf_4pt_reduction_last
+  use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hcl_dealloc_hybrid
+  use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
+  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
+                                              hp_alloc_mode
+  implicit none
+  type(redset4), intent(in)    :: RedSet_4
+  integer,       intent(in)    :: msq(0:3)
+  type(hcl),     intent(inout) :: Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
+                                  Gout_A3,Gout_R1
+  integer :: mode_in
+#ifdef PRECISION_dp
+  type(redset4_qp) :: RedSet_4_qp
+#endif
+
+  mode_in = Gin_A%mode
+
+  if (.not. valid_4pt(Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_R1)) return
+  call err_estim_4pt(RedSet_4,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_R1)
+
+#ifdef PRECISION_dp
+  if (Gin_A%mode .ne. hybrid_qp_mode) then
+#endif
+    call otf_4pt_reduction_last(Gin_A%cmp,     &
+                                RedSet_4,      &
+                                get_mass2(msq), &
+                                Gout_A%cmp,    &
+                                Gout_A0%cmp,   &
+                                Gout_A1%cmp,   &
+                                Gout_A2%cmp,   &
+                                Gout_A3%cmp,   &
+                                Gout_R1%cmp(1))
+#ifdef PRECISION_dp
+  else
+    Gout_A%cmp = 0
+    Gout_A0%cmp = 0
+    Gout_A1%cmp = 0
+    Gout_A2%cmp = 0
+    Gout_A3%cmp = 0
+    Gout_R1%cmp = 0
+  end if
+#endif
+
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gout_A)) then
+    call upgrade_redset4(RedSet_4,RedSet_4_qp)
+    call otf_4pt_reduction_last_qp(Gin_A%cmp_qp,      &
+                                   RedSet_4_qp,       &
+                                   get_mass2_qp(msq), &
+                                   Gout_A%cmp_qp,     &
+                                   Gout_A0%cmp_qp,    &
+                                   Gout_A1%cmp_qp,    &
+                                   Gout_A2%cmp_qp,    &
+                                   Gout_A3%cmp_qp,    &
+                                   Gout_R1%cmp_qp(1))
+    call downgrade_4pt(RedSet_4,mode_in,Gout_A1,Gout_A2,Gout_A3)
+    call hcl_dealloc_hybrid(Gin_A)
+  else if (hp_mode .eq. 1) then
+    if (hp_alloc_mode .eq. 0) then
+      Gout_A%cmp_qp = 0
+      Gout_A0%cmp_qp = 0
+      Gout_A1%cmp_qp = 0
+      Gout_A2%cmp_qp = 0
+      Gout_A3%cmp_qp = 0
+      Gout_R1%cmp_qp = 0
+    end if
+  end if
+#endif
+
+end subroutine Hotf_4pt_red_last_R1
+
+
+! ******************************************************************************
+subroutine Hotf_5pt_red_last(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
+                             Gout_A2,Gout_A3,Gout_A4)
+! ******************************************************************************
+  use KIND_TYPES, only: REALKIND,QREALKIND
+  use ol_data_types_/**/REALKIND, only: redset5, hcl
+  use ol_parameters_decl_/**/REALKIND, only: rzero
+  use ol_kinematics_/**/REALKIND, only: get_mass2
+#ifdef PRECISION_dp
+  use ol_data_types_/**/QREALKIND, only: redset5_qp=>redset5
+  use ofred_basis_construction_/**/REALKIND, only: upgrade_redset5
+  use ofred_reduction_/**/QREALKIND, only: &
+    otf_5pt_reduction_last_qp=>otf_5pt_reduction_last
+  use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hcl_dealloc_hybrid
+  use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
+  use ol_loop_handling_/**/REALKIND, only: hybrid_zero_mode
+  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
+                                              hp_alloc_mode
+  implicit none
+  type(redset5), intent(in)    :: RedSet_5
+  integer,       intent(in)    :: msq(0:4)
+  type(hcl),     intent(inout) :: Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
+                                  Gout_A3,Gout_A4
+  integer :: mode_in
+#ifdef PRECISION_dp
+  type(redset5_qp) :: RedSet_5_qp
+#endif
+
+  mode_in = Gin_A%mode
+
+  if (.not. valid_5pt(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4)) return
+  call err_estim_5pt(RedSet_5,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4)
+
+#ifdef PRECISION_dp
+  if (Gin_A%mode.ne.hybrid_qp_mode) then
+#endif
+    call otf_5pt_reduction_last(Gin_A%cmp,     &
+                                RedSet_5,      &
+                                get_mass2(msq), &
+                                Gout_A%cmp,    &
+                                Gout_A0%cmp,   &
+                                Gout_A1%cmp,   &
+                                Gout_A2%cmp,   &
+                                Gout_A3%cmp,   &
+                                Gout_A4%cmp)
+#ifdef PRECISION_dp
+  else
+    Gout_A%cmp = 0
+    Gout_A0%cmp = 0
+    Gout_A1%cmp = 0
+    Gout_A2%cmp = 0
+    Gout_A3%cmp = 0
+    Gout_A4%cmp = 0
+  end if
+#endif
+
+
+  if (RedSet_5%perm(4) .eq. 1) then
+    Gout_A1%mode = hybrid_zero_mode
+    Gout_A1%error = rzero
+  else if (RedSet_5%perm(4) .eq. 2) then
+    Gout_A2%mode = hybrid_zero_mode
+    Gout_A2%error = rzero
+  else if (RedSet_5%perm(4) .eq. 3) then
+    Gout_A3%mode = hybrid_zero_mode
+    Gout_A3%error = rzero
+  else if (RedSet_5%perm(4) .eq. 4) then
+    Gout_A4%mode = hybrid_zero_mode
+    Gout_A4%error = rzero
+  end if
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gout_A)) then
+    call upgrade_redset5(RedSet_5,RedSet_5_qp)
+    call otf_5pt_reduction_last_qp(       &
+                        Gin_A%cmp_qp,     &
+                        RedSet_5_qp,      &
+                        get_mass2_qp(msq),&
+                        Gout_A%cmp_qp,    &
+                        Gout_A0%cmp_qp,   &
+                        Gout_A1%cmp_qp,   &
+                        Gout_A2%cmp_qp,   &
+                        Gout_A3%cmp_qp,   &
+                        Gout_A4%cmp_qp)
+    call downgrade_5pt(RedSet_5,mode_in,Gout_A1,Gout_A2,Gout_A3,Gout_A4)
+    call hcl_dealloc_hybrid(Gin_A)
+  else if (hp_mode .eq. 1) then
+    if (hp_alloc_mode .eq. 0) then
+      Gout_A%cmp_qp = 0
+      Gout_A0%cmp_qp = 0
+      Gout_A1%cmp_qp = 0
+      Gout_A2%cmp_qp = 0
+      Gout_A3%cmp_qp = 0
+      Gout_A4%cmp_qp = 0
+    end if
+  end if
+#endif
+
+end subroutine Hotf_5pt_red_last
+
+! ******************************************************************************
+subroutine Hotf_5pt_red_last_R1(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
+                                Gout_A2,Gout_A3,Gout_A4,Gout_R1)
+! ******************************************************************************
+  use KIND_TYPES, only: REALKIND,QREALKIND
+  use ol_data_types_/**/REALKIND, only: redset5,hcl
+  use ol_parameters_decl_/**/REALKIND, only: rzero
+  use ol_kinematics_/**/REALKIND, only: get_mass2
+#ifdef PRECISION_dp
+  use ol_data_types_/**/QREALKIND, only: redset5_qp=>redset5
+  use ofred_basis_construction_/**/REALKIND, only: upgrade_redset5
+  use ofred_reduction_/**/QREALKIND, only: &
+    otf_5pt_reduction_last_qp=>otf_5pt_reduction_last
+  use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hcl_dealloc_hybrid
+  use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
+  use ol_loop_handling_/**/REALKIND, only: hybrid_zero_mode
+  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
+                                              hp_alloc_mode
+  implicit none
+  type(redset5), intent(in)    :: RedSet_5
+  integer,       intent(in)    :: msq(0:4)
+  type(hcl),     intent(inout) :: Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
+                                  Gout_A3,Gout_A4,Gout_R1
+  integer :: mode_in
+#ifdef PRECISION_dp
+  type(redset5_qp) :: RedSet_5_qp
+#endif
+
+  mode_in = Gin_A%mode
+
+  if (.not. valid_5pt(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4,Gout_R1)) return
+  call err_estim_5pt(RedSet_5,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4,Gout_R1)
+
+#ifdef PRECISION_dp
+  if (Gin_A%mode .ne. hybrid_qp_mode) then
+#endif
+    call otf_5pt_reduction_last(Gin_A%cmp,     &
+                                RedSet_5,      &
+                                get_mass2(msq),&
+                                Gout_A%cmp,    &
+                                Gout_A0%cmp,   &
+                                Gout_A1%cmp,   &
+                                Gout_A2%cmp,   &
+                                Gout_A3%cmp,   &
+                                Gout_A4%cmp,   &
+                                Gout_R1%cmp(1))
+#ifdef PRECISION_dp
+  else
+    Gout_A%cmp = 0
+    Gout_A0%cmp = 0
+    Gout_A1%cmp = 0
+    Gout_A2%cmp = 0
+    Gout_A3%cmp = 0
+    Gout_A4%cmp = 0
+    Gout_R1%cmp = 0
+  end if
+#endif
+
+
+  if (RedSet_5%perm(4) .eq. 1) then
+    Gout_A1%mode = hybrid_zero_mode
+    Gout_A1%error = rzero
+  else if (RedSet_5%perm(4) .eq. 2) then
+    Gout_A2%mode = hybrid_zero_mode
+    Gout_A2%error = rzero
+  else if (RedSet_5%perm(4).eq. 3) then
+    Gout_A3%mode = hybrid_zero_mode
+    Gout_A3%error = rzero
+  else if (RedSet_5%perm(4) .eq. 4) then
+    Gout_A4%mode = hybrid_zero_mode
+    Gout_A4%error = rzero
+  end if
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gout_A)) then
+    call upgrade_redset5(RedSet_5,RedSet_5_qp)
+    call otf_5pt_reduction_last_qp(Gin_A%cmp_qp,     &
+                                   RedSet_5_qp,      &
+                                   get_mass2_qp(msq),&
+                                   Gout_A%cmp_qp,    &
+                                   Gout_A0%cmp_qp,   &
+                                   Gout_A1%cmp_qp,   &
+                                   Gout_A2%cmp_qp,   &
+                                   Gout_A3%cmp_qp,   &
+                                   Gout_A4%cmp_qp,   &
+                                   Gout_R1%cmp_qp(1))
+    call downgrade_5pt(RedSet_5,mode_in,Gout_A1,Gout_A2,Gout_A3,Gout_A4)
+    call hcl_dealloc_hybrid(Gin_A)
+  else if (hp_mode .eq. 1) then
+    if (hp_alloc_mode .eq. 0) then
+      Gout_A%cmp_qp = 0
+      Gout_A0%cmp_qp = 0
+      Gout_A1%cmp_qp = 0
+      Gout_A2%cmp_qp = 0
+      Gout_A3%cmp_qp = 0
+      Gout_A4%cmp_qp = 0
+      Gout_R1%cmp_qp = 0
+    end if
+  end if
+#endif
+
+end subroutine Hotf_5pt_red_last_R1
 
 end module ofred_reduction_/**/REALKIND

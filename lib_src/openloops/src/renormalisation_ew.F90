@@ -44,7 +44,7 @@ subroutine ew_renormalisation
     & nc, nf, N_lf, N_lu, N_ld, N_ll, nq_nondecoupl, CT_is_on, R2_is_on, TP_is_on, SwF, SwB, &
     & a_switch, ew_renorm_switch, coli_cache_use
 #endif
-#if defined(USE_COLLIER) && !defined(COLLIER_LEGACY)
+#ifdef USE_COLLIER
   use collier, only: setmode_cll
   use cache, only: SwitchOffCacheSystem_cll, SwitchOnCacheSystem_cll
 #endif
@@ -1132,8 +1132,8 @@ subroutine ew_renormalisation
 
   sumML2 = ME2 + MM2 + ML2
   sumML4 = ME2**2 + MM2**2 + ML2**2
-  sumMQ2Q2 = sumML2
-  sumMQ2QI = sumML2/2.
+  sumML2Q2 = sumML2
+  sumML2QI = sumML2/2.
 
 
   ! firt set all counterterms to zero
@@ -1265,8 +1265,8 @@ subroutine ew_renormalisation
 
     ! SS scalar propagators
     EWctHH = [ dZHEW , MH2*dZHEW + dZMH2EW ]
-    EWctXX = [ ZERO, - 1./(2.*sw*dtEW) + dZMZ2EW ]
-    EWctPP = [ ZERO, - 1./(2.*sw*dtEW) + dZMW2EW ]
+    EWctXX = [ ZERO, - dtEW/(2.*sw) + dZMZ2EW ]
+    EWctPP = [ ZERO, - dtEW/(2.*sw) + dZMW2EW ]
 
 !    EWctXA = MZ/4.*dZZAEW
 !    EWctXZ = MZ/4.*(dZZZEW + dZMZ2EW/MZ2)
@@ -1913,7 +1913,7 @@ subroutine ew_renormalisation
 
 
   function calcB0(p2_in,m12_in,m22_in)
-#if defined(USE_COLLIER) && !defined(COLLIER_LEGACY)
+#ifdef USE_COLLIER
     use collier_coefs, only: B0_cll
 #endif
 #ifdef USE_ONELOOP
@@ -1924,16 +1924,11 @@ subroutine ew_renormalisation
     complex(REALKIND), intent(in) :: p2_in
     complex(REALKIND), intent(in) :: m12_in
     complex(REALKIND), intent(in) :: m22_in
-    complex(REALKIND) p2q
+    real(REALKIND) p2q
     complex(DREALKIND) p2
     complex(DREALKIND) m12
     complex(DREALKIND) m22
     complex(DREALKIND) B0_coli
-#if defined(COLLIER_LEGACY)
-    complex(DREALKIND) B0,B1(1),B2(0:1,0:1),B3(0:1,0:1,0:1)
-    complex(DREALKIND) B4(0:1,0:1,0:1,0:1),B5(0:1,0:1,0:1,0:1,0:1)
-    complex(DREALKIND) B6(0:1,0:1,0:1,0:1,0:1,0:1)
-#endif
 #ifdef USE_ONELOOP
     complex(REALKIND) :: rslt(0:2)
 #endif
@@ -1944,23 +1939,7 @@ subroutine ew_renormalisation
     m12 = m12_in
     m22 = m22_in
 
-#if defined(USE_COLLIER)
-#if defined(COLLIER_LEGACY)
-    if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
-      p2 = real(p2)
-      calcB0 = B0_coli(p2,m12,m22)
-      if (ew_renorm_switch == 99) then
-        print*, "B0 CO:  ", calcB0
-      end if
-    end if
-    if (ew_renorm_switch == 7 .or. ew_renorm_switch == 99) then
-      call xB012345_(real(p2),m12,m22,B0,B1,B2,B3,B4,B5,B6,0,0)
-      calcB0 = B0
-      if (ew_renorm_switch == 99) then
-        print*, "B0 DD:  ", calcB0
-      end if
-    end if
-#else
+#ifdef USE_COLLIER
     if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
       p2 = real(p2)
       call B0_cll(B0_coli,p2,m12,m22)
@@ -1978,12 +1957,11 @@ subroutine ew_renormalisation
       end if
     end if
 #endif
-#endif
 
 #ifdef USE_ONELOOP
     if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
       p2q = real(p2_in)
-      call olo_b0(rslt,real(p2q),m12_in,m22_in)
+      call olo_b0(rslt,p2q,m12_in,m22_in)
       calcB0 = rslt(0) + rslt(1)*de1_IR + rslt(2)*de2_i_IR
       if (ew_renorm_switch == 99) then
         print*, "B0 OLO: ", calcB0
@@ -1996,7 +1974,7 @@ subroutine ew_renormalisation
 
 
   function calcdB0(p2_in,m12_in,m22_in)
-#if defined(USE_COLLIER) && !defined(COLLIER_LEGACY)
+#ifdef USE_COLLIER
     use collier_coefs, only: DB0_cll
 #endif
 #ifdef USE_ONELOOP
@@ -2007,14 +1985,11 @@ subroutine ew_renormalisation
     complex(REALKIND), intent(in) :: p2_in
     complex(REALKIND), intent(in) :: m12_in
     complex(REALKIND), intent(in) :: m22_in
-    complex(REALKIND) :: p2q
+    real(REALKIND) :: p2q
     complex(DREALKIND) :: p2
     complex(DREALKIND) :: m12
     complex(DREALKIND) :: m22
     complex(DREALKIND) DB0_coli
-#if defined(COLLIER_LEGACY)
-    complex(DREALKIND) DB0,DB1
-#endif
 #ifdef USE_ONELOOP
     complex(REALKIND) :: rslt(0:2)
 #endif
@@ -2025,23 +2000,7 @@ subroutine ew_renormalisation
     m12 = m12_in
     m22 = m22_in
 
-#if defined(USE_COLLIER)
-#if defined(COLLIER_LEGACY)
-    if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
-      p2 = real(p2)
-      calcdB0 = DB0_coli(p2,m12,m22)
-      if (ew_renorm_switch == 99) then
-        print*, "dB0 CO:  ", calcdB0
-      end if
-    end if
-    if (ew_renorm_switch == 7 .or. ew_renorm_switch == 99) then
-      call DB_dd(DB0,DB1,real(p2),m12,m22,0)
-      calcdB0 = DB0
-      if (ew_renorm_switch == 99) then
-        print*, "dB0 DD:  ", calcdB0
-      end if
-    end if
-#else
+#ifdef USE_COLLIER
     if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
       p2 = real(p2)
       call DB0_cll(DB0_coli,p2,m12,m22)
@@ -2059,7 +2018,6 @@ subroutine ew_renormalisation
       end if
     end if
 #endif
-#endif
 
 #ifdef USE_ONELOOP
     if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
@@ -2067,7 +2025,7 @@ subroutine ew_renormalisation
       if (p2q == 0. .and. m12 == 0. .and. m22 == 0. ) then
         calcdB0 = 0.
       else
-        call olo_db0(rslt,real(p2q),m12_in,m22_in)
+        call olo_db0(rslt,p2q,m12_in,m22_in)
         calcdB0 = rslt(0) + rslt(1)*de1_IR + rslt(2)*de2_i_IR
       end if
       if (ew_renorm_switch == 99) then
@@ -2081,7 +2039,7 @@ subroutine ew_renormalisation
 
 
   function calcB1(p2_in,m12_in,m22_in)
-#if defined(USE_COLLIER) && !defined(COLLIER_LEGACY)
+#ifdef USE_COLLIER
     use collier_coefs, only: B_cll
 #endif
 #ifdef USE_ONELOOP
@@ -2096,12 +2054,7 @@ subroutine ew_renormalisation
     complex(DREALKIND) :: m12
     complex(DREALKIND) :: m22
     complex(DREALKIND) B1_coli
-#if defined(USE_COLLIER) && defined(COLLIER_LEGACY)
-    complex(DREALKIND) B0,B1(1),B2(0:1,0:1),B3(0:1,0:1,0:1)
-    complex(DREALKIND) B4(0:1,0:1,0:1,0:1),B5(0:1,0:1,0:1,0:1,0:1)
-    complex(DREALKIND) B6(0:1,0:1,0:1,0:1,0:1,0:1)
-#endif
-#if defined(USE_COLLIER) && !defined(COLLIER_LEGACY)
+#ifdef USE_COLLIER
     complex(DREALKIND) B(0:1,0:1), Buv(0:1,0:1)
 #endif
 #ifdef USE_ONELOOP
@@ -2114,23 +2067,7 @@ subroutine ew_renormalisation
     m12 = m12_in
     m22 = m22_in
 
-#if defined(USE_COLLIER)
-#if defined(COLLIER_LEGACY)
-    if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
-      p2 = real(p2)
-      calcB1 = B1_coli(p2,m12,m22)
-      if (ew_renorm_switch == 99) then
-        print*, "B1 CO:  ", calcB1
-      end if
-    end if
-    if (ew_renorm_switch == 7 .or. ew_renorm_switch == 99) then
-      call xB012345_(real(p2),m12,m22,B0,B1,B2,B3,B4,B5,B6,1,0)
-      calcB1 = B1(1)
-      if (ew_renorm_switch == 99) then
-        print*, "B1 DD:  ", calcB1
-      end if
-    end if
-#else
+#ifdef USE_COLLIER
     if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
       p2 = real(p2)
       call B_cll(B,Buv,p2,m12,m22,1)
@@ -2147,7 +2084,6 @@ subroutine ew_renormalisation
         print*, "B1 DD:  ", calcB1
       end if
     end if
-#endif
 #endif
 
 #ifdef USE_ONELOOP
@@ -2164,7 +2100,7 @@ subroutine ew_renormalisation
   end function calcB1
 
   function calcdB1(p2_in,m12_in,m22_in)
-#if defined(USE_COLLIER) && !defined(COLLIER_LEGACY)
+#ifdef USE_COLLIER
     use collier_coefs, only: DB1_cll
 #endif
     implicit none
@@ -2172,12 +2108,9 @@ subroutine ew_renormalisation
     complex(REALKIND), intent(in) :: p2_in
     complex(REALKIND), intent(in) :: m12_in
     complex(REALKIND), intent(in) :: m22_in
-    complex(REALKIND) :: p2q
+    real(REALKIND) :: p2q
     complex(DREALKIND) :: p2, m12, m22
     complex(DREALKIND) DB1_coli
-#if defined(USE_COLLIER) && defined(COLLIER_LEGACY)
-    complex(REALKIND) DB0,DB1
-#endif
 
     calcdB1 = 0
 
@@ -2185,23 +2118,7 @@ subroutine ew_renormalisation
     m12 = m12_in
     m22 = m22_in
 
-#if defined(USE_COLLIER)
-#if defined(COLLIER_LEGACY)
-    if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
-      p2 = real(p2)
-      calcdB1 = DB1_coli(p2,m12,m22)
-      if (ew_renorm_switch == 99) then
-        print*, "dB1 CO:  ", calcdB1
-      end if
-    end if
-    if (ew_renorm_switch == 7 .or. ew_renorm_switch == 99) then
-      call DB_dd(DB0,DB1,real(p2),m12,m22,0)
-      calcdB1 = DB1
-      if (ew_renorm_switch == 99) then
-        print*, "dB1 DD:  ", calcdB1
-      end if
-    end if
-#else
+#ifdef USE_COLLIER
     if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
       p2 = real(p2)
       call DB1_cll(DB1_coli,p2,m12,m22)
@@ -2218,15 +2135,14 @@ subroutine ew_renormalisation
         print*, "dB1 DD:  ", calcdB1
       end if
     end if
-#endif
 #endif
 
 #ifdef USE_ONELOOP
     if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
-      p2 = real(p2_in)
-      if (abs(p2) > eps) then
-        calcdB1 = - (m22_in-m12_in)/2/p2**2*(calcB0(p2_in,m12_in,m22_in)-calcB0(ZERO,m12_in,m22_in)) &
-       &          + (m22_in-m12_in-p2)/2/p2*calcdB0(p2_in,m12_in,m22_in)
+      p2q = real(p2_in)
+      if (abs(p2q) > eps) then
+        calcdB1 = - (m22_in-m12_in)/2/p2q**2*(calcB0(p2_in,m12_in,m22_in)-calcB0(ZERO,m12_in,m22_in)) &
+       &          + (m22_in-m12_in-p2q)/2/p2q*calcdB0(p2_in,m12_in,m22_in)
       else
         if (abs(m12_in) < eps .and. abs(m22_in) < eps) then
           calcdB1 = 0

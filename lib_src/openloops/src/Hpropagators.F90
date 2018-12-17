@@ -29,7 +29,7 @@ module ol_hel_propagators_/**/REALKIND
   contains
 
 ! *****************************************************************************
-subroutine prop_Q_A(ntry, Q, K, M, mQ, Q_out, n)
+subroutine prop_Q_A(ntry, Q, mom, M, mQ, Q_out, n)
 ! dressing quark current with propagator
 ! -----------------------------------------------------------------------------
 ! Q(1:n)       = quark wfun
@@ -42,15 +42,37 @@ subroutine prop_Q_A(ntry, Q, K, M, mQ, Q_out, n)
   use KIND_TYPES, only: REALKIND, intkind1, intkind2
   use ol_data_types_/**/REALKIND, only: wfun
   use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_prop
+  use ol_kinematics_/**/REALKIND, only: get_LC_4, get_LC_mass2
+  use ol_momenta_decl_/**/REALKIND, only: collconf, softconf
+  use ol_parameters_decl_/**/DREALKIND, only: ir_hacks
   implicit none
   integer(intkind1), intent(in)    :: ntry
+  integer,           intent(in)    :: mom
   integer(intkind2), intent(inout) :: n
   type(wfun),        intent(in)    :: Q(n)
-  complex(REALKIND), intent(in)    :: K(4), M
+  complex(REALKIND), intent(in)    :: M
   integer(intkind1), intent(in)    :: mQ
-  type(wfun),        intent(out)   :: Q_out(n)
-  integer :: h
+  type(wfun),        intent(inout) :: Q_out(n)
+  complex(REALKIND) :: K(4)
+  integer :: h,momh
 
+  ! store wavefunction for later use
+  if (ir_hacks .and. (softconf .ne. 0 .or. collconf .ne. 0)) then
+    ! check if a soft particle is attached to an external particle
+    if ((mom .eq. collconf) .or. &
+        (iand(mom,softconf) .ne. 0 .and. iand(mom-softconf,mom-softconf-1) .eq. 0)) then
+       !currently only supported for massless particles
+      !if (get_LC_mass2(mom-softconf) .eq. 0) then
+      do h = 1, n
+        if (associated(Q_out(h)%j_prev)) deallocate(Q_out(h)%j_prev)
+        allocate(Q_out(h)%j_prev(4))
+        Q_out(h)%j_prev(:) = Q(h)%j(:)
+      end do
+      !end if
+    end if
+  end if
+
+  K = get_LC_4(mom)
   do h = 1, n
 
     select case (Q(h)%h)
@@ -110,7 +132,7 @@ end subroutine prop_Q_A
 
 
 ! *****************************************************************************
-subroutine prop_A_Q(ntry, A, K, M, mA, A_out, n)
+subroutine prop_A_Q(ntry, A, mom, M, mA, A_out, n)
 ! dressing anti-quark current with propagator
 ! -----------------------------------------------------------------------------
 ! A(1:n)    = anti-quark wfun
@@ -123,17 +145,38 @@ subroutine prop_A_Q(ntry, A, K, M, mA, A_out, n)
   use KIND_TYPES, only: REALKIND, intkind1, intkind2
   use ol_data_types_/**/REALKIND, only: wfun
   use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_prop
+  use ol_kinematics_/**/REALKIND, only: get_LC_4, get_LC_mass2
+  use ol_momenta_decl_/**/REALKIND, only: collconf, softconf
+  use ol_parameters_decl_/**/DREALKIND, only: ir_hacks
   implicit none
   integer(intkind1), intent(in)    :: ntry
+  integer,           intent(in)    :: mom
   integer(intkind2), intent(inout) :: n
   type(wfun),        intent(in)    :: A(n)
-  complex(REALKIND), intent(in)    :: K(4), M
+  complex(REALKIND), intent(in)    :: M
   integer(intkind1), intent(in)    :: mA
-  type(wfun),        intent(out)   :: A_out(n)
-  integer :: h
+  type(wfun),        intent(inout) :: A_out(n)
+  complex(REALKIND) :: K(4)
+  integer :: h,momh
 
+  ! store wavefunction for later use
+  if (ir_hacks .and. (softconf .ne. 0 .or. collconf .ne. 0)) then
+    ! check if a soft particle is attached to an external particle
+    if ((mom .eq. collconf) .or. &
+        (iand(mom,softconf) .ne. 0 .and. iand(mom-softconf,mom-softconf-1) .eq. 0)) then
+       !currently only supported for massless particles
+      !if (get_LC_mass2(mom-softconf) .eq. 0) then
+      do h = 1, n
+        if (associated(A_out(h)%j_prev)) deallocate(A_out(h)%j_prev)
+        allocate(A_out(h)%j_prev(4))
+        A_out(h)%j_prev(:) = A(h)%j(:)
+      end do
+      !end if
+    end if
+  end if
+
+  K = get_LC_4(mom)
   do h = 1, n
-
     select case (A(h)%h)
 
     case (B"01")
@@ -191,7 +234,7 @@ end subroutine prop_A_Q
 
 
 ! *****************************************************************************
-subroutine prop_W_W(ntry, V, K, M, mW, V_out, n)
+subroutine prop_W_W(ntry, V, mom, M, mW, V_out, n)
 ! Unitary-gauge propagator for massive vector bosons
 ! -----------------------------------------------------------------------------
 ! ntry          = 1 (2) for 1st (subsequent) PS points
@@ -210,16 +253,19 @@ subroutine prop_W_W(ntry, V, K, M, mW, V_out, n)
   use ol_s_contractions_/**/REALKIND, only: cont_PP
   use ol_data_types_/**/REALKIND, only: wfun
   use ol_h_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_prop
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
   implicit none
   integer(intkind1), intent(in)    :: ntry
+  integer,           intent(in)    :: mom
   integer(intkind2), intent(inout) :: n
   type(wfun),        intent(in)    :: V(1:n)
-  complex(REALKIND), intent(in)    :: K(4), M
+  complex(REALKIND), intent(in)    :: M
   integer(intkind1), intent(in)    :: mW
   type(wfun),        intent(out)   :: V_out(1:n)
-  complex(REALKIND)                :: M2
+  complex(REALKIND)                :: M2,K(4)
   integer                          :: h
 
+  K = get_LC_4(mom)
   M2 = M * M
   do h = 1, n
     V_out(h)%j = V(h)%j - (cont_PP(V(h)%j, K) / M2) * K

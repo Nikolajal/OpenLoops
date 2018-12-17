@@ -5,13 +5,11 @@
 !    Copyright (C) 2017-2018 Federico Buccioni, Jean-Nicolas Lang,             !
 !                            Stefano Pozzorini, Hantian Zhang and Max Zoller   !
 !                                                                              !
-!    trred has been developed by Jean-Nicolas Lang and Hantian Zhang           !
+!    trred has been developed by J.-N. Lang, H. Zhang and F. Buccioni          !
 !    trred is licenced under the GNU GPL version 3,                            !
 !    see COPYING for details.                                                  !
 !                                                                              !
 !******************************************************************************!
-
-!Last Modified: February 07, 2018
 
 ! Implements the n-th derivative of C0(-p^2,-p^2(1+\delta),0,0,0)
 
@@ -22,7 +20,7 @@ module c0_000_DP
   contains
 
   function C0_n_000(p2,m2,muUV2,muIR2,n) result(Cn)
-    complex(dp), intent(in) :: p2,m2,muUV2,muIR2
+    complex(dp), intent(in) :: p2,m2(:),muUV2,muIR2
     integer,       intent(in) :: n
     integer       :: k
     complex(dp) :: Cn,sum
@@ -38,6 +36,16 @@ module c0_000_DP
     Cn = - sum/(2*p2)
 
   end function C0_n_000
+
+  function C0_n_000_EP1(p2,m2,muUV2,muIR2,n) result(Cn)
+    complex(dp), intent(in) :: p2,m2(:),muUV2,muIR2
+    integer,       intent(in) :: n
+    integer       :: k
+    complex(dp) :: Cn
+
+    Cn = (-1)**(1+n)/(cone+n)/(p2)
+
+  end function C0_n_000_EP1
     
 end module c0_000_DP
 
@@ -48,7 +56,7 @@ module c0_000_QP
   contains
 
   function C0_n_000(p2,m2,muUV2,muIR2,n) result(Cn)
-    complex(qp), intent(in) :: p2,m2,muUV2,muIR2
+    complex(qp), intent(in) :: p2,m2(:),muUV2,muIR2
     integer,       intent(in) :: n
     integer       :: k
     complex(qp) :: Cn,sum
@@ -64,5 +72,15 @@ module c0_000_QP
     Cn = - sum/(2*p2)
 
   end function C0_n_000
+
+  function C0_n_000_EP1(p2,m2,muUV2,muIR2,n) result(Cn)
+    complex(qp), intent(in) :: p2,m2(:),muUV2,muIR2
+    integer,       intent(in) :: n
+    integer       :: k
+    complex(qp) :: Cn
+
+    Cn = (-1)**(1+n)/(cone+n)/(p2)
+
+  end function C0_n_000_EP1
     
 end module c0_000_QP

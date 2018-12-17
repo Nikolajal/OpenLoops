@@ -30,6 +30,10 @@ module reductionAB
   use combinatorics
   use cache
   use coli_aux2
+#ifdef DETTEST
+  use coli_aux3
+  use coli_aux4
+#endif
   use collier_global
 
 
@@ -349,7 +353,7 @@ contains
     double complex :: A(0:rmax-1), Auv(0:rmax-1)
     double complex :: q2, mm02, mm12, f1
     double complex :: DBn_coli,elimminf2_coli
-    integer :: rmaxA,n0,n1,r,sgn,k,rid
+    integer :: rmaxA,n0,n1,r,k,rid
     logical :: finarg
     double complex, parameter :: cd0 = dcmplx(0d0,0d0)  
 
@@ -363,7 +367,6 @@ contains
 
     ! calculate DB(0,n1)
     do n1=1,rmax
-      sgn = -sgn
       DBuv(0,n1) = 0d0
       DB(0,n1) = DBn_coli(n1,p10,m02,m12)
     end do

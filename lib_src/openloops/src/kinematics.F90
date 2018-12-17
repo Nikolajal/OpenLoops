@@ -23,8 +23,32 @@ module ol_kinematics_/**/REALKIND
   implicit none
 
   interface internal_momenta
-    module procedure internal_momenta_std, internal_momenta_six
+    module procedure internal_momenta_six, internal_momenta_std
   end interface
+
+  interface get_mass
+    module procedure get_mass_id,get_mass_idarr
+  end interface
+
+  interface get_mass2
+    module procedure get_mass2_id,get_mass2_idarr
+  end interface
+
+  interface get_rmass2
+    module procedure get_rmass2_id,get_rmass2_idarr
+  end interface
+
+  interface conv_mom_scatt2in
+    module procedure conv_mom_scatt2in_mexpl, conv_mom_scatt2in_mids
+  end interface
+
+  interface init_kinematics
+    module procedure init_kinematics_mexpl, init_kinematics_mids
+  end interface
+
+
+  real(REALKIND) :: collthres = 1.E-4
+  real(REALKIND) :: softthres = 1.E-4
 
 contains
 
@@ -65,6 +89,270 @@ subroutine Std2LC_cmplx(P,L)
   L(3) = -P(1) - CI*P(2)
   L(4) = -P(1) + CI*P(2)
 end subroutine Std2LC_cmplx
+
+
+! **********************************************************************
+function get_LC_5(mom) result(P)
+! **********************************************************************
+! P(1:4) = light-cone representation
+! P(5)   = mass
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_momenta_decl_/**/REALKIND, only: L
+  implicit none
+  integer, intent(in) :: mom
+  complex(REALKIND) :: P(1:5)
+  if (mom .gt. 0) then
+    P(1:4) = L(1:4,mom)
+    P(5) = L(5,mom) + L(6,mom)
+  else
+    P(1:4) = -L(1:4,-mom)
+    P(5) = L(5,-mom) + L(6,-mom)
+  end if
+
+end function get_LC_5
+
+
+! **********************************************************************
+function get_LC_4(mom) result(P)
+! **********************************************************************
+! P(1:4) = light-cone representation
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_momenta_decl_/**/REALKIND, only: L
+  implicit none
+  integer, intent(in) :: mom
+  complex(REALKIND) :: P(1:4)
+  if (mom .gt. 0) then
+    P(1:4) = L(1:4,mom)
+  else
+    P(1:4) = -L(1:4,-mom)
+  end if
+
+end function get_LC_4
+
+
+! **********************************************************************
+function get_LC_mass2(mom) result(m2)
+! **********************************************************************
+! m2   = mass squared
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_momenta_decl_/**/REALKIND, only: L
+  implicit none
+  integer, intent(in) :: mom
+  complex(REALKIND) :: m2
+  if (mom .gt. 0) then
+    m2 = L(5,mom) + L(6,mom)
+  else
+    m2 = L(5,-mom) + L(6,-mom)
+  end if
+end function get_LC_mass2
+
+
+! **********************************************************************
+function get_mass_id(mid) result(m)
+! **********************************************************************
+! m   = complex mass
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_parameters_decl_/**/REALKIND
+  use ol_generic, only: to_string
+  use ol_debug, only: ol_error, ol_fatal
+  implicit none
+  integer, intent(in) :: mid
+  complex(REALKIND) :: m
+
+  select case (mid)
+  case (0)
+    m = ZERO
+  case (nME)
+    m = ME
+  case (nMM)
+    m = MM
+  case (nML)
+    m = ML
+  case (nMU)
+    m = MU
+  case (nMD)
+    m = MD
+  case (nMS)
+    m = MS
+  case (nMC)
+    m = MC
+  case (nMB)
+    m = MB
+  case (nMT)
+    m = MT
+  case (nMW)
+    m = MW
+  case (nMZ)
+    m = MZ
+  case (nMH)
+    m = MH
+  case (nMX)
+    m = MX
+  case (nMY)
+    m = MY
+  case default
+    call ol_error(2,"Unknown mass id: " // to_string(mid))
+    call ol_fatal()
+  end select 
+end function get_mass_id
+
+
+! **********************************************************************
+function get_mass_idarr(mids) result(m)
+! **********************************************************************
+! m   = complex mass array
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_parameters_decl_/**/REALKIND
+  implicit none
+  integer, dimension(:), intent(in) :: mids
+  complex(REALKIND), dimension(size(mids)) :: m
+  integer :: i
+
+  do i = 1, size(mids)
+    m(i) = get_mass_id(mids(i))
+  end do
+end function get_mass_idarr
+
+
+! **********************************************************************
+function get_mass2_id(mid) result(m2)
+! **********************************************************************
+! m2   = complex mass squared
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_parameters_decl_/**/REALKIND
+  use ol_generic, only: to_string
+  use ol_debug, only: ol_error, ol_fatal
+  implicit none
+  integer, intent(in) :: mid
+  complex(REALKIND) :: m2
+
+  select case (mid)
+  case (0)
+    m2 = ZERO
+  case (nME)
+    m2 = ME2
+  case (nMM)
+    m2 = MM2
+  case (nML)
+    m2 = ML2
+  case (nMU)
+    m2 = MU2
+  case (nMD)
+    m2 = MD2
+  case (nMS)
+    m2 = MS2
+  case (nMC)
+    m2 = MC2
+  case (nMB)
+    m2 = MB2
+  case (nMT)
+    m2 = MT2
+  case (nMW)
+    m2 = MW2
+  case (nMZ)
+    m2 = MZ2
+  case (nMH)
+    m2 = MH2
+  case (nMX)
+    m2 = MX2
+  case (nMY)
+    m2 = MY2
+  case default
+    call ol_error(2,"Unknown mass id: " // to_string(mid))
+    call ol_fatal()
+  end select 
+end function get_mass2_id
+
+
+! **********************************************************************
+function get_rmass2_id(mid) result(m2)
+! **********************************************************************
+! m2   = real mass squared
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_parameters_decl_/**/REALKIND
+  use ol_generic, only: to_string
+  use ol_debug, only: ol_error, ol_fatal
+  implicit none
+  integer, intent(in) :: mid
+  real(REALKIND) :: m2
+
+  select case (mid)
+  case (0)
+    m2 = ZERO
+  case (nME)
+    m2 = rME2
+  case (nMM)
+    m2 = rMM2
+  case (nML)
+    m2 = rML2
+  case (nMU)
+    m2 = rMU2
+  case (nMD)
+    m2 = rMD2
+  case (nMS)
+    m2 = rMS2
+  case (nMC)
+    m2 = rMC2
+  case (nMB)
+    m2 = rMB2
+  case (nMT)
+    m2 = rMT2
+  case (nMW)
+    m2 = rMW2
+  case (nMZ)
+    m2 = rMZ2
+  case (nMH)
+    m2 = rMH2
+  case (nMX)
+    m2 = rMX2
+  case (nMY)
+    m2 = rMY2
+  case default
+    call ol_error(2,"Unknown mass id: " // to_string(mid))
+    call ol_fatal()
+  end select 
+end function get_rmass2_id
+
+
+! **********************************************************************
+function get_mass2_idarr(mids) result(m2)
+! **********************************************************************
+! m2   = complex mass squared array
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_parameters_decl_/**/REALKIND
+  integer, dimension(:),        intent(in) :: mids
+  complex(REALKIND), dimension(size(mids)) :: m2
+  integer :: i
+
+  do i = 1, size(mids)
+    m2(i) = get_mass2_id(mids(i))
+  end do
+end function get_mass2_idarr
+
+
+! **********************************************************************
+function get_rmass2_idarr(mids) result(m2)
+! **********************************************************************
+! m2   = real mass squared array
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_parameters_decl_/**/REALKIND
+  integer, dimension(:),     intent(in) :: mids
+  real(REALKIND), dimension(size(mids)) :: m2
+  integer :: i
+
+  do i = 1, size(mids)
+    m2(i) = get_rmass2_id(mids(i))
+  end do
+end function get_rmass2_idarr
 
 
 ! **********************************************************************
@@ -621,9 +909,47 @@ end subroutine dirty_mom
 ! #ifdef USE_RAMBO
 #endif
 
+subroutine init_kinematics_mexpl(P_scatt, m_ext2, P_in_clean, perm_inv, n)
+  integer,           intent(in)  :: n
+  real(DREALKIND),   intent(in)  :: P_scatt(0:3,n)
+  real(REALKIND),    intent(in)  :: m_ext2(n)
+  real(REALKIND),    intent(out) :: P_in_clean(0:3,n)
+  integer,           intent(in)  :: perm_inv(n)
+  real(REALKIND) :: P(0:3,n)
+
+  call conv_mom_scatt2in(P_scatt, m_ext2, P, perm_inv, n)
+  call internal_momenta(P, n)
+
+end subroutine init_kinematics_mexpl
+
+subroutine init_kinematics_mids(P_scatt, m_ext2, P_in_clean, perm_inv, n)
+#ifdef PRECISION_dp
+  use ol_parameters_decl_/**/REALKIND, only: hp_mode
+  use ol_kinematics_/**/QREALKIND, only: init_kinematics_mids_qp=>init_kinematics_mids
+#endif
+  integer,           intent(in)  :: n
+  real(DREALKIND),   intent(in)  :: P_scatt(0:3,n)
+  integer,           intent(in)  :: m_ext2(n)
+  real(REALKIND),    intent(inout) :: P_in_clean(0:3,n)
+  integer,           intent(in)  :: perm_inv(n)
+#ifdef PRECISION_dp
+  real(QREALKIND) :: P_qp(0:3,n)
+  integer :: i1
+#endif
+
+  call conv_mom_scatt2in_mids(P_scatt, m_ext2, P_in_clean, perm_inv, n)
+#ifdef PRECISION_dp
+  ! initialize qp kinematics for hybrid mode
+  if (hp_mode .eq. 1) then
+    call init_kinematics_mids_qp(P_scatt, m_ext2, P_qp, perm_inv, n)
+  end if
+#endif
+  call internal_momenta_six(P_in_clean, n, m_ext2)
+
+end subroutine init_kinematics_mids
 
 ! **********************************************************************
-subroutine conv_mom_scatt2in(P_scatt, m_ext2, P_in_clean, perm_inv, n)
+subroutine conv_mom_scatt2in_mexpl(P_scatt, m_ext2, P_in_clean, perm_inv, n)
 ! Keep incoming momenta and reverse outgoing momenta.
 ! Apply phase space cleaning and crossing.
 ! Note: calls init_kin_arrays -> allocation of kinematic arrays
@@ -634,7 +960,9 @@ subroutine conv_mom_scatt2in(P_scatt, m_ext2, P_in_clean, perm_inv, n)
   use ol_external_decl_/**/DREALKIND, only: n_scatt
   use ol_parameters_decl_/**/REALKIND, only: scalefactor
   use ol_parameters_init_/**/REALKIND, only: init_kin_arrays
-  implicit none
+#ifdef PRECISION_dp
+  use ol_parameters_init_qp, only: init_kin_arrays_qq => init_kin_arrays
+#endif
   integer,           intent(in)  :: n
   real(DREALKIND),   intent(in)  :: P_scatt(0:3,n)
   real(REALKIND),    intent(in)  :: m_ext2(n)
@@ -663,7 +991,26 @@ subroutine conv_mom_scatt2in(P_scatt, m_ext2, P_in_clean, perm_inv, n)
   do k = 1, n
     P_in_clean(:,k) = P_clean(:,perm_inv(k))
   end do
-end subroutine conv_mom_scatt2in
+end subroutine conv_mom_scatt2in_mexpl
+
+subroutine conv_mom_scatt2in_mids(P_scatt, m_ext2, P_in_clean, perm_inv, n)
+  use KIND_TYPES, only: REALKIND, DREALKIND
+  use ol_external_decl_/**/REALKIND, only: nParticles, P_ex, inverse_crossing
+  use ol_external_decl_/**/DREALKIND, only: n_scatt
+  use ol_parameters_decl_/**/REALKIND, only: scalefactor
+  use ol_parameters_init_/**/REALKIND, only: init_kin_arrays
+#ifdef PRECISION_dp
+  use ol_parameters_init_qp, only: init_kin_arrays_qq => init_kin_arrays
+#endif
+  implicit none
+  integer,           intent(in)  :: n
+  real(DREALKIND),   intent(in)  :: P_scatt(0:3,n)
+  integer,           intent(in)  :: m_ext2(n)
+  real(REALKIND),    intent(out) :: P_in_clean(0:3,n)
+  integer,           intent(in)  :: perm_inv(n)
+
+  call conv_mom_scatt2in_mexpl(P_scatt,get_rmass2(m_ext2),P_in_clean,perm_inv,n)
+end subroutine conv_mom_scatt2in_mids
 
 
 ! **********************************************************************
@@ -751,7 +1098,8 @@ subroutine internal_momenta_std(P, Npart, invariants_mode)
 ! QInvariantsMatrix(i,j) = (p_i+p_j)^2 for i /= j, otherwise undefined.
 ! **********************************************************************
   use KIND_TYPES, only: REALKIND
-  use ol_momenta_decl_/**/REALKIND, only: Q, QInvariantsMatrix
+  use ol_momenta_decl_/**/REALKIND, only: Q, QInvariantsMatrix, &
+                                          collconf, softconf
   implicit none
 
   real(REALKIND), intent(in) :: P(0:3,Npart)
@@ -764,6 +1112,8 @@ subroutine internal_momenta_std(P, Npart, invariants_mode)
   integer :: s1, s2 ! sums of 2^(i-1) particle numbers
   integer :: r1, r2 ! inverse of s1, s2, ...
 
+  collconf = 0
+  softconf = 0
   i = 2**Npart - 2
 
   Q(:,i+1) = 0
@@ -821,12 +1171,19 @@ subroutine internal_momenta_six(P, Npart, ext_masses)
 !                      from the internal momenta are computed
 ! **********************************************************************
   use KIND_TYPES, only: REALKIND, intkind1
-  use ol_momenta_decl_/**/REALKIND, only: Q, L, QInvariantsMatrix
+  use ol_momenta_decl_/**/REALKIND, only: Q, L, QInvariantsMatrix, &
+                                          collconf, softconf
+#ifdef PRECISION_dp
+  use ol_parameters_decl_/**/REALKIND, only: hp_mode, use_qp_invariants
+  use ol_momenta_decl_/**/QREALKIND, only: L_qp=>L
+#endif
   implicit none
 
-  integer,           intent(in) :: Npart
-  real(REALKIND),    intent(in) :: P(0:3,Npart), ext_masses(Npart)
+  integer,        intent(in) :: Npart
+  real(REALKIND), intent(in) :: P(0:3,Npart)
+  integer,        intent(in) :: ext_masses(Npart)
   complex(REALKIND) :: zero = 0._/**/REALKIND
+  real(REALKIND)    :: maxinv
   integer :: i, j, invariants_mode
   integer :: Jmax
   integer :: i1, i2 ! conventional particle numbers
@@ -837,35 +1194,61 @@ subroutine internal_momenta_six(P, Npart, ext_masses)
   i = 2**Npart - 2
   L(:,i+1) = 0
   L(5:6,:) = zero
+  collconf = 0
+  softconf = 0
 
   call internal_momenta_std(P, Npart, invariants_mode)
+#ifdef PRECISION_dp
+    ! overwrite dp kinematics by qp ones
+    if (hp_mode .eq. 1 .and. use_qp_invariants .eq. 1) then
+      L(1:4,0:i) = L_qp(1:4,0:i)
+    else
+      L(1:4,0:i) = Q(1:4,0:i)
+    end if
+#else
   L(1:4,0:i) = Q(1:4,0:i)
+#endif
 
   if (Npart == 2) then
-    L(5,1) = ext_masses(1)
+    L(5,1) = get_rmass2(ext_masses(1))
     L(6,1) = zero
     L(5:6,2) = L(5:6,1)
   else if (Npart == 3) then
-    L(5,1) = ext_masses(1)
-    L(5,2) = ext_masses(2)
+    L(5,1) = get_rmass2(ext_masses(1))
+    L(5,2) = get_rmass2(ext_masses(2))
     L(6,1) = zero
     L(6,2) = zero
-    L(5,3) = ext_masses(1) + ext_masses(2)
+    L(5,3) = get_rmass2(ext_masses(1)) + get_rmass2(ext_masses(2))
+#ifdef PRECISION_dp
+    ! overwrite dp invariants by qp ones
+    if (hp_mode .eq. 1 .and. use_qp_invariants .eq. 1) then
+      L(6,3) = L_qp(6,3)
+    end if
+#else
     L(6,3) = 2*cont_LC_cntrv(L(1:4,1),L(1:4,2))
+#endif
     L(5:6,4) = L(5:6,3)
     L(5:6,5) = L(5:6,2)
     L(5:6,6) = L(5:6,1)
   else
     ! compute masses and scalar products
-    call intmom_six(Npart, i, ext_masses)
+    call intmom_six(Npart, i, get_rmass2(ext_masses))
   end if
 
+  maxinv = 0
   do i = 1, Npart
     ! QInvariantsMatrix(i,i) = m_ex2(i)
     do j = i + 1, Npart
       QInvariantsMatrix(i,j) = L(5,2**(i-1)+2**(j-1)) + L(6,2**(i-1)+2**(j-1))
       QInvariantsMatrix(j,i) = QInvariantsMatrix(i,j)
+      maxinv = max(abs(QInvariantsMatrix(i,j)), maxinv)
     end do
+  end do
+
+  do i = 1, Npart
+    if (maxval(abs(L(1:4,2**(i-1))))**2/maxinv .lt. softthres) then
+     softconf  = 2**(i-1)
+    end if
   end do
 
 end subroutine internal_momenta_six
@@ -911,6 +1294,7 @@ subroutine intmom_six(Npart,Jmax,ext_masses)
 ! **********************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_momenta_decl_/**/REALKIND, only: L
+  use ol_loop_parameters_decl_/**/REALKIND, only: zero
   implicit none
 
   integer,        intent(in) :: Npart, Jmax
@@ -974,7 +1358,12 @@ end subroutine intmom_rec
 ! **********************************************************************
 recursive subroutine intmom_rec_six(Npart, Jmax, i1, s1, x)
 ! **********************************************************************
-  use ol_momenta_decl_/**/REALKIND, only: L
+  use ol_momenta_decl_/**/REALKIND, only: L,collconf,softconf
+#ifdef PRECISION_dp
+  use ol_parameters_decl_/**/REALKIND, only: hp_mode, use_qp_invariants
+  use ol_momenta_decl_/**/QREALKIND, only: L_qp=>L
+  use ol_kinematics_/**/QREALKIND, only: cont_LC_cntrv_qp=>cont_LC_cntrv
+#endif
   implicit none
   integer,        intent(in) :: Npart, Jmax, i1, s1, x
   integer :: A
@@ -994,7 +1383,20 @@ recursive subroutine intmom_rec_six(Npart, Jmax, i1, s1, x)
     rx = Jmax + 1 - sx
     if ( (last .eqv. .false.) .or. (mod(Npart,2) == 1 .or. (sx < rx)) ) then
     ! avoid double determination for even Npart
+#ifdef PRECISION_dp
+      ! overwrite dp invariants by qp ones (not the masses squared terms though)
+      if (hp_mode .eq. 1 .and. use_qp_invariants .eq. 1) then
+        L(6,sx) = 2*cont_LC_cntrv_qp(L_qp(1:4,s1),L_qp(1:4,lx)) + L(6,s1)
+        L(6,3) = L_qp(6,3)
+      else
+        L(6,sx) = 2*cont_LC_cntrv(L(1:4,s1),L(1:4,lx)) + L(6,s1)
+      end if
+#else
       L(6,sx) = 2*cont_LC_cntrv(L(1:4,s1),L(1:4,lx)) + L(6,s1)
+#endif
+      if (abs(L(6,sx)/(maxval(abs(L(1:4,s1)))*maxval(abs(L(1:4,lx))))) .lt. collthres) then
+        collconf = ior(collconf,sx)
+      end if
       L(5,sx) = L(5,s1) + L(5,lx)
       L(6,rx) = L(6,sx)
       L(5,rx) = L(5,sx)
@@ -1055,23 +1457,9 @@ function momenta_invariants(moms) result(invs)
   n = size(moms,2) + 1
   moms0(:,0) = 0
   moms0(:,1:n-1) = moms
-#ifdef COLLIER_LEGACY
-  k = 0
-  do a = 1, n-1
-    do b = a, n-1
-      k = k + 1
-      if (b == a) then
-        invs(k) = cont_L_cmplx(moms(:,b))
-      else
-        invs(k) = cont_L_cmplx(moms(:,b) - moms(:,a))
-      end if
-    end do
-  end do
-#else
   do k = 1, size(invs)
     invs(k) = cont_L_cmplx(moms0(:,mod(k-1,n)) - moms0(:,mod(k+((k-1)/n),n)))
   end do
-#endif
   masses = 0
   n = 9
   if (wMW == 0) masses(1) = rMW

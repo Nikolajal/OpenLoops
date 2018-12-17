@@ -2,9 +2,11 @@
 !!  File DD_2pt.F is part of COLLIER
 !!  - A Complex One-Loop Library In Extended Regularizations
 !!
-!!  Copyright (C) 2015, 2016   Ansgar Denner, Stefan Dittmaier, Lars Hofer
+!!  Copyright (C) 2015, 2016   
+!!  Ansgar Denner, Stefan Dittmaier, Lars Hofer
 !!
-!!  COLLIER is licenced under the GNU GPL version 3, see COPYING for details.
+!!  COLLIER is licenced under the GNU GPL version 3, 
+!!  see COPYING for details.
 !!
 
 **********************************************************************
@@ -189,8 +191,8 @@ c              cntmax = (r2+1)*(r2+2)+12
               endif
 
               r2cache = r2
-              call ReadCache(fct(1:cntmax),cntmax,xcache,3,2,id,2,r2cache,
-     &                       nocalc,wrica)            
+              call ReadCache(fct(1:cntmax),cntmax,xcache,3,2,id,2,
+     &                       r2cache,nocalc,wrica)            
 
               if(nocalc)then
                             
@@ -526,7 +528,7 @@ c local variables
           do 101 i1=1,i12
             i2 = i12-i1
             B0(i0/2,i1,i2)   = -B0(i0/2,i1-1,i2) - B0(i0/2,i1-1,i2+1)
-            Buv0(i0/2,i1,i2) = -Buv0(i0/2,i1-1,i2) - Buv0(i0/2,i1-1,i2+1)
+            Buv0(i0/2,i1,i2) = -Buv0(i0/2,i1-1,i2)-Buv0(i0/2,i1-1,i2+1)
 101     continue
 
         end
@@ -749,7 +751,7 @@ c error estimate
           DBerr(0) = dprec_dd*abs(DB(0,0))
           do n=1,r2
             Berr(n)  = resaccabs(0,n)
-            DBerr(n) = max(Berr(n),Berr(n-1),abs(f1)*DBerr(n-1))/abs(p2) 
+            DBerr(n) = max(Berr(n),Berr(n-1),abs(f1)*DBerr(n-1))/abs(p2)
             if (n.gt.1) DBerr(n) = max(DBerr(n),abs(m02/p2)*DBerr(n-2))
           enddo
 
@@ -825,8 +827,9 @@ c p2=0, m02=m12=/=0, rlam=0
             DBuv_aux(0,n) = 0d0
             do i0=2,2*n,2
               i1 = n-i0/2
-              DBuv_aux(i0/2,i1) = 1d0/2d0/(i0+i1+1)*(2d0*m02*DBuv_aux(i0/2-1,i1)
-     &                        +Buv(i0/2-1,i1+1) + f1*DBuv_aux(i0/2-1,i1+1) )
+              DBuv_aux(i0/2,i1) = 
+     &            1d0/2d0/(i0+i1+1)*(2d0*m02*DBuv_aux(i0/2-1,i1)
+     &                +Buv(i0/2-1,i1+1) + f1*DBuv_aux(i0/2-1,i1+1) )
             enddo
 403       continue
 
@@ -836,9 +839,10 @@ c p2=0, m02=m12=/=0, rlam=0
      &                      -2d0*DBuv_aux(1,n) )/m02
             do 404 i0=2,2*n,2
               i1 = n-i0/2
-              DB_aux(i0/2,i1)   = 1d0/2d0/(i0+i1+1)*( 2d0*m02*DB_aux(i0/2-1,i1)
-     &                          +B(i0/2-1,i1+1) + f1*DB_aux(i0/2-1,i1+1) 
-     &                          + 4d0*DBuv_aux(i0/2,i1)                  )
+              DB_aux(i0/2,i1)   = 
+     &           1d0/2d0/(i0+i1+1)*( 2d0*m02*DB_aux(i0/2-1,i1)
+     &                  + B(i0/2-1,i1+1) + f1*DB_aux(i0/2-1,i1+1) 
+     &                  + 4d0*DBuv_aux(i0/2,i1)                  )
 404       continue
 
           do 405 n=0,r2
@@ -898,7 +902,7 @@ c error estimate
           DBerr(0) = dprec_dd*abs(DB(0,0))
           do n=1,r2
             Berr(n)  = resaccabs(0,n)
-            DBerr(n) = max(Berr(n),Berr(n-1),abs(f1)*DBerr(n-1))/abs(p2) 
+            DBerr(n) = max(Berr(n),Berr(n-1),abs(f1)*DBerr(n-1))/abs(p2)
             if (n.gt.1) DBerr(n) = max(DBerr(n),abs(m02/p2)*DBerr(n-2))
           enddo
 
@@ -946,7 +950,7 @@ c error estimate
           DBerr(0) = dprec_dd*abs(DB(0,0))
           do n=1,r2
             Berr(n)  = resaccabs(0,n)
-            DBerr(n) = max(Berr(n),Berr(n-1),abs(f1)*DBerr(n-1))/abs(p2) 
+            DBerr(n) = max(Berr(n),Berr(n-1),abs(f1)*DBerr(n-1))/abs(p2)
             if (n.gt.1) DBerr(n) = max(DBerr(n),abs(m02/p2)*DBerr(n-2))
           enddo
 

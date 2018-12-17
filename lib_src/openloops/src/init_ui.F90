@@ -45,13 +45,14 @@ module ol_init
   interface set_if_modified
     module procedure set_if_modified_bool, set_if_modified_int, set_if_modified_double, &
                      set_if_modified_cmplx, set_if_modified_cmplxcmplx, &
-                     set_if_modified_string, set_if_modified_quad
+                     set_if_modified_string, set_if_modified_quad, set_if_modified_quadcmplx, &
+                     set_if_modified_quadcmplxcmplx
   end interface set_if_modified
 
   interface set_parameter
     module procedure setparameter_int, setparameter_string,    &
                      setparameter_single, setparameter_double, &
-                     setparameter_dcomplex, setparameter_quad
+                     setparameter_dcomplex, setparameter_bool
   end interface set_parameter
 
   interface get_parameter
@@ -117,6 +118,27 @@ module ol_init
     end if
   end subroutine set_if_modified_quad
 
+  subroutine set_if_modified_quadcmplx(current, new)
+    implicit none
+    complex(QREALKIND), intent(inout) :: current
+    real(QREALKIND),    intent(in) :: new
+    if (current /= new) then
+      current = new
+      setparameter_tree_was_called = .true.
+      setparameter_loop_was_called = .true.
+    end if
+  end subroutine set_if_modified_quadcmplx
+
+  subroutine set_if_modified_quadcmplxcmplx(current, new)
+    implicit none
+    complex(QREALKIND), intent(inout) :: current
+    complex(QREALKIND), intent(in) :: new
+    if (current /= new) then
+      current = new
+      setparameter_tree_was_called = .true.
+      setparameter_loop_was_called = .true.
+    end if
+  end subroutine set_if_modified_quadcmplxcmplx
 
   subroutine set_if_modified_cmplx(current, new)
     implicit none
@@ -173,52 +195,88 @@ module ol_init
     select case (to_lowercase(param))
 
       case ("redlib1")
-        call set_if_modified(a_switch, val)
-        if (val == 1 .or. val == 7) then
-          call set_if_modified(ew_renorm_switch, val)
+        if (expert_mode) then
+          call set_if_modified(a_switch, val)
+          if (val == 1 .or. val == 7) then
+            call set_if_modified(ew_renorm_switch, val)
+          else
+            call set_if_modified(ew_renorm_switch, 3)
+          end if
+          auto_preset = .false.
         else
-          call set_if_modified(ew_renorm_switch, 3)
+          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
         end if
-        auto_preset = .false.
       case ("redlib2")
-        call set_if_modified(a_switch_rescue, val)
-        auto_preset = .false.
+        if (expert_mode) then
+          call set_if_modified(a_switch_rescue, val)
+          auto_preset = .false.
+        else
+          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
+        end if
       case ("redlib3", "redlib_qp")
-        call set_if_modified(redlib_qp, val)
-        auto_preset = .false.
+        if (expert_mode) then
+          call set_if_modified(redlib_qp, val)
+          auto_preset = .false.
+        else
+          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
+        end if
       case ("redlib", "redlibs")
-        ! set libraries equal
-        call set_if_modified(a_switch, val)
-        call set_if_modified(a_switch_rescue, val)
-        call set_if_modified(redlib_qp, val)
-        if (val == 1 .or. val == 7) then
-          call set_if_modified(ew_renorm_switch, val)
+        if (expert_mode) then
+          ! set libraries equal
+          call set_if_modified(a_switch, val)
+          call set_if_modified(a_switch_rescue, val)
+          call set_if_modified(redlib_qp, val)
+          if (val == 1 .or. val == 7) then
+            call set_if_modified(ew_renorm_switch, val)
+          else
+            call set_if_modified(ew_renorm_switch, 3)
+          end if
+          auto_preset = .false.
         else
-          call set_if_modified(ew_renorm_switch, 3)
+          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
         end if
-        auto_preset = .false.
       case ("stability_mode")
-#ifndef USE_qp
-        if (val == 13 .or. val == 14 .or. val == 22 .or. val == 23 .or. &
-          & val == 31 .or. val == 32) then
-          call ol_error(1, "stability_mode" // to_string(val) // "is not available")
-          call ol_msg("       because quad precision is deactivated")
-        else
+        if (expert_mode) then
           call set_if_modified(stability_mode, val)
+          auto_preset = .false.
+        else
+          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
         end if
-#else
-        call set_if_modified(stability_mode, val)
-#endif
-        auto_preset = .false.
+      case ("hp_mode")
+        if (expert_mode) then
+          call set_if_modified(hp_mode, val)
+        else
+          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
+        end if
+      case ("bubble_vertex")
+        if (expert_mode) then
+          call set_if_modified(bubble_vertex, val)
+        else
+          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
+        end if
+      case ("use_qp_invariants")
+        if (expert_mode) then
+          call set_if_modified(use_qp_invariants, val)
+        else
+          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
+        end if
       case ("deviation_mode")
-        call set_if_modified(deviation_mode, val)
-        if (val /= 1 .and. val /= 2) then
-          call ol_error(1,"unrecognised deviation_mode:" // to_string(val))
+        if (expert_mode) then
+          call set_if_modified(deviation_mode, val)
+          if (val /= 1 .and. val /= 2) then
+            call ol_error(1,"unrecognised deviation_mode:" // to_string(val))
+          end if
+        else
+          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
         end if
       case ("scaling_mode")
-        call set_if_modified(scaling_mode, val)
-        if (val /= 1 .and. val /= 3) then
-          call ol_error(1, "unrecognised scaling_mode:" // to_string(val))
+        if (expert_mode) then
+          call set_if_modified(scaling_mode, val)
+          if (val /= 1 .and. val /= 3) then
+            call ol_msg(1, "unrecognised scaling_mode:" // to_string(val))
+          end if
+        else
+          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
         end if
       case ("write_psp", "write_points")
         write_psp = val
@@ -413,39 +471,18 @@ module ol_init
         else
           call ol_error("auto_preset not available:" // trim(to_string(val)))
         end if
-      case ("preset")
-        if (val == 1) then
-          call set_if_modified(a_switch, 5)
-          call set_if_modified(redlib_qp, 5)
-          call set_if_modified(stability_mode, 14)
-          call set_if_modified(ew_renorm_switch, 3)
-        else if (val == 2) then
-          call set_if_modified(a_switch, 1)
-          call set_if_modified(a_switch_rescue, 7)
-          call set_if_modified(redlib_qp, 5)
-          call set_if_modified(stability_mode, 23)
-          call set_if_modified(ew_renorm_switch, 1)
-        else if (val == 3) then
-          call set_if_modified(a_switch, 1)
-          call set_if_modified(a_switch_rescue, 7)
-          call set_if_modified(redlib_qp, 5)
-          call set_if_modified(stability_mode, 21)
-          call set_if_modified(ew_renorm_switch, 1)
-        else if (val == 4) then
-          call set_if_modified(a_switch, 1)
-          call set_if_modified(a_switch_rescue, 7)
-          call set_if_modified(redlib_qp, 5)
-          call set_if_modified(stability_mode, 22)
-          call set_if_modified(ew_renorm_switch, 1)
-        else if (val == 5) then
-          call set_if_modified(a_switch, 1)
-          call set_if_modified(redlib_qp, 5)
-          call set_if_modified(stability_mode, 14)
-          call set_if_modified(ew_renorm_switch, 1)
+      case ("expert_mode")
+         if (val == 1) then
+          expert_mode = .true.
+        elseif (val == 0) then
+          expert_mode = .false.
         else
-          call ol_error("preset not available:" // trim(to_string(val)))
+          call ol_error("expert_mode not available:" // trim(to_string(val)))
         end if
-        auto_preset = .false.
+      case ("preset")
+          call ol_msg("preset ignored (deprecated for OpenLoops >= 2.0).")
+      case ("hp_alloc_mode")
+        call set_if_modified(hp_alloc_mode, val)
       case default
         error = 1
         if (.not. forwarded_init) then
@@ -469,7 +506,53 @@ module ol_init
     end if
   end subroutine setparameter_int
 
+  subroutine setparameter_bool(param, val, err)
+    ! Set an OpenLoops integer parameter.
+    ! Must be flushed by parameters_flush() to take effect
+    ! [in]  param: parameter name
+    ! [in]  val: logical value
+    ! sets error flag: 0=ok, 1=ignored, 2=error(unused)
+    use ol_parameters_decl_/**/DREALKIND
+    use ol_loop_parameters_decl_/**/DREALKIND
+    use ol_generic, only: to_lowercase, to_string
+    implicit none
+    character(*), intent(in) :: param
+    logical, intent(in)  :: val
+    integer, intent(out), optional :: err
 
+    error = 0
+
+    call ol_msg(5, "setparameter_bool: " // trim(param) // " " // to_string(val))
+
+    select case (to_lowercase(param))
+
+      case ("hp_gamma_trig")
+        call set_if_modified(hp_gamma_trig, val)
+      case ("hp_automerge")
+        call set_if_modified(hp_automerge, val)
+      case ("hp_gd3_trig")
+        call set_if_modified(hp_gd3_trig, val)
+      case ("hp_irtri_trig")
+        call set_if_modified(hp_irtri_trig, val)
+      case ("hp_ir_trig")
+        call set_if_modified(hp_ir_trig, val)
+      case ("ir_hacks")
+        call set_if_modified(ir_hacks, val)
+
+      case default
+        error = 1
+
+    end select
+
+    if (present(err)) then
+      err = error
+    else
+      if (init_error_fatal == 2 .and. error /= 0) then
+        call ol_fatal("unknown parameter '" // trim(param) // "' in ol_setparameter_bool")
+        return
+      end if
+    end if
+  end subroutine setparameter_bool
 
   subroutine getparameter_int(param, val, err)
     ! Get an OpenLoops integer parameter.
@@ -1042,6 +1125,14 @@ module ol_init
       case ("lambda_hzz")
         call set_if_modified(lambdaHZZ, val)
 
+      ! Hybrid precision mode thresholds
+      case ("hp_step_thres")
+        call set_if_modified(hp_step_thres, val)
+      case ("hp_err_thres")
+        call set_if_modified(hp_err_thres, val)
+      case ("hp_gd3_thres")
+        call set_if_modified(hp_gd3_thres, val)
+
       case default
 
         error = 1
@@ -1068,54 +1159,6 @@ module ol_init
     end if
   end subroutine setparameter_double
 
-
-
-  subroutine setparameter_quad(param, val, err)
-    ! Set an OpenLoops quad precision parameter.
-    ! Must be flushed by parameters_flush() to take effect.
-    ! Calls are passed to ol_setparameter_int() if param doesn't match and val==int(val)
-    ! [in]  param: parameter name
-    ! [in]  val: double precision value
-    ! sets error flag: 0=ok, 1=ignored
-    use ol_parameters_decl_/**/QREALKIND
-    use ol_loop_parameters_decl_/**/QREALKIND
-    use ol_generic, only: to_lowercase, to_string
-    implicit none
-    character(*), intent(in) :: param
-    real(QREALKIND), intent(in) :: val
-    integer, intent(out), optional :: err
-
-    error = 0
-    setparameter_tree_was_called = .true.
-    setparameter_loop_was_called = .true.
-
-     !call ol_msg(5, "setparameter_quad: " // trim(param) // " " // to_string(val))
-
-    select case (to_lowercase(param))
-      case ("scalefactor")
-        call set_if_modified(scalefactor, val) ! quad
-      case ("mu", "renscale")
-        call set_if_modified(mureg_unscaled, val)
-        call set_if_modified(muren_unscaled, val)
-      case ("muren")
-        call set_if_modified(muren_unscaled, val)
-      case ("mureg")
-        call set_if_modified(mureg_unscaled, val)
-      case default
-        call ol_error(1, "ol_setparameter_quad ignored unknown parameter '" // trim(param) // "'")
-        error = 1
-
-    end select
-
-    if (present(err)) then
-      err = error
-    else
-      if (init_error_fatal == 2 .and. error /= 0) then
-        call ol_fatal("unknown parameter '" // trim(param) // "' in ol_setparameter_quad")
-        return
-      end if
-    end if
-  end subroutine setparameter_quad
 
 
   subroutine setparameter_single(param, val, err)
@@ -1337,9 +1380,10 @@ module ol_init
 
     call ol_msg(5, "setparameter_string: " // trim(param)  // " " // trim(val))
 
-    if (len(val) > max_parameter_length) then
+    if (len(val) > max_parameter_length - 80) then
       call ol_fatal("ol_setparameter_string: " // trim(param) // " value must not exceed " // &
-             & trim(to_string(max_parameter_length)) // " characters")
+             & trim(to_string(max_parameter_length)) // " characters. If necessary, increase &
+             &the limit by setting max_string_length in your openloops.cfg and recompile.")
       return
     end if
 
@@ -1369,6 +1413,11 @@ module ol_init
         allowed_libs = " " // adjustl(allowed_libs)
       case ("approximation", "approx")
         approximation = val
+        if (trim(val) == "vbf") then
+          partial_normal_order = .true.
+        else
+          partial_normal_order = .false.
+        end if
       case ("shopping_list", "shopping_card", "ol_shopping")
         if (trim(val) /= "1") then
           shopping_list = val
@@ -1507,6 +1556,23 @@ module ol_init
     f_val = val
     call set_parameter(trim(f_param), f_val)
   end subroutine setparameter_int_c
+
+  subroutine setparameter_bool_c(param, val) bind(c,name="ol_setparameter_bool")
+    ! Convert null terminated C string to Fortran string, then call set_parameter()
+    use ol_parameters_decl_/**/DREALKIND, only: max_parameter_name_length
+    implicit none
+    character(kind=c_char), dimension(*), intent(in) :: param
+    integer(c_int), value :: val
+    character(max_parameter_name_length) :: f_param
+    integer :: f_val
+    call c_f_string(param, f_param, max_parameter_name_length)
+    f_val = val
+    if (f_val .eq. 0) then
+      call set_parameter(trim(f_param), .false.)
+    else
+      call set_parameter(trim(f_param), .true.)
+    end if
+  end subroutine setparameter_bool_c
 
   subroutine getparameter_int_c(param, val) bind(c,name="ol_getparameter_int")
     ! Convert null terminated C string to Fortran string, then call get_parameter()

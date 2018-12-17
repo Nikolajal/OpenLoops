@@ -20,10 +20,25 @@
 
 module ol_counterterms_/**/REALKIND
 
+  ! TODO:  <10-11-18, J.-N. Lang> !
+  ! make copies of other 2point ct structures
+
+  interface counter_Q_A
+    module procedure counter_Q_A_orig, counter_Q_A_pid
+  end interface
+
+  interface counter_A_Q
+    module procedure counter_A_Q_orig, counter_A_Q_pid
+  end interface
+
+  interface counter_V_V
+    module procedure counter_V_V_orig, counter_V_V_pid
+  end interface
+
 contains
 
 ! **********************************************************************
-subroutine counter_Q_A(ctQA, J_Q, K, Jout_Q)
+subroutine counter_Q_A_orig(ctQA, J_Q, K, Jout_Q)
 ! Q -> Q counter term without left/right splitting
 ! **********************************************************************
   use KIND_TYPES, only: REALKIND
@@ -34,11 +49,25 @@ subroutine counter_Q_A(ctQA, J_Q, K, Jout_Q)
   Jout_Q(2) = ctQA(1) * ( - K(1)*J_Q(4) + K(3)*J_Q(3)) - ctQA(2) * J_Q(2)
   Jout_Q(3) = ctQA(1) * ( - K(1)*J_Q(1) - K(4)*J_Q(2)) - ctQA(2) * J_Q(3)
   Jout_Q(4) = ctQA(1) * ( - K(2)*J_Q(2) - K(3)*J_Q(1)) - ctQA(2) * J_Q(4)
-end subroutine counter_Q_A
+end subroutine counter_Q_A_orig
+! **********************************************************************
+subroutine counter_Q_A_pid(ctQA, pid, J_Q, K, Jout_Q)
+! Q -> Q counter term without left/right splitting
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND
+  implicit none
+  complex(REALKIND), intent(in)  :: ctQA(2), J_Q(4), K(4)
+  integer,           intent(in)  :: pid
+  complex(REALKIND), intent(out) :: Jout_Q(4)
+  Jout_Q(1) = ctQA(1) * ( - K(2)*J_Q(3) + K(4)*J_Q(4)) - ctQA(2) * J_Q(1)
+  Jout_Q(2) = ctQA(1) * ( - K(1)*J_Q(4) + K(3)*J_Q(3)) - ctQA(2) * J_Q(2)
+  Jout_Q(3) = ctQA(1) * ( - K(1)*J_Q(1) - K(4)*J_Q(2)) - ctQA(2) * J_Q(3)
+  Jout_Q(4) = ctQA(1) * ( - K(2)*J_Q(2) - K(3)*J_Q(1)) - ctQA(2) * J_Q(4)
+end subroutine counter_Q_A_pid
 
 
 ! **********************************************************************
-subroutine counter_A_Q(ctQA, J_A, K, Jout_A)
+subroutine counter_A_Q_orig(ctQA, J_A, K, Jout_A)
 ! A -> A counter term without left/right splitting
 ! **********************************************************************
   use KIND_TYPES, only: REALKIND
@@ -49,11 +78,26 @@ subroutine counter_A_Q(ctQA, J_A, K, Jout_A)
   Jout_A(2) = ctQA(1) * ( + K(2)*J_A(4) + K(4)*J_A(3)) - ctQA(2) * J_A(2)
   Jout_A(3) = ctQA(1) * ( + K(2)*J_A(1) - K(3)*J_A(2)) - ctQA(2) * J_A(3)
   Jout_A(4) = ctQA(1) * ( + K(1)*J_A(2) - K(4)*J_A(1)) - ctQA(2) * J_A(4)
-end subroutine counter_A_Q
+end subroutine counter_A_Q_orig
+
+! **********************************************************************
+subroutine counter_A_Q_pid(ctQA, pid, J_A, K, Jout_A)
+! A -> A counter term without left/right splitting
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND
+  implicit none
+  complex(REALKIND), intent(in)  :: ctQA(2), J_A(4), K(4)
+  integer,           intent(in)  :: pid
+  complex(REALKIND), intent(out) :: Jout_A(4)
+  Jout_A(1) = ctQA(1) * ( + K(1)*J_A(3) + K(3)*J_A(4)) - ctQA(2) * J_A(1)
+  Jout_A(2) = ctQA(1) * ( + K(2)*J_A(4) + K(4)*J_A(3)) - ctQA(2) * J_A(2)
+  Jout_A(3) = ctQA(1) * ( + K(2)*J_A(1) - K(3)*J_A(2)) - ctQA(2) * J_A(3)
+  Jout_A(4) = ctQA(1) * ( + K(1)*J_A(2) - K(4)*J_A(1)) - ctQA(2) * J_A(4)
+end subroutine counter_A_Q_pid
 
 
 ! **********************************************************************
-subroutine counter_V_V(ctVV, J_V, K, Jout_V)
+subroutine counter_V_V_orig(ctVV, J_V, K, Jout_V)
 ! V -> V counter term
 ! **********************************************************************
   use KIND_TYPES, only: REALKIND
@@ -62,7 +106,17 @@ subroutine counter_V_V(ctVV, J_V, K, Jout_V)
   complex(REALKIND), intent(in)  :: ctVV(3), J_V(4), K(4)
   complex(REALKIND), intent(out) :: Jout_V(4)
   Jout_V = (ctVV(1)*cont_VV(K,K) + ctVV(2)) * J_V + ctVV(3) * (cont_VV(J_V,K)) * K
-end subroutine counter_V_V
+end subroutine counter_V_V_orig
+
+subroutine counter_V_V_pid(ctVV, pid, J_V, K, Jout_V)
+  use KIND_TYPES, only: REALKIND
+  use ol_contractions_/**/REALKIND, only: cont_VV
+  implicit none
+  complex(REALKIND), intent(in)  :: ctVV(3), J_V(4), K(4)
+  integer,           intent(in) :: pid
+  complex(REALKIND), intent(out) :: Jout_V(4)
+  Jout_V = (ctVV(1)*cont_VV(K,K) + ctVV(2)) * J_V + ctVV(3) * (cont_VV(J_V,K)) * K
+end subroutine counter_V_V_pid
 
 
 ! **********************************************************************

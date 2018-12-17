@@ -12,6 +12,8 @@ PROCLIBDIR="proclib"
 PYOLBINDIR="pyol/bin"
 # directories for Python modules
 PYOLMODDIR="pyol/tools"
+# directory for includes
+INCDIR="include"
 
 if [ -z "$BASH_VERSION" ]; then
   # the script is sourced from a shell which is not Bash
@@ -43,6 +45,7 @@ else
   PROCLIBDIR="$BASEDIR/$PROCLIBDIR"
   PYOLBINDIR="$BASEDIR/$PYOLBINDIR"
   PYOLMODDIR="$BASEDIR/$PYOLMODDIR"
+  INCDIR="$BASEDIR/$INCDIR"
 
   export LIBRARY_PATH=$LIBRARY_PATH:"$LIBDIR":"$PROCLIBDIR"
   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:"$LIBDIR":"$PROCLIBDIR"
@@ -89,7 +92,7 @@ case "$1" in
     echo "  compile [-c]           -- Compile [clean] (the process independent part) of OpenLoops."
     echo "  info                   -- show the process info file."
     echo "  update                 -- update OpenLoops and installed processes"
-    echo "                            (only if installed from SVN)."
+    echo "                            (only if installed from GIT)."
     echo "  update --processes     -- update installed processes."
     echo "  libinstall <process(es)> -- download and compile process libraries."
     echo "  run                    -- calculate matrix elements for a given process."
@@ -138,7 +141,7 @@ case "$1" in
 
   "update")
     shift
-    svn up
+    git pull
     if [ "$?" == "0" ]; then
       if [ "$1" == "--processes" -o "$1" == "-p" ]; then
         shift
@@ -149,7 +152,7 @@ case "$1" in
         shift
         $SCONS process_update=1 compile=2 "$@"
       else
-        echo "[OpenLoops] Automatic update is only supported for installations from SVN."
+        echo "[OpenLoops] Automatic update is only supported for installations from GIT."
         echo "Too keep the installed OpenLoops version and update the installed"
         echo "processes only, run"
         echo "$ ./openloops update --processes"
@@ -216,6 +219,13 @@ case "$1" in
     shift
     echo "-lopenloops";;
 
+  "--incdir")
+    shift
+    echo $INCDIR;;
+
+  "--proclibdir")
+    shift
+    echo $PROCLIBDIR;;
 
   *)
     echo "Unknown mode: $1"

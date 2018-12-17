@@ -95,6 +95,15 @@ setparameter_int_c.restype = None
 def setparameter_int(key, val):
     setparameter_int_c(c_char_p(key.encode('utf-8')), val)
 
+setparameter_bool_c = ol.ol_setparameter_bool
+setparameter_bool_c.argtypes = [c_char_p, c_int]
+setparameter_bool_c.restype = None
+def setparameter_bool(key, val):
+  if val:
+    setparameter_bool_c(c_char_p(key.encode('utf-8')), 1)
+  else:
+    setparameter_bool_c(c_char_p(key.encode('utf-8')), 0)
+
 # (const char* key, double val)
 setparameter_double_c = ol.ol_setparameter_double
 setparameter_double_c.argtypes = [c_char_p, c_double]
@@ -231,15 +240,17 @@ atexit.register(finish)
 
 
 def set_parameter(key, val):
-    if isinstance(val, int):
+    if type(val) == int:
         setparameter_int(key, val)
+    elif type(val) == bool:
+        setparameter_bool(key, val)
     elif isinstance(val, float):
         setparameter_double(key, val)
     elif isinstance(val, str):
         if key.startswith('alpha') and '/' in val:
             try:
                 valnum, valden = val.split('/')
-                val = float(valnum)/float(valden)
+                val = float(valnum) / float(valden)
             except ValueError:
                 raise OpenLoopsError(
                     'Invalid option \'{}={}\''.format(key, val))

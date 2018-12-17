@@ -75,7 +75,9 @@ def skip_test_if(condition):
             else:
                 process_ol_id = ret['process'] + '_' + ret['process_perm'] + '_' + ret['process_id']
                 args[0].process = process_ol_id
-                return fn(*args, **kw)
+                with suppress_stdout_stderr():
+                  ret = fn(*args, **kw)
+                return ret
 
         maybe.__name__ = fn_name
         return maybe
