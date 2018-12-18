@@ -137,6 +137,7 @@ def get_config(args=[]):
                  subset_of=['dp','qp'])
     parse_option(config, 'process_qp_rescue', converter=parse_bool)
     parse_option(config, 'process_qp_checks', converter=parse_bool)
+    parse_option(config, 'expert_mode', converter=parse_bool)
     parse_option(config, 'max_string_length', converter=int)
     parse_option(config, 'compile_libraries', converter=split_list,
                  subset_of=['rambo', 'collier', 'cuttools', 'trred'])
@@ -144,8 +145,6 @@ def get_config(args=[]):
                  subset_of=['rambo', 'collier', 'cuttools', 'trred'])
     parse_option(config, 'scalar_integral_libraries', converter=split_list,
                  subset_of=['qcdloop', 'oneloop'])
-    parse_option(config, 'collier_legacy', converter=parse_bool)
-    parse_option(config, 'oneloop_legacy', converter=parse_bool)
     parse_option(config, 'clean', converter=split_list,
                  subset_of=['procs', 'src'])
     parse_option(config, 'debug', converter=int, one_of=range(8))

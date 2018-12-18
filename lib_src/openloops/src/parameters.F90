@@ -425,7 +425,12 @@ module ol_parameters_decl_/**/REALKIND
   ! Auto-preset: preset=2 for OLmode=1,2 and preset=5 for OLmode=2, preset=3 for loop-induced
   logical, save :: auto_preset = .true.
   ! expert_mode: allows to set stability options manually
+#ifdef EXPERT
+  logical, save :: expert_mode = .true.
+#else
   logical, save :: expert_mode = .false.
+#endif
+! PRECISION_dp
 #endif
 
   ! Numerical constants

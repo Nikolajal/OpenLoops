@@ -235,10 +235,9 @@ def get_subprocess_src(loops, sub_process, processlib_src_dir, config,
         # Decide if the loop process code is duplicated
         # to compiled it in quad precision.
         enable_process_qp = True
-        if 's' in loops:
+        if 's' in loops and not 't' in loops:
             # Loop-squared: qp only for checks
             enable_process_qp = config['process_qp_checks']
-            print('enable_process_qp:', enable_process_qp)
         else:
             if olmode <= 1:
                 # OL1-type NLO or helicity optimised NLO: qp as rescue mode

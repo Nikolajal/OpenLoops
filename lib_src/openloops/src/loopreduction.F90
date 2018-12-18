@@ -247,14 +247,20 @@ subroutine TI_triangle_red(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1, &
   end if
 #endif
 
-  !! TEMPORARY: check if exact formulas or expansions are available for special cases
-  call tch_triangle_mass_check(Gin_A, get_mass2(msq), tch_top, perm)
-
 #ifdef PRECISION_dp
   if (hp_mode .eq. 1 .and. unstable) then
     call upgrade_qp(Gin_A)
   end if
 #endif
+
+#ifdef PRECISION_dp
+  if (req_qp_cmp(Gin_A)) then
+    call tch_triangle_check_qp(RedBasis%mom1, RedBasis%mom2, tch_top, perm, sdlt_qp, momenta_qp)
+  end if
+#endif
+
+  !! TEMPORARY: check if exact formulas or expansions are available for special cases
+  call tch_triangle_mass_check(Gin_A, get_mass2(msq), tch_top, perm)
 
   Gout_A%mode = Gin_A%mode
   Gout_A0%mode = Gin_A%mode

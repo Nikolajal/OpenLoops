@@ -159,11 +159,10 @@ cpp_defines += [('KIND_TYPES', 'kind_types'),
                 'USE_' + config['fortran_tool'].upper(),
                 ('OL_INSTALL_PATH', '\\"' + install_path + '\\"'),
                 ('MAXSTRLEN', str(max_string_length)),
-                'SING']
-if config['collier_legacy']:
-    cpp_defines.append('COLLIER_LEGACY')
-else:
-    cpp_defines.append('collierdd')
+                'SING',
+                'collierdd']
+if config['expert_mode']:
+    cpp_defines.append('EXPERT')
 
 
 # ================= #
@@ -177,8 +176,6 @@ for libname in ['olcommon', 'rambo', 'qcdloop', 'oneloop', 'cuttools', 'collier'
     lib_src_dirs[libname] = os.path.join(config['lib_src_dir'], libname, 'src')
     lib_obj_dirs[libname] = os.path.join(config['lib_src_dir'], libname, 'obj')
     lib_mod_dirs[libname] = os.path.join(config['lib_src_dir'], libname, 'mod')
-if config['collier_legacy']:
-    lib_src_dirs['collier'] = os.path.join(config['lib_src_dir'], 'collier', 'src_legacy')
 
 # OLCommon
 olcommon_dp_src = ['kind_types.F90', 'debug.F90', 'cwrappers.c']
@@ -242,44 +239,27 @@ cuttools_dp_src = [
     'cts_type.f90', 'mpnumdummy.f90']
 
 # Collier
-if config['collier_legacy']:
-    collier_inc_dp = [
-        'coli_checkparams.h', 'coli_common_cache.h', 'coli_common.h',
-        'coli_params_cache.h', 'coli_params.h']
-    collier_src_mp = []
-    collier_src_dp = [
-        # DD
-        'DD_aux.F', 'DD_2pt.F', 'DD_3pt.F', 'DD_3pt_coll.F',
-        'DD_4pt.F', 'DD_5pt.F', 'DD_6pt.F', 'DD_newinterface.F', 'dcuhre.F',
-        # Coli
-        'coli_aux.F', 'coli_b0.F', 'coli_c0.F', 'coli_cache.F', 'coli_ctoliserg.F',
-        'coli_ctolis.F', 'coli_d0.F', 'coli_d0reg.F', 'coli_oint2.F', 'coli_oint.F',
-        # BuildTensors
-        'bt_Combinatorics.F90', 'bt_Interface.F90',
-        'bt_BuildTensors.F90', 'bt_Checks.F90', 'bt_FourVectors.F90',
-        'bt_GramCayley.F90', 'bt_LightCone.F90', 'bt_MatrixManipulations.F90',
-        'bt_TensorManipulations.F90', 'bt_TensorReduction.F90', 'bt_TI_interface.F90']
-else:
-    collier_inc_dp = []
-    collier_src_mp = []
-    collier_src_dp = [
-        # Aux/
-        'Combinatorics.F90', 'cache.F90', 'master.F90',
-        # COLI/
-        'coli_aux.F', 'coli_aux2.F90', 'coli_b0.F', 'coli_c0.F', 'coli_d0.F',
-        'coli_d0reg.F', 'coli_stat.F90', 'reductionAB.F90', 'reductionC.F90',
-        'reductionD.F90', 'reductionEFG.F90', 'reductionTN.F90',
-        # DDlib/
-        'DD_global.F90', 'DD_2pt.F', 'DD_3pt.F', 'DD_4pt.F',
-        'DD_5pt.F', 'DD_6pt.F', 'DD_aux.F', 'DD_to_COLLIER.F',
-        # dd-qp
-        #'DD_global_qp.f90', 'DD_2pt_qp.f', 'DD_3pt_qp.f', 'DD_4pt_qp.f',
-        #'DD_5pt_qp.f', 'DD_6pt_qp.f', 'DD_aux_qp.f', 'DD_interface_qp.f90',
-        # tensors/
-        'BuildTensors.F90', 'InitTensors.F90', 'TensorReduction.F90',
-        # ./
-        'COLLIER.F90', 'collier_aux.F90', 'collier_coefs.F90',
-        'collier_global.F90', 'collier_init.F90', 'collier_tensors.F90']
+collier_inc_dp = ['checkparams_coli.h', 'common_coli.h', 'global_coli.h',
+                  'params_coli.h']
+collier_src_mp = []
+collier_src_dp = [
+    # Aux/
+    'Combinatorics.F90', 'cache.F90', 'master.F90',
+    # COLI/
+    'coli_aux.F', 'coli_aux2.F90', 'coli_b0.F', 'coli_c0.F', 'coli_d0.F',
+    'coli_d0reg.F', 'coli_stat.F90', 'reductionAB.F90', 'reductionC.F90',
+    'reductionD.F90', 'reductionEFG.F90', 'reductionTN.F90',
+    # DDlib/
+    'DD_global.F90', 'DD_2pt.F', 'DD_3pt.F', 'DD_4pt.F',
+    'DD_5pt.F', 'DD_6pt.F', 'DD_aux.F', 'DD_to_COLLIER.F',
+    # dd-qp
+    #'DD_global_qp.f90', 'DD_2pt_qp.f', 'DD_3pt_qp.f', 'DD_4pt_qp.f',
+    #'DD_5pt_qp.f', 'DD_6pt_qp.f', 'DD_aux_qp.f', 'DD_interface_qp.f90',
+    # tensors/
+    'BuildTensors.F90', 'InitTensors.F90', 'TensorReduction.F90',
+    # ./
+    'COLLIER.F90', 'collier_aux.F90', 'collier_coefs.F90',
+    'collier_global.F90', 'collier_init.F90', 'collier_tensors.F90']
 
 # tr_red
 tr_dp_src = ['b0.f90', 'c0_000.f90', 'c0_m00.f90', 'triangle_expansion.f90',

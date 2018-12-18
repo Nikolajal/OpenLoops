@@ -404,12 +404,13 @@ end subroutine finish_histograms
 subroutine vamp2_dp(vamp2, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, redlib, mode)
   use KIND_TYPES, only: DREALKIND
   use ol_init, only: set_parameter, parameters_flush
-  use ol_parameters_decl_/**/DREALKIND, only: a_switch
+  use ol_parameters_decl_/**/DREALKIND, only: a_switch, expert_mode
   implicit none
   real(DREALKIND), intent(in)  :: P_scatt(:,:)
   real(DREALKIND), intent(out) :: M2L0, M2L1(0:2), IRL1(0:2), M2L2(0:4), IRL2(0:4)
   integer, intent(in), optional :: redlib, mode
   integer :: redlib_bak
+  logical :: expert_bak
   interface
     subroutine vamp2(P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, mode)
       use KIND_TYPES, only: DREALKIND
@@ -423,6 +424,8 @@ subroutine vamp2_dp(vamp2, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, redlib, mode)
   if (present(redlib)) then
     if (redlib /= a_switch .and. redlib >= 0) then
       redlib_bak = a_switch
+      expert_bak = expert_mode
+      expert_mode = .true.
       call set_parameter("redlib1", redlib)
       call parameters_flush()
     end if
@@ -431,6 +434,7 @@ subroutine vamp2_dp(vamp2, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, redlib, mode)
   if (redlib_bak >= 0) then
     call set_parameter("redlib1", redlib_bak)
     call parameters_flush()
+    expert_mode = expert_bak
   end if
 end subroutine vamp2_dp
 
@@ -516,12 +520,13 @@ end function vamp2_dp_scaled
 subroutine vamp2_qp(vamp2, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, redlib, mode)
   use KIND_TYPES, only: DREALKIND, QREALKIND
   use ol_init, only: set_parameter, parameters_flush
-  use ol_parameters_decl_/**/DREALKIND, only: a_switch
+  use ol_parameters_decl_/**/DREALKIND, only: a_switch, expert_mode
   implicit none
   real(DREALKIND), intent(in)  :: P_scatt(:,:)
   real(QREALKIND), intent(out) :: M2L0, M2L1(0:2), IRL1(0:2), M2L2(0:4), IRL2(0:4)
   integer, intent(in), optional :: redlib, mode
   integer :: redlib_bak
+  logical :: expert_bak
   interface
     subroutine vamp2(P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, mode)
       use KIND_TYPES, only: DREALKIND, QREALKIND
@@ -535,6 +540,8 @@ subroutine vamp2_qp(vamp2, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, redlib, mode)
   if (present(redlib)) then
     if (redlib /= a_switch .and. redlib >= 0) then
       redlib_bak = a_switch
+      expert_bak = expert_mode
+      expert_mode = .true.
       call set_parameter("redlib1", redlib)
       call parameters_flush()
     end if
@@ -543,6 +550,7 @@ subroutine vamp2_qp(vamp2, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, redlib, mode)
   if (redlib_bak >= 0) then
     call set_parameter("redlib1", redlib_bak)
     call parameters_flush()
+    expert_mode = .false.
   end if
 end subroutine vamp2_qp
 
