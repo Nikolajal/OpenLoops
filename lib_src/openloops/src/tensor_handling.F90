@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !

@@ -19,9 +19,11 @@
 Authors:
 
 Federico Buccioni
+Jean-Nicolas Lang
 Jonas Lindert
 Philipp Maierhöfer
 Stefano Pozzorini
+Hantian Zhang
 Max Zoller
 
 

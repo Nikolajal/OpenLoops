@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -2125,6 +2125,26 @@ module ol_h_vertices_/**/REALKIND
     module procedure vert_UV_W_mexpl, vert_UV_W_mids
   end interface
 
+  interface vert_VS_T
+    module procedure vert_VS_T_mexpl, vert_VS_T_mids
+  end interface
+
+  interface vert_TV_S
+    module procedure vert_TV_S_mexpl, vert_TV_S_mids
+  end interface
+
+  interface vert_ST_V
+    module procedure vert_ST_V_mexpl, vert_ST_V_mids
+  end interface
+
+  interface vert_DV_C
+    module procedure vert_DV_C_mexpl, vert_DV_C_mids
+  end interface
+
+  interface vert_VC_D
+    module procedure vert_VC_D_mexpl, vert_VC_D_mids
+  end interface
+
   contains
 
 ! ! **********************************************************************
@@ -2695,7 +2715,7 @@ subroutine vert_UV_W_mids(ntry, V1, mom1, V2, mom2, V_out, n, t)
 !   use ol_h_contractions_/**/REALKIND, only: cont_PP
   implicit none
   integer(intkind1), intent(in)   :: ntry
-  integer,           intent(in)   :: mom1,mom2
+  integer,           intent(in)   :: mom1, mom2
   integer(intkind2), intent(inout):: n(3), t(2,n(3))
   type(wfun),        intent(in)   :: V1(n(1)), V2(n(2))
   type(wfun),        intent(out)  :: V_out(n(3))
@@ -2956,7 +2976,7 @@ end subroutine vert_SSS_S
 
 
 ! **********************************************************************
-subroutine vert_VS_T(ntry, V, P1, S, P2, S_out, n, t)
+subroutine vert_VS_T_mexpl(ntry, V, P1, S, P2, S_out, n, t)
 ! Vector boson + two scalars vertex
 ! ----------------------------------------------------------------------
 ! ntry            : 1 (2) for 1st (subsequent) PS points
@@ -2988,11 +3008,41 @@ subroutine vert_VS_T(ntry, V, P1, S, P2, S_out, n, t)
     call helbookkeeping_vert3(ntry, V, S, S_out, n, t)
   end if
 
-end subroutine vert_VS_T
+end subroutine vert_VS_T_mexpl
+
+! **********************************************************************
+subroutine vert_VS_T_mids(ntry, V, mom1, S, mom2, S_out, n, t)
+! Vector boson + two scalars vertex
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert3, checkzero_scalar
+  use ol_h_contractions_/**/REALKIND, only: cont_PP
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer,           intent(in)    :: mom1, mom2
+  integer(intkind2), intent(inout) :: n(3), t(2,n(3))
+  type(wfun),        intent(in)    :: V(n(1)), S(n(2))
+  type(wfun),        intent(out)   :: S_out(n(3))
+  complex(REALKIND) :: P122(4)
+  integer :: h
+
+  P122 = get_LC_4(mom1 + mom2) + get_LC_4(mom2)
+  do h = 1, n(3)
+    S_out(h)%j(1) = cont_PP(P122, V(t(1,h))%j) * S(t(2,h))%j(1)
+  end do
+
+  if (ntry == 1) then
+    call  checkzero_scalar(S_out)
+    call helbookkeeping_vert3(ntry, V, S, S_out, n, t)
+  end if
+
+end subroutine vert_VS_T_mids
 
 
 ! **********************************************************************
-subroutine vert_TV_S(ntry, S, P1, V, P2, S_out, n, t)
+subroutine vert_TV_S_mexpl(ntry, S, P1, V, P2, S_out, n, t)
 ! Vector boson + two scalars vertex
 ! ----------------------------------------------------------------------
 ! ntry            : 1 (2) for 1st (subsequent) PS points
@@ -3024,11 +3074,40 @@ subroutine vert_TV_S(ntry, S, P1, V, P2, S_out, n, t)
     call helbookkeeping_vert3(ntry, S, V, S_out, n, t)
   end if
 
-end subroutine vert_TV_S
-
+end subroutine vert_TV_S_mexpl
 
 ! **********************************************************************
-subroutine vert_ST_V(ntry, S1, P1, S2, P2, V_out, n, t)
+subroutine vert_TV_S_mids(ntry, S, mom1, V, mom2, S_out, n, t)
+! Vector boson + two scalars vertex
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert3, checkzero_scalar
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
+  use ol_h_contractions_/**/REALKIND, only: cont_PP
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer,           intent(in)    :: mom1, mom2
+  integer(intkind2), intent(inout) :: n(3), t(2,n(3))
+  type(wfun),        intent(in)    :: S(n(1)), V(n(2))
+  type(wfun),        intent(out)   :: S_out(n(3))
+  complex(REALKIND) :: P112(4)
+  integer :: h
+
+  P112 = get_LC_4(mom1) + get_LC_4(mom1 + mom2)
+  do h = 1, n(3)
+    S_out(h)%j(1) = - cont_PP(P112, V(t(2,h))%j) * S(t(1,h))%j(1)
+  end do
+
+  if (ntry == 1) then
+    call checkzero_scalar(S_out)
+    call helbookkeeping_vert3(ntry, S, V, S_out, n, t)
+  end if
+
+end subroutine vert_TV_S_mids
+
+! **********************************************************************
+subroutine vert_ST_V_mexpl(ntry, S1, P1, S2, P2, V_out, n, t)
 ! Vector boson + two scalars vertex
 ! ----------------------------------------------------------------------
 ! ntry            : 1 (2) for 1st (subsequent) PS points
@@ -3055,7 +3134,33 @@ subroutine vert_ST_V(ntry, S1, P1, S2, P2, V_out, n, t)
 
   if (ntry == 1) call helbookkeeping_vert3(ntry, S1, S2, V_out, n, t)
 
-end subroutine vert_ST_V
+end subroutine vert_ST_V_mexpl
+
+! **********************************************************************
+subroutine vert_ST_V_mids(ntry, S1, mom1, S2, mom2, V_out, n, t)
+! Vector boson + two scalars vertex
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert3
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer,           intent(in)    :: mom1, mom2
+  integer(intkind2), intent(inout) :: n(3), t(2,n(3))
+  type(wfun),        intent(in)    :: S1(n(1)), S2(n(2))
+  type(wfun),        intent(out)   :: V_out(n(3))
+  complex(REALKIND) :: P12(4)
+  integer :: h
+
+  P12 = get_LC_4(mom1 - mom2)
+  do h = 1, n(3)
+    V_out(h)%j = (S1(t(1,h))%j(1) * S2(t(2,h))%j(1)) * P12
+  end do
+
+  if (ntry == 1) call helbookkeeping_vert3(ntry, S1, S2, V_out, n, t)
+
+end subroutine vert_ST_V_mids
 
 
 ! **********************************************************************
@@ -3459,7 +3564,7 @@ end subroutine vert_CD_V
 
 
 ! **********************************************************************
-subroutine vert_DV_C(ntry, D, P1, V, D_out, n, t)
+subroutine vert_DV_C_mexpl(ntry, D, P1, V, D_out, n, t)
 ! Anti-ghost/gluon/anti-ghost vertex
 ! ----------------------------------------------------------------------
 ! ntry                : 1 (2) for 1st (subsequent) PS points
@@ -3488,11 +3593,38 @@ subroutine vert_DV_C(ntry, D, P1, V, D_out, n, t)
     call helbookkeeping_vert3(ntry, D, V, D_out, n, t)
   end if
 
-end subroutine vert_DV_C
-
+end subroutine vert_DV_C_mexpl
 
 ! **********************************************************************
-subroutine vert_VC_D(ntry, V, P1, C, P2, C_out, n, t)
+subroutine vert_DV_C_mids(ntry, D, mom1, V, D_out, n, t)
+! Anti-ghost/gluon/anti-ghost vertex
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert3, checkzero_scalar
+  use ol_h_contractions_/**/REALKIND, only: cont_PP
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer,           intent(in)    :: mom1
+  integer(intkind2), intent(inout) :: n(3), t(2,n(3))
+  type(wfun),        intent(in)    :: D(n(1)), V(n(2))
+  type(wfun),        intent(out)   :: D_out(n(3))
+  integer :: h
+
+  do h = 1, n(3)
+    D_out(h)%j(1) = - D(t(1,h))%j(1) * cont_PP(get_LC_4(mom1), V(t(2,h))%j)
+  end do
+
+  if (ntry == 1) then
+    call checkzero_scalar(D_out)
+    call helbookkeeping_vert3(ntry, D, V, D_out, n, t)
+  end if
+
+end subroutine vert_DV_C_mids
+
+! **********************************************************************
+subroutine vert_VC_D_mexpl(ntry, V, P1, C, P2, C_out, n, t)
 ! Ghost/gluon/ghost vertex
 ! ----------------------------------------------------------------------
 ! ntry           : 1 (2) for 1st (subsequent) PS points
@@ -3523,7 +3655,37 @@ subroutine vert_VC_D(ntry, V, P1, C, P2, C_out, n, t)
     call helbookkeeping_vert3(ntry, V, C, C_out, n, t)
   end if
 
-end subroutine vert_VC_D
+end subroutine vert_VC_D_mexpl
+
+! **********************************************************************
+subroutine vert_VC_D_mids(ntry, V, mom1, C, mom2, C_out, n, t)
+! Ghost/gluon/ghost vertex
+! **********************************************************************
+  use KIND_TYPES, only: REALKIND, intkind1, intkind2
+  use ol_data_types_/**/REALKIND, only: wfun
+  use ol_helicity_bookkeeping_/**/REALKIND, only: helbookkeeping_vert3, checkzero_scalar
+  use ol_h_contractions_/**/REALKIND, only: cont_PP
+  use ol_kinematics_/**/REALKIND, only: get_LC_4
+  implicit none
+  integer(intkind1), intent(in)    :: ntry
+  integer,           intent(in)    :: mom1, mom2
+  integer(intkind2), intent(inout) :: n(3), t(2,n(3))
+  type(wfun),        intent(in)    :: V(n(1)), C(n(2))
+  type(wfun),        intent(out)   :: C_out(n(3))
+  complex(REALKIND) :: P12(4)
+  integer :: h
+
+  P12 = get_LC_4(mom1 + mom2)
+  do h = 1, n(3)
+    C_out(h)%j(1) = C(t(2,h))%j(1) * cont_PP(P12, V(t(1,h))%j)
+  end do
+
+  if (ntry == 1) then
+    call checkzero_scalar(C_out)
+    call helbookkeeping_vert3(ntry, V, C, C_out, n, t)
+  end if
+
+end subroutine vert_VC_D_mids
 
 
 ! ======================================================================
@@ -4163,15 +4325,15 @@ end subroutine vert_SV_V_kap
 !   type(wfun),        intent(out)   :: V_out(n(3))
 !   complex(REALKIND), intent(in)    :: P1(4), P2(4)
 !   integer :: h
-! 
+!
 !   do h = 1, n(3)
 !     V_out(h)%j = S(t(1,h))%j(1) * V(t(2,h))%j
 !   end do
-! 
+!
 !   if (ntry == 1) call helbookkeeping_vert3(ntry, S, V, V_out, n, t)
-! 
+!
 ! end subroutine vert_SV_W_kap
-! 
+!
 
 
 ! **********************************************************************
@@ -4259,16 +4421,16 @@ end subroutine vert_SV_V_aeps
 !   type(wfun),        intent(out)   :: V_out(n(3))
 !   complex(REALKIND), intent(in)    :: P1(4), P2(4)
 !   integer :: h
-! 
+!
 !   do h = 1, n(3)
 !     call cont_EpPPP(V(t(1,h))%j, P1, P2, V_out(h)%j)
 !     V_out(h)%j = S(t(2,h))%j(1) * V_out(h)%j
 !   end do
-! 
+!
 !   if (ntry == 1) call helbookkeeping_vert3(ntry, S, V, V_out, n, t)
-! 
+!
 ! end subroutine vert_VS_V_aeps
-! 
+!
 
 ! **********************************************************************
 subroutine vert_SQA_V(g, ntry, S, Q, A, V_out, n, t)

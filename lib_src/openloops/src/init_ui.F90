@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -242,9 +242,51 @@ module ol_init
         else
           call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
         end if
+      case ("hp_preset")
+        ! performance thresholds for hard region
+        call set_if_modified(hp_preset, val)
+        call set_if_modified(hp_mode, 1)
+        if (val == 1) then
+          call set_if_modified(hp_step_thres, 0.5_/**/DREALKIND)
+          call set_if_modified(hp_gd3_thres, 7._/**/DREALKIND)
+          call set_if_modified(hp_err_thres, 7.5_/**/DREALKIND)
+          call set_if_modified(hp_gamma_trig, .false.)
+          call set_if_modified(hp_ir_trig, .false.)
+          call set_if_modified(hp_irtri_trig, .false.)
+        ! conservative thresholds for hard regions
+        else if (val == 2) then
+          call set_if_modified(hp_step_thres, 1.5_/**/DREALKIND)
+          call set_if_modified(hp_gd3_thres, 4._/**/DREALKIND)
+          call set_if_modified(hp_err_thres, 4.5_/**/DREALKIND)
+          call set_if_modified(hp_gamma_trig, .false.)
+          call set_if_modified(hp_ir_trig, .false.)
+          call set_if_modified(hp_irtri_trig, .false.)
+        ! performance thresholds for IR regions
+        else if (val == 11) then
+          call set_if_modified(hp_step_thres, 0.5_/**/DREALKIND)
+          call set_if_modified(hp_gd3_thres, 7._/**/DREALKIND)
+          call set_if_modified(hp_err_thres, 7.5_/**/DREALKIND)
+          call set_if_modified(hp_gamma_trig, .true.)
+          call set_if_modified(hp_ir_trig, .true.)
+          call set_if_modified(hp_irtri_trig, .false.)
+        ! standard/conservative thresholds for IR regions
+        else if (val == 12) then
+          call set_if_modified(hp_step_thres, 1.5_/**/DREALKIND)
+          call set_if_modified(hp_gd3_thres, 4._/**/DREALKIND)
+          call set_if_modified(hp_err_thres, 4.5_/**/DREALKIND)
+          call set_if_modified(hp_gamma_trig, .true.)
+          call set_if_modified(hp_ir_trig, .true.)
+          call set_if_modified(hp_irtri_trig, .true.)
+        end if
       case ("hp_mode")
         if (expert_mode) then
           call set_if_modified(hp_mode, val)
+        else
+          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
+        end if
+      case ("use_bubble_vertex")
+        if (expert_mode) then
+          call set_if_modified(use_bubble_vertex, val)
         else
           call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
         end if
@@ -384,6 +426,11 @@ module ol_init
         use_me_cache = val
       case ("ew_renorm")
         call set_if_modified(do_ew_renorm, val)
+        if (use_bubble_vertex .ne. 0 .and. val .eq. 0) then
+          call set_if_modified(bubble_vertex, 1)
+        else
+          call set_if_modified(bubble_vertex, 0)
+        end if
       case ("qcd_renorm")
         call set_if_modified(do_qcd_renorm, val)
       case ("ew_renorm_switch")
@@ -665,6 +712,14 @@ module ol_init
         val = coli_cache_use
       case ("ol_params_verbose")
         val = parameters_verbose
+      case ("hp_preset")
+        val = hp_preset
+      case ("hp_mode")
+        val = hp_mode
+      case ("bubble_vertex")
+        val = bubble_vertex
+      case ("use_qp_invariants")
+        val = use_qp_invariants
       case ("verbose")
         call get_verbose(val)
       case("do_not_stop")
@@ -1127,11 +1182,23 @@ module ol_init
 
       ! Hybrid precision mode thresholds
       case ("hp_step_thres")
-        call set_if_modified(hp_step_thres, val)
+        if (expert_mode) then
+          call set_if_modified(hp_step_thres, val)
+        else
+          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
+        end if
       case ("hp_err_thres")
-        call set_if_modified(hp_err_thres, val)
+        if (expert_mode) then
+          call set_if_modified(hp_err_thres, val)
+        else
+          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
+        end if
       case ("hp_gd3_thres")
-        call set_if_modified(hp_gd3_thres, val)
+        if (expert_mode) then
+          call set_if_modified(hp_gd3_thres, val)
+        else
+          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
+        end if
 
       case default
 

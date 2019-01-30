@@ -114,9 +114,9 @@ def update_channel_db(repo):
         else:
             rfh = urlopen(remote_channel_url)
     except HTTPError:
-        print('*** Channel database update for repository ' + repo_name +
-              ' failed ***')
-        sys.exit(1)
+        print('Warning: Channel database update for repository ' + repo_name +
+              ' failed. Skip this repository.')
+        return False
     hash_line = rfh.readline()
     if local_hash != hash_line.split()[0]:
         local_hash = hashlib.md5()
@@ -137,6 +137,7 @@ def update_channel_db(repo):
                   'for repository ' + repo_name)
             sys.exit(1)
     rfh.close()
+    return True
 
 
 def download(process, dbs):
@@ -186,7 +187,7 @@ def download(process, dbs):
     local_archive = os.path.join(local_process_dir + '.tar.gz')
 
     # download the process
-    print('download ...',end=' ')
+    print('download from repository: '+ available[2] +'...',end=' ')
     sys.stdout.flush()
     try:
         if remote_archive.startswith('/'):
@@ -236,7 +237,8 @@ found_colls = set()
 for repo in config['process_repositories']:
     repo_name = OLToolbox.repo_name(repo)
     # download the channel database for this repository
-    update_channel_db(repo)
+    if not update_channel_db(repo):
+        continue
     # Latest OpenLoops process API version for which processes
     # are available in the repository
     latest_api_version = int(OLToolbox.import_dictionary(

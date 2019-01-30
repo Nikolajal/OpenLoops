@@ -127,6 +127,7 @@ def get_config(args=[]):
     parse_option(config, 'ccflags', converter=split_list)
     parse_option(config, 'cxxflags', converter=split_list)
     parse_option(config, 'generator', converter=int, one_of=[0,1,2])
+    parse_option(config, 'generator_mode', converter=int, one_of=[-1,0,1,2,3])
     parse_option(config, 'gjobs', converter=int)
     parse_option(config, 'compile', converter=int, one_of=[0,1,2])
     parse_option(config, 'compile_extra', converter=parse_bool)

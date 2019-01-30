@@ -50,7 +50,9 @@ env = Environment()
 
 env.Replace(MATH = config['math_cmd'],
             MATHFLAGS = config['math_flags'],
-            DEFINEPROCESS = config['definition_processor_prg'])
+            DEFINEPROCESS = config['definition_processor_prg'],
+            GENERATORMODE = config['generator_mode'],
+            PROCESSAPI = config['process_api_version'])
 
 if '@all' in config['import_env']:
     env['ENV'] = os.environ
@@ -62,7 +64,7 @@ subprocess_list = os.path.join(config['process_src_dir'], processlib, 'process_d
 
 defined_process = env.Command(
     subprocess_list, process_def,
-    '$MATH $MATHFLAGS -f$SOURCE -run "<<$DEFINEPROCESS;Quit[];"')
+    '$MATH $MATHFLAGS -f$SOURCE --mode=$GENERATORMODE --api=$PROCESSAPI -run "<<$DEFINEPROCESS;Quit[];"')
 
 Depends(defined_process, [config['definition_processor_prg']])
 

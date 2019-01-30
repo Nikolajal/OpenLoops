@@ -45,11 +45,6 @@ generator=0/1/2
   1: use the process generator
   2: use the process downloader
 
-gversion=0/1/2
-  0: full hel loop, parent-child-recycling (only option for loop induced processes)
-  1: on-the-fly hel summation, born contracted with 1-loop colour in beginning, on-the-fly-merging of diagrams
-  2: gversion 1 + on-the-fly-reduction
-
 compile=0/1/2
   0: don't compile
   1: compile processes,
@@ -132,7 +127,7 @@ if config['release']:
 else:
     release_version = ''
 
-svn_revision = str(OLToolbox.get_svn_revision(mandatory = False))
+git_revision = str(OLToolbox.get_git_revision(mandatory = False))
 
 # Install directory; only effect is that this is put into
 # the openloops library as a string. TODO: override by command line argument;
@@ -273,7 +268,8 @@ if compile_libraries:
     cpp_container = CPPContainer(scons_cmd = scons_cmd,
                                  mp = config['precision'],
                                  version = release_version,
-                                 revision = svn_revision,
+                                 process_api = config['process_api_version'],
+                                 revision = git_revision,
                                  cpp_defs = cpp_defines,
                                  target = 'cpp_generic',
                                  target_prefix = os.path.join('..', 'obj', ''))
@@ -538,19 +534,26 @@ def split_processlist(loops, procs):
 
 
 def get_auto_loops(loops_processlib):
-    """Determine 'auto' loops specifications from version.info in the process source directory."""
+    """Determine 'auto' loops specifications and process API version
+    from version.info in the process source directory."""
     loops = loops_processlib[0]
     processlib = loops_processlib[1]
+    version_info = OLToolbox.import_dictionary(
+        os.path.join(config['process_src_dir'], processlib, 'version.info'),
+        fatal = False)
+    process_api = -1
+    if version_info:
+        process_api = int(version_info['process_api_version'])
     if loops == 'auto':
-        loops = OLToolbox.import_dictionary(
-            os.path.join(config['process_src_dir'], processlib, 'version.info'),
-            error_message = (
-                'ERROR: auto loops specification not available for ' + processlib)
-        )['loops']
+        if not version_info:
+            print('ERROR: auto loops specification not available for '
+                  + processlib)
+            Exit(1)
+        loops = version_info['loops']
         if loops == 'auto' or loops not in OLBaseConfig.loops_specifications:
             print('ERROR: invalid loops specification for', processlib)
             Exit(1)
-    return (loops, processlib)
+    return (loops, process_api, processlib)
 
 
 def find_process_src(generate = True):
@@ -565,6 +568,7 @@ def find_process_src(generate = True):
         process_directories = os.listdir(config['process_src_dir'])
     else:
         return process_list
+    print("huhu!")
 
     for procdir in process_directories:
         version_info = OLToolbox.import_dictionary(
@@ -649,12 +653,23 @@ if download_process_true:
 
 process_list = map(get_auto_loops, process_list)
 
-process_list = sorted(list(set(process_list)))
+processes_seen = dict()
+process_list_nodup = []
+for (loops, process_api, processlib) in process_list:
+    if processlib in processes_seen:
+        if processes_seen[processlib] != loops:
+            print('ERROR: cannot generate process library ' + processlib +
+                  ' twice with different loop specification.')
+            sys.exit(1)
+    else:
+        process_list_nodup.append((loops, process_api, processlib))
+        processes_seen[processlib] = loops
+process_list = process_list_nodup
 
 env.Append(RPATH = [HashableLiteral('\$$ORIGIN/../lib')])
 
 
-for (loops, processlib) in process_list:
+for (loops, process_api, processlib) in process_list:
 
     print('process library:', processlib + '_' + loops)
 
@@ -667,6 +682,13 @@ for (loops, processlib) in process_list:
     # run the process code generator
     if generate_process_true:
         generate_process(loops, processlib)
+    else:
+        ol_api = config['process_api_version']
+        if process_api != ol_api:
+            print(('ERROR: Process API version {} of OpenLoops does not agree '
+                  + 'with the API version {} of the process library {}.'
+                  ).format(ol_api,process_api,processlib))
+            Exit(1)
 
     # compile process
     if config['compile'] > 0 and not GetOption('clean'):

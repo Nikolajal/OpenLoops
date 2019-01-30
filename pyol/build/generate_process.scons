@@ -61,7 +61,7 @@ if subprocess.call([scons_cmd, '-Q', '-f',
 
 loops = ARGUMENTS.get('LOOPS', 't')
 processlib_src_dir = os.path.join(config['process_src_dir'], processlib)
-svn_revision = str(OLToolbox.get_svn_revision(mandatory = False))
+git_revision = str(OLToolbox.get_git_revision(mandatory = False))
 process_api_version = config['process_api_version']
 
 # load the list of sub-processes
@@ -83,7 +83,7 @@ env = Environment(tools = ['default', 'textfile'],
                   TEXTFILESUFFIX = '',
                   SUBST_DICT = {'@LOOPS@': loops,
                                 '@PROCESS@': processlib,
-                                '@REVISION@': svn_revision,
+                                '@REVISION@': git_revision,
                                 '@PROCESS_API@': process_api_version})
 
 if '@all' in config['import_env']:
@@ -133,7 +133,7 @@ version_src = env.Substfile(os.path.join(processlib_src_dir, 'version_' + proces
 
 version_info_file = os.path.join(processlib_src_dir, 'version.info')
 version_info = env.Textfile(version_info_file,
-                  ['loops @LOOPS@', 'svn_revision @REVISION@', 'process_api_version @PROCESS_API@', ''])
+                  ['loops @LOOPS@', 'git_revision @REVISION@', 'process_api_version @PROCESS_API@', ''])
 
 # global library options, used in info file
 library_info = env.Command(

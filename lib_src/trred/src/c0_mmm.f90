@@ -2,8 +2,7 @@
 !                                                                              !
 !    c0_mmm.f90                                                                !
 !    is part of trred & OpenLoops2                                             !
-!    Copyright (C) 2017-2018 Federico Buccioni, Jean-Nicolas Lang,             !
-!                            Stefano Pozzorini, Hantian Zhang and Max Zoller   !
+!    Copyright (C) 2017-2019  For authors see authors.txt.                     !
 !                                                                              !
 !    trred has been developed by J.-N. Lang, H. Zhang and F. Buccioni          !
 !    trred is licenced under the GNU GPL version 3,                            !
@@ -11,11 +10,9 @@
 !                                                                              !
 !******************************************************************************!
 
-
-! Implements the n-th derivative of C0(-p^2,-p^2(1+\delta),m^2,m^2,m^2)
-
 module c0_mmm_DP
-  use triangle_aux_DP, only: target_precision,dp,cone,cnul,recursion_threshold
+  use triangle_aux_DP, only: target_precision,dp,cone,cnul,recursion_threshold,&
+                          muUV2,muIR2
   implicit none
 
   complex(dp) :: edge_g(0:recursion_threshold),    &
@@ -55,7 +52,7 @@ module c0_mmm_DP
       g = -1/cmplx(n+1,kind=dp)*((n-m-cone/2)*gtmp1+(cone/2+m)*gtmp2)
       f = -1/cmplx(n+1,kind=dp)*((n-m-cone/2)*ftmp1+(cone/2+m)*ftmp2-ftmp3)
     end if
-    
+
   end subroutine gfnm
 
   recursive function fnm(y,n,m) result(f)
@@ -68,7 +65,7 @@ module c0_mmm_DP
     else
       f = -((n-m)*fnm(y,n-1,m)+m*fnm(y,n-1,m+1))/cmplx(n+1,kind=dp)
     end if
-    
+
   end function fnm
 
   !subroutine table_init(y, r, edge_g, edge_f, edge_f0)
@@ -96,11 +93,11 @@ module c0_mmm_DP
         end if
         g(n,m) = -1/cmplx(n+1,kind=dp)*( (n-m-cone/2)*g(n-1,m) + (cone/2+m)*g(n-1,m+1) )
         f(n,m) = -1/cmplx(n+1,kind=dp)*( (n-m-cone/2)*f(n-1,m) + (cone/2+m)*f(n-1,m+1) - f0(n-1,m+1) )
-        
+
         if (m == (r-n) ) then
           edge_g(n) = g(n,m)
           edge_f(n) = f(n,m)
-          edge_f0(n-1) = f0(n-1,m+1) 
+          edge_f0(n-1) = f0(n-1,m+1)
         end if
       end do
     end do
@@ -139,20 +136,20 @@ module c0_mmm_DP
     edge_f0 = NewEdge_f0
   end subroutine table_update
 
-  function C0_n_mmm_init(p2,m2,muUV2,muIR2,n) result(C0)
-    complex(dp), intent(in) :: p2,m2(:),muUV2,muIR2
+  function C0_n_mmm_init(p2,m2,n) result(C0)
+    complex(dp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(dp)             :: C0,y
 
     y = sqrt(1+4*m2(1)/p2)
     call table_init(y, n)
     C0 = ( -edge_g(n) *log((cone+y)/(-cone+y))/y + edge_f(n) )/p2
-    
+
   end function C0_n_mmm_init
 
 
-  function C0_n_mmm_update(p2,m2,muUV2,muIR2,n) result(C0)
-    complex(dp), intent(in) :: p2,m2(:),muUV2,muIR2
+  function C0_n_mmm_update(p2,m2,n) result(C0)
+    complex(dp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(dp)             :: C0,y
 
@@ -160,14 +157,15 @@ module c0_mmm_DP
     !call table_update(y, n, edge_g, edge_f, edge_f0, NewEdge_g, NewEdge_f, NewEdge_f0)
     call table_update(y, n)
     C0 = ( -NewEdge_g(n) *log((cone+y)/(-cone+y))/y + NewEdge_f(n) )/p2
-    
+
   end function C0_n_mmm_update
-    
-    
+
+
 end module c0_mmm_DP
 
 module c0_mmm_QP
-  use triangle_aux_QP, only: target_precision,qp,cone,cnul,recursion_threshold
+  use triangle_aux_QP, only: target_precision,qp,cone,cnul,recursion_threshold,&
+                          muUV2,muIR2
   implicit none
 
   complex(qp) :: edge_g(0:recursion_threshold),    &
@@ -207,7 +205,7 @@ module c0_mmm_QP
       g = -1/cmplx(n+1,kind=qp)*((n-m-cone/2)*gtmp1+(cone/2+m)*gtmp2)
       f = -1/cmplx(n+1,kind=qp)*((n-m-cone/2)*ftmp1+(cone/2+m)*ftmp2-ftmp3)
     end if
-    
+
   end subroutine gfnm
 
   recursive function fnm(y,n,m) result(f)
@@ -220,7 +218,7 @@ module c0_mmm_QP
     else
       f = -((n-m)*fnm(y,n-1,m)+m*fnm(y,n-1,m+1))/cmplx(n+1,kind=qp)
     end if
-    
+
   end function fnm
 
   !subroutine table_init(y, r, edge_g, edge_f, edge_f0)
@@ -248,11 +246,11 @@ module c0_mmm_QP
         end if
         g(n,m) = -1/cmplx(n+1,kind=qp)*( (n-m-cone/2)*g(n-1,m) + (cone/2+m)*g(n-1,m+1) )
         f(n,m) = -1/cmplx(n+1,kind=qp)*( (n-m-cone/2)*f(n-1,m) + (cone/2+m)*f(n-1,m+1) - f0(n-1,m+1) )
-        
+
         if (m == (r-n) ) then
           edge_g(n) = g(n,m)
           edge_f(n) = f(n,m)
-          edge_f0(n-1) = f0(n-1,m+1) 
+          edge_f0(n-1) = f0(n-1,m+1)
         end if
       end do
     end do
@@ -291,20 +289,20 @@ module c0_mmm_QP
     edge_f0 = NewEdge_f0
   end subroutine table_update
 
-  function C0_n_mmm_init(p2,m2,muUV2,muIR2,n) result(C0)
-    complex(qp), intent(in) :: p2,m2(:),muUV2,muIR2
+  function C0_n_mmm_init(p2,m2,n) result(C0)
+    complex(qp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(qp)             :: C0,y
 
     y = sqrt(1+4*m2(1)/p2)
     call table_init(y, n)
     C0 = ( -edge_g(n) *log((cone+y)/(-cone+y))/y + edge_f(n) )/p2
-    
+
   end function C0_n_mmm_init
 
 
-  function C0_n_mmm_update(p2,m2,muUV2,muIR2,n) result(C0)
-    complex(qp), intent(in) :: p2,m2(:),muUV2,muIR2
+  function C0_n_mmm_update(p2,m2,n) result(C0)
+    complex(qp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(qp)             :: C0,y
 
@@ -312,8 +310,8 @@ module c0_mmm_QP
     !call table_update(y, n, edge_g, edge_f, edge_f0, NewEdge_g, NewEdge_f, NewEdge_f0)
     call table_update(y, n)
     C0 = ( -NewEdge_g(n) *log((cone+y)/(-cone+y))/y + NewEdge_f(n) )/p2
-    
+
   end function C0_n_mmm_update
-    
-    
+
+
 end module c0_mmm_QP

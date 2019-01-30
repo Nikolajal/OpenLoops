@@ -65,8 +65,10 @@ mp          = split_and_clean(ARGUMENTS.get('mp',        'dp'))
 cpp_cmd        = ARGUMENTS.get('cpp_cmd',     config['cpp'])
 kind_parameter = ARGUMENTS.get('kind_parameter', 'REALKIND')
 version_macro  = ARGUMENTS.get('version_macro',  'VERSION' )
+process_api_macro = ARGUMENTS.get('process_api_macro', 'PROCESSAPI')
 revision_macro = ARGUMENTS.get('revision_macro', 'REVISION')
 version        = ARGUMENTS.get('version',        'none'    )
+process_api = ARGUMENTS.get('process_api',         '-1'    )
 revision       = ARGUMENTS.get('revision',       'none'    )
 target         = ARGUMENTS.get('target',         'cpp'     )
 target_prefix  = ARGUMENTS.get('prefix',         ''        )
@@ -87,7 +89,10 @@ if 'qp_rescue' in mp:
 if 'qp_checks' in mp:
     cpp_defs += ['USE_CHECK_qp']
 mp = [prec for prec in mp if not prec.startswith('qp_')]
-cpp_defs_version = cpp_defs + [[version_macro, '\\"' + version + '\\"'], [revision_macro, '\\"' + revision + '\\"']]
+cpp_defs_version = cpp_defs + [
+    [version_macro, '\\"' + version + '\\"'],
+    [process_api_macro, process_api],
+    [revision_macro, '\\"' + revision + '\\"']]
 
 
 def target_rename(target, source, env):

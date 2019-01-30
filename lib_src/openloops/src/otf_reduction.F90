@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -1820,16 +1820,6 @@ subroutine twopoint_reduction(Gin,p,msq,B0coeff)
   integer :: i, j, n
   logical :: onshell_zero
 
-  if (size(Gin) > 15) then
-    call ol_error("Reduction of a bubble of rank > 2 not available")
-    stop
-  end if
-
-  if (size(Gin) > 1 .AND. size(Gin) < 5) then
-    call ol_error("wrong rank-dimensionality in bubble reduction")
-    stop
-  end if
-
   B0coeff = zero
   tempcoeff = zero
 
@@ -1946,11 +1936,7 @@ subroutine twopoint_reduction(Gin,p,msq,B0coeff)
 
   !Massless bubble
   if(msq(0) == msq(1) .AND. msq(0) == 0._/**/REALKIND) then
-    if (onshell_zero) then
-      B0coeff(1) = Gin(1)
-    else
-      B0coeff(1) = Gin(1) - PPmu
-    end if
+    B0coeff(1) = Gin(1) - PPmu
 
   !Bubble with same masses, both different from zero
   else if(msq(0) == msq(1)) then
@@ -3582,16 +3568,39 @@ function valid_4pt_hol(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_R1)
   Gout_A1%error = 0
   Gout_A2%error = 0
   Gout_A3%error = 0
-  Gout_A%hit = 0
-  Gout_A0%hit = 0
-  Gout_A1%hit = 0
-  Gout_A2%hit = 0
-  Gout_A3%hit = 0
+
+  Gout_A%ndrs = Gin_A%ndrs
+  Gout_A0%ndrs = 0
+  Gout_A1%ndrs = 0
+  Gout_A2%ndrs = 0
+  Gout_A3%ndrs = 0
+  Gout_A%nred = Gin_A%nred
+  Gout_A0%nred = 0
+  Gout_A1%nred = 0
+  Gout_A2%nred = 0
+  Gout_A3%nred = 0
+#ifdef PRECISION_dp
+  Gout_A%ndrs_qp = Gin_A%ndrs_qp
+  Gout_A0%ndrs_qp = 0
+  Gout_A1%ndrs_qp = 0
+  Gout_A2%ndrs_qp = 0
+  Gout_A3%ndrs_qp = 0
+  Gout_A%nred_qp = Gin_A%nred_qp
+  Gout_A0%nred_qp = 0
+  Gout_A1%nred_qp = 0
+  Gout_A2%nred_qp = 0
+  Gout_A3%nred_qp = 0
+#endif
 
   if(present(Gout_R1)) then
     Gout_R1%mode = Gin_A%mode
     Gout_R1%error = 0
-    Gout_R1%hit = 0
+    Gout_R1%ndrs = 0
+    Gout_R1%nred = 0
+#ifdef PRECISION_dp
+    Gout_R1%ndrs_qp = 0
+    Gout_R1%nred_qp = 0
+#endif
   end if
 
   if (Gin_A%mode .eq. hybrid_zero_mode) then
@@ -3645,16 +3654,38 @@ function valid_4pt_hcl(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_R1)
   Gout_A2%error = 0
   Gout_A3%error = 0
 
-  Gout_A%hit = 0
-  Gout_A0%hit = 0
-  Gout_A1%hit = 0
-  Gout_A2%hit = 0
-  Gout_A3%hit = 0
+  Gout_A%ndrs = Gin_A%ndrs
+  Gout_A0%ndrs = 0
+  Gout_A1%ndrs = 0
+  Gout_A2%ndrs = 0
+  Gout_A3%ndrs = 0
+  Gout_A%nred = Gin_A%nred
+  Gout_A0%nred = 0
+  Gout_A1%nred = 0
+  Gout_A2%nred = 0
+  Gout_A3%nred = 0
+#ifdef PRECISION_dp
+  Gout_A%ndrs_qp = Gin_A%ndrs_qp
+  Gout_A0%ndrs_qp = 0
+  Gout_A1%ndrs_qp = 0
+  Gout_A2%ndrs_qp = 0
+  Gout_A3%ndrs_qp = 0
+  Gout_A%nred_qp = Gin_A%nred_qp
+  Gout_A0%nred_qp = 0
+  Gout_A1%nred_qp = 0
+  Gout_A2%nred_qp = 0
+  Gout_A3%nred_qp = 0
+#endif
 
   if(present(Gout_R1)) then
     Gout_R1%mode = Gin_A%mode
     Gout_R1%error = 0
-    Gout_R1%hit = 0
+    Gout_R1%ndrs = 0
+    Gout_R1%nred = 0
+#ifdef PRECISION_dp
+    Gout_R1%ndrs_qp = 0
+    Gout_R1%nred_qp = 0
+#endif
   end if
 
   if (Gin_A%mode .eq. hybrid_zero_mode) then
@@ -3719,16 +3750,42 @@ function valid_5pt_hol(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4,Gou
   Gout_A2%error = 0
   Gout_A3%error = 0
   Gout_A4%error = 0
-  Gout_A%hit = 0
-  Gout_A0%hit = 0
-  Gout_A1%hit = 0
-  Gout_A2%hit = 0
-  Gout_A3%hit = 0
-  Gout_A4%hit = 0
+  Gout_A%ndrs = Gin_A%ndrs
+  Gout_A0%ndrs = 0
+  Gout_A1%ndrs = 0
+  Gout_A2%ndrs = 0
+  Gout_A3%ndrs = 0
+  Gout_A4%ndrs = 0
+  Gout_A%nred = Gin_A%nred
+  Gout_A0%nred = 0
+  Gout_A1%nred = 0
+  Gout_A2%nred = 0
+  Gout_A3%nred = 0
+  Gout_A4%nred = 0
+#ifdef PRECISION_dp
+  Gout_A%ndrs_qp = Gin_A%ndrs_qp
+  Gout_A0%ndrs_qp = 0
+  Gout_A1%ndrs_qp = 0
+  Gout_A2%ndrs_qp = 0
+  Gout_A3%ndrs_qp = 0
+  Gout_A4%ndrs_qp = 0
+  Gout_A%nred_qp = Gin_A%nred_qp
+  Gout_A0%nred_qp = 0
+  Gout_A1%nred_qp = 0
+  Gout_A2%nred_qp = 0
+  Gout_A3%nred_qp = 0
+  Gout_A4%nred_qp = 0
+#endif
+
   if(present(Gout_R1)) then
     Gout_R1%mode = Gin_A%mode
     Gout_R1%error = 0
-    Gout_R1%hit = 0
+    Gout_R1%ndrs = 0
+    Gout_R1%nred = 0
+#ifdef PRECISION_dp
+    Gout_R1%ndrs_qp = 0
+    Gout_R1%nred_qp = 0
+#endif
   end if
 
   if (Gin_A%mode .eq. hybrid_zero_mode) then
@@ -3785,17 +3842,42 @@ function valid_5pt_hcl(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4,Gou
   Gout_A2%error = 0
   Gout_A3%error = 0
   Gout_A4%error = 0
-  Gout_A%hit = 0
-  Gout_A0%hit = 0
-  Gout_A1%hit = 0
-  Gout_A2%hit = 0
-  Gout_A3%hit = 0
-  Gout_A4%hit = 0
+  Gout_A%ndrs = Gin_A%ndrs
+  Gout_A0%ndrs = 0
+  Gout_A1%ndrs = 0
+  Gout_A2%ndrs = 0
+  Gout_A3%ndrs = 0
+  Gout_A4%ndrs = 0
+  Gout_A%nred = Gin_A%nred
+  Gout_A0%nred = 0
+  Gout_A1%nred = 0
+  Gout_A2%nred = 0
+  Gout_A3%nred = 0
+  Gout_A4%nred = 0
+#ifdef PRECISION_dp
+  Gout_A%ndrs_qp = Gin_A%ndrs_qp
+  Gout_A0%ndrs_qp = 0
+  Gout_A1%ndrs_qp = 0
+  Gout_A2%ndrs_qp = 0
+  Gout_A3%ndrs_qp = 0
+  Gout_A4%ndrs_qp = 0
+  Gout_A%nred_qp = Gin_A%nred_qp
+  Gout_A0%nred_qp = 0
+  Gout_A1%nred_qp = 0
+  Gout_A2%nred_qp = 0
+  Gout_A3%nred_qp = 0
+  Gout_A4%nred_qp = 0
+#endif
 
   if (present(Gout_R1)) then
     Gout_R1%mode = Gin_A%mode
     Gout_R1%error = 0
-    Gout_R1%hit = 0
+    Gout_R1%ndrs = 0
+    Gout_R1%nred = 0
+#ifdef PRECISION_dp
+    Gout_R1%ndrs_qp = 0
+    Gout_R1%nred_qp = 0
+#endif
   end if
 
   if (Gin_A%mode .eq. hybrid_zero_mode) then
@@ -3846,14 +3928,12 @@ subroutine trigger_upgrade_hol(alfa_max,gamman,Gin)
 #ifdef PRECISION_dp
     if (hp_mode .eq. 1) then
       call upgrade_qp(Gin)
-      Gin%hit = Gin%hit + 1
     end if
 #endif
   else if (-log10(gamman) > hp_step_thres .and. Gin%error - log10(gamman) > hp_err_thres) then
 #ifdef PRECISION_dp
     if (hp_mode .eq. 1) then
       call upgrade_qp(Gin)
-      Gin%hit = Gin%hit + 1
     end if
 #endif
   end if
@@ -3891,7 +3971,7 @@ end subroutine trigger_upgrade_hcl
 
 subroutine err_estim_4pt_hol(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_R1)
   use ol_data_types_/**/REALKIND, only: hol,REALKIND,QREALKIND,redset4
-  use ol_parameters_decl_/**/REALKIND, only: max_error
+  use ol_parameters_decl_/**/DREALKIND, only: hp_max_err
   use ol_parameters_decl_/**/DREALKIND, only: hp_gamma_trig, &
                                               hp_alloc_mode, &
                                               hybrid_dp_mode
@@ -3905,7 +3985,7 @@ subroutine err_estim_4pt_hol(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3
   type(hol), optional, intent(inout) :: Gout_R1
   real(REALKIND)    :: alfa_max,alfa(3), gamma_inv
   complex(REALKIND) :: B3coeff
-  integer           :: hit,mode,perm(3)
+  integer           :: mode,perm(3)
 
   perm =RedSet%perm
   B3coeff = (RedSet%redbasis%gamma)*(RedSet%p3scalars(0))*2._/**/REALKIND
@@ -3945,7 +4025,6 @@ subroutine err_estim_4pt_hol(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3
 
   call trigger_upgrade(alfa_max,RedSet%gd2,Gin_A)
 
-  hit = Gin_A%hit
   mode = Gin_A%mode
   Gout_A%mode = mode
   Gout_A0%mode = mode
@@ -3953,19 +4032,27 @@ subroutine err_estim_4pt_hol(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3
   Gout_A2%mode = mode
   Gout_A3%mode = mode
 
-  Gout_A%hit = hit
-  Gout_A0%hit = hit
-  Gout_A1%hit = hit
-  Gout_A2%hit = hit
-  Gout_A3%hit = hit
+  if (iand(mode, hybrid_dp_mode) .ne. 0) then
+    Gout_A%nred = Gout_A%nred + 1
+    Gout_A0%nred = 1
+    Gout_A1%nred = 1
+    Gout_A2%nred = 1
+    Gout_A3%nred = 1
+  end if
 
   if(present(Gout_R1)) then
     Gout_R1%error = Gout_A%error
     Gout_R1%mode = mode
-    Gout_R1%hit = hit
   end if
 
 #ifdef PRECISION_dp
+  if (mode .gt. hybrid_dp_mode) then
+    Gout_A%nred_qp = Gout_A%nred_qp + 1
+    Gout_A0%nred_qp = 1
+    Gout_A1%nred_qp = 1
+    Gout_A2%nred_qp = 1
+    Gout_A3%nred_qp = 1
+  end if
   if (hp_alloc_mode .gt. 1 .and. mode .gt. hybrid_dp_mode) then
     call hol_alloc_hybrid(Gout_A)
     call hol_alloc_hybrid(Gout_A0)
@@ -3976,13 +4063,13 @@ subroutine err_estim_4pt_hol(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3
   end if
 #endif
 
-  if (Gout_A%error > max_error) max_error = Gout_A%error
+  if (Gout_A%error > hp_max_err) hp_max_err = Gout_A%error
 
 end subroutine err_estim_4pt_hol
 
 subroutine err_estim_4pt_hcl(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_R1)
   use ol_data_types_/**/REALKIND, only: hcl,REALKIND,QREALKIND,redset4
-  use ol_parameters_decl_/**/REALKIND, only: max_error
+  use ol_parameters_decl_/**/REALKIND, only: hp_max_err
   use ol_parameters_decl_/**/DREALKIND, only: hp_gamma_trig, &
                                               hp_alloc_mode, &
                                               hybrid_dp_mode
@@ -3995,7 +4082,7 @@ subroutine err_estim_4pt_hcl(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3
   type(hcl), optional, intent(inout) :: Gout_R1
   real(REALKIND)    :: alfa_max,alfa(3), gamma_inv
   complex(REALKIND) :: B3coeff
-  integer           :: hit,mode,perm(3)
+  integer           :: mode,perm(3)
 
   perm =RedSet%perm
   B3coeff = (RedSet%redbasis%gamma)*(RedSet%p3scalars(0))*2._/**/REALKIND
@@ -4035,7 +4122,6 @@ subroutine err_estim_4pt_hcl(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3
 
   call trigger_upgrade(alfa_max,RedSet%gd2,Gin_A)
 
-  hit = Gin_A%hit
   mode = Gin_A%mode
   Gout_A%mode = mode
   Gout_A0%mode = mode
@@ -4043,19 +4129,27 @@ subroutine err_estim_4pt_hcl(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3
   Gout_A2%mode = mode
   Gout_A3%mode = mode
 
-  Gout_A%hit = hit
-  Gout_A0%hit = hit
-  Gout_A1%hit = hit
-  Gout_A2%hit = hit
-  Gout_A3%hit = hit
+  if (iand(mode, hybrid_dp_mode) .ne. 0) then
+    Gout_A%nred = Gout_A%nred + 1
+    Gout_A0%nred = 1
+    Gout_A1%nred = 1
+    Gout_A2%nred = 1
+    Gout_A3%nred = 1
+  end if
 
   if(present(Gout_R1)) then
     Gout_R1%error = Gout_A%error
     Gout_R1%mode = mode
-    Gout_R1%hit = hit
   end if
 
 #ifdef PRECISION_dp
+  if (mode .gt. hybrid_dp_mode) then
+    Gout_A%nred_qp = Gout_A%nred_qp + 1
+    Gout_A0%nred_qp = 1
+    Gout_A1%nred_qp = 1
+    Gout_A2%nred_qp = 1
+    Gout_A3%nred_qp = 1
+  end if
   if (hp_alloc_mode .gt. 1 .and. mode .gt. hybrid_dp_mode) then
     call hcl_alloc_hybrid(Gout_A)
     call hcl_alloc_hybrid(Gout_A0)
@@ -4066,14 +4160,14 @@ subroutine err_estim_4pt_hcl(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3
   end if
 #endif
 
-  if (Gout_A%error > max_error) max_error = Gout_A%error
+  if (Gout_A%error > hp_max_err) hp_max_err = Gout_A%error
 
 end subroutine err_estim_4pt_hcl
 
 subroutine err_estim_5pt_hol(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
                              Gout_A3,Gout_A4,Gout_R1)
   use ol_data_types_/**/REALKIND, only: hol,REALKIND,QREALKIND,redset5
-  use ol_parameters_decl_/**/REALKIND, only: max_error
+  use ol_parameters_decl_/**/REALKIND, only: hp_max_err
   use ol_parameters_decl_/**/DREALKIND, only: hp_gamma_trig, &
                                               hp_alloc_mode, &
                                               hybrid_dp_mode
@@ -4087,7 +4181,7 @@ subroutine err_estim_5pt_hol(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   type(hol), optional, intent(inout) :: Gout_R1
   real(REALKIND)    :: alfa_max,alfa(3),gamma_inv
   complex(REALKIND) :: B3coeff
-  integer           :: hit,mode,perm(4)
+  integer           :: mode,perm(4)
 
   perm = RedSet%perm
   B3coeff = (RedSet%redbasis%gamma)*(RedSet%p3scalars(0))*2
@@ -4178,7 +4272,6 @@ subroutine err_estim_5pt_hol(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
 
   call trigger_upgrade(alfa_max,RedSet%gd2,Gin_A)
 
-  hit = Gin_A%hit
   mode = Gin_A%mode
   Gout_A%mode = mode
   Gout_A0%mode = mode
@@ -4187,20 +4280,29 @@ subroutine err_estim_5pt_hol(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   Gout_A3%mode = mode
   Gout_A4%mode = mode
 
-  Gout_A%hit = hit
-  Gout_A0%hit = hit
-  Gout_A1%hit = hit
-  Gout_A2%hit = hit
-  Gout_A3%hit = hit
-  Gout_A4%hit = hit
+  if (iand(mode, hybrid_dp_mode) .ne. 0) then
+    Gout_A%nred = Gout_A%nred + 1
+    Gout_A0%nred = 1
+    Gout_A1%nred = 1
+    Gout_A2%nred = 1
+    Gout_A3%nred = 1
+    Gout_A4%nred = 1
+  end if
 
   if(present(Gout_R1)) then
     Gout_R1%error = Gout_A%error
     Gout_R1%mode = mode
-    Gout_R1%hit = hit
   end if
 
 #ifdef PRECISION_dp
+  if (mode .gt. hybrid_dp_mode) then
+    Gout_A%nred_qp = Gout_A%nred_qp + 1
+    Gout_A0%nred_qp = 1
+    Gout_A1%nred_qp = 1
+    Gout_A2%nred_qp = 1
+    Gout_A3%nred_qp = 1
+    Gout_A4%nred_qp = 1
+  end if
   if (hp_alloc_mode .gt. 1 .and. mode .gt. hybrid_dp_mode) then
     call hol_alloc_hybrid(Gout_A)
     call hol_alloc_hybrid(Gout_A0)
@@ -4212,14 +4314,14 @@ subroutine err_estim_5pt_hol(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   end if
 #endif
 
-  if (Gout_A%error > max_error) max_error = Gout_A%error
+  if (Gout_A%error > hp_max_err) hp_max_err = Gout_A%error
 
 end subroutine err_estim_5pt_hol
 
 subroutine err_estim_5pt_hcl(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
                              Gout_A3,Gout_A4,Gout_R1)
   use ol_data_types_/**/REALKIND, only: hcl,REALKIND,QREALKIND,redset5
-  use ol_parameters_decl_/**/REALKIND, only: max_error
+  use ol_parameters_decl_/**/REALKIND, only: hp_max_err
   use ol_parameters_decl_/**/DREALKIND, only: hp_gamma_trig, &
                                               hp_alloc_mode, &
                                               hybrid_dp_mode
@@ -4233,7 +4335,7 @@ subroutine err_estim_5pt_hcl(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   type(hcl), optional, intent(inout) :: Gout_R1
   real(REALKIND)    :: alfa_max,alfa(3),gamma_inv
   complex(REALKIND) :: B3coeff
-  integer           :: hit,mode,perm(4)
+  integer           :: mode,perm(4)
 
   perm = RedSet%perm
 
@@ -4324,7 +4426,6 @@ subroutine err_estim_5pt_hcl(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
 
   call trigger_upgrade(alfa_max,RedSet%gd2,Gin_A)
 
-  hit = Gin_A%hit
   mode = Gin_A%mode
   Gout_A%mode = mode
   Gout_A0%mode = mode
@@ -4333,20 +4434,29 @@ subroutine err_estim_5pt_hcl(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   Gout_A3%mode = mode
   Gout_A4%mode = mode
 
-  Gout_A%hit = hit
-  Gout_A0%hit = hit
-  Gout_A1%hit = hit
-  Gout_A2%hit = hit
-  Gout_A3%hit = hit
-  Gout_A4%hit = hit
+  if (iand(mode, hybrid_dp_mode) .ne. 0) then
+    Gout_A%nred = Gout_A%nred + 1
+    Gout_A0%nred = 1
+    Gout_A1%nred = 1
+    Gout_A2%nred = 1
+    Gout_A3%nred = 1
+    Gout_A4%nred = 1
+  end if
 
   if(present(Gout_R1)) then
     Gout_R1%error = Gout_A%error
     Gout_R1%mode = mode
-    Gout_R1%hit = hit
   end if
 
 #ifdef PRECISION_dp
+  if (mode .gt. hybrid_dp_mode) then
+    Gout_A%nred_qp = Gout_A%nred_qp + 1
+    Gout_A0%nred_qp = 1
+    Gout_A1%nred_qp = 1
+    Gout_A2%nred_qp = 1
+    Gout_A3%nred_qp = 1
+    Gout_A4%nred_qp = 1
+  end if
   if (hp_alloc_mode .gt. 1 .and. mode .gt. hybrid_dp_mode) then
     call hcl_alloc_hybrid(Gout_A)
     call hcl_alloc_hybrid(Gout_A0)
@@ -4358,7 +4468,7 @@ subroutine err_estim_5pt_hcl(RedSet,Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   end if
 #endif
 
-  if (Gout_A%error > max_error) max_error = Gout_A%error
+  if (Gout_A%error > hp_max_err) hp_max_err = Gout_A%error
 
 end subroutine err_estim_5pt_hcl
 
@@ -4405,12 +4515,15 @@ subroutine downgrade_4pt_hol(RedSet,mode_in,Gout_A1,Gout_A2,Gout_A3)
     use ol_loop_handling_/**/REALKIND, only: downgrade_dp
     type(hol), intent(inout) :: Gout_P1,Gout_P2,Gout_P3
     if (alfa(1) < hp_step_thres .and. Gout_P1%error <  hp_err_thres) then
+      !Gout_P1%ndrs_qp = Gout_P1%ndrs_qp - 1
       call downgrade_dp(Gout_P1)
     end if
     if (alfa(2) < hp_step_thres .and. Gout_P2%error <  hp_err_thres) then
+      !Gout_P2%ndrs_qp = Gout_P2%ndrs_qp - 1
       call downgrade_dp(Gout_P2)
     end if
     if (alfa(3) < hp_step_thres .and. Gout_P3%error <  hp_err_thres) then
+      !Gout_P3%ndrs_qp = Gout_P3%ndrs_qp - 1
       call downgrade_dp(Gout_P3)
     end if
   end subroutine downgrade
@@ -4454,12 +4567,15 @@ subroutine downgrade_4pt_hcl(RedSet,mode_in,Gout_A1,Gout_A2,Gout_A3)
     use ol_loop_handling_/**/REALKIND, only: downgrade_dp
     type(hcl), intent(inout) :: Gout_P1,Gout_P2,Gout_P3
     if (alfa(1) < hp_step_thres .and. Gout_P1%error <  hp_err_thres) then
+      !Gout_P1%ndrs_qp = Gout_P1%ndrs_qp - 1
       call downgrade_dp(Gout_P1)
     end if
     if (alfa(2) < hp_step_thres .and. Gout_P2%error <  hp_err_thres) then
+      !Gout_P2%ndrs_qp = Gout_P2%ndrs_qp - 1
       call downgrade_dp(Gout_P2)
     end if
     if (alfa(3) < hp_step_thres .and. Gout_P3%error <  hp_err_thres) then
+      !Gout_P3%ndrs_qp = Gout_P3%ndrs_qp - 1
       call downgrade_dp(Gout_P3)
     end if
   end subroutine downgrade
@@ -4540,12 +4656,15 @@ subroutine downgrade_5pt_hol(RedSet,mode_in,Gout_A1,Gout_A2,Gout_A3,Gout_A4)
     use ol_loop_handling_/**/REALKIND, only: downgrade_dp
     type(hol), intent(inout) :: Gout_P1,Gout_P2,Gout_P3
     if (alfa(1) < hp_step_thres .and. Gout_P1%error <  hp_err_thres) then
+      !Gout_P1%ndrs_qp = Gout_P1%ndrs_qp - 1
       call downgrade_dp(Gout_P1)
     end if
     if (alfa(2) < hp_step_thres .and. Gout_P2%error <  hp_err_thres) then
+      !Gout_P2%ndrs_qp = Gout_P2%ndrs_qp - 1
       call downgrade_dp(Gout_P2)
     end if
     if (alfa(3) < hp_step_thres .and. Gout_P3%error <  hp_err_thres) then
+      !Gout_P3%ndrs_qp = Gout_P3%ndrs_qp - 1
       call downgrade_dp(Gout_P3)
     end if
   end subroutine downgrade
@@ -4626,12 +4745,15 @@ subroutine downgrade_5pt_hcl(RedSet,mode_in,Gout_A1,Gout_A2,Gout_A3,Gout_A4)
     use ol_loop_handling_/**/REALKIND, only: downgrade_dp
     type(hcl), intent(inout) :: Gout_P1,Gout_P2,Gout_P3
     if (alfa(1) < hp_step_thres .and. Gout_P1%error <  hp_err_thres) then
+      !Gout_P1%ndrs_qp = Gout_P1%ndrs_qp - 1
       call downgrade_dp(Gout_P1)
     end if
     if (alfa(2) < hp_step_thres .and. Gout_P2%error <  hp_err_thres) then
+      !Gout_P2%ndrs_qp = Gout_P2%ndrs_qp - 1
       call downgrade_dp(Gout_P2)
     end if
     if (alfa(3) < hp_step_thres .and. Gout_P3%error <  hp_err_thres) then
+      !Gout_P3%ndrs_qp = Gout_P3%ndrs_qp - 1
       call downgrade_dp(Gout_P3)
     end if
   end subroutine downgrade
@@ -4687,7 +4809,7 @@ subroutine Hotf_4pt_red(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
     do h = 1, nhel
       call otf_4pt_red(Gin_A%j(:,:,:,h),   &
                        RedSet_4,           &
-                       get_mass2(msq),      &
+                       get_mass2(msq),     &
                        Gout_A%j(:,:,:,h),  &
                        Gout_A0%j(:,:,:,h), &
                        Gout_A1%j(:,:,:,h), &
@@ -4714,7 +4836,7 @@ subroutine Hotf_4pt_red(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
     do h = 1, nhel
       call otf_4pt_red_qp(Gin_A%j_qp(:,:,:,h),   &
                           RedSet_4_qp,           &
-                          get_mass2_qp(msq),      &
+                          get_mass2_qp(msq),     &
                           Gout_A%j_qp(:,:,:,h),  &
                           Gout_A0%j_qp(:,:,:,h), &
                           Gout_A1%j_qp(:,:,:,h), &
@@ -4782,7 +4904,7 @@ subroutine Hotf_4pt_red_R1(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
     do h = 1, nhel
       call otf_4pt_red(Gin_A%j(:,:,:,h),   &
                        RedSet_4,           &
-                       get_mass2(msq),      &
+                       get_mass2(msq),     &
                        Gout_A%j(:,:,:,h),  &
                        Gout_A0%j(:,:,:,h), &
                        Gout_A1%j(:,:,:,h), &
@@ -4808,7 +4930,7 @@ subroutine Hotf_4pt_red_R1(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
     do h = 1, nhel
      call otf_4pt_red_qp(Gin_A%j_qp(:,:,:,h),   &
                          RedSet_4_qp,           &
-                         get_mass2_qp(msq),      &
+                         get_mass2_qp(msq),     &
                          Gout_A%j_qp(:,:,:,h),  &
                          Gout_A0%j_qp(:,:,:,h), &
                          Gout_A1%j_qp(:,:,:,h), &
@@ -4902,15 +5024,39 @@ subroutine Hotf_5pt_red(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   if ( RedSet_5%perm(4).eq.1 ) then
     Gout_A1%mode = hybrid_zero_mode
     Gout_A1%error = rzero
+    Gout_A1%ndrs = 0
+    Gout_A1%nred = 0
+#ifdef PRECISION_dp
+    Gout_A1%ndrs_qp = 0
+    Gout_A1%nred_qp = 0
+#endif
   else if ( RedSet_5%perm(4).eq.2 ) then
     Gout_A2%mode = hybrid_zero_mode
     Gout_A2%error = rzero
+    Gout_A2%ndrs = 0
+    Gout_A2%nred = 0
+#ifdef PRECISION_dp
+    Gout_A2%ndrs_qp = 0
+    Gout_A2%nred_qp = 0
+#endif
   else if ( RedSet_5%perm(4).eq.3 ) then
     Gout_A3%mode = hybrid_zero_mode
     Gout_A3%error = rzero
+    Gout_A3%ndrs = 0
+    Gout_A3%nred = 0
+#ifdef PRECISION_dp
+    Gout_A3%ndrs_qp = 0
+    Gout_A3%nred_qp = 0
+#endif
   else if ( RedSet_5%perm(4).eq.4 ) then
     Gout_A4%mode = hybrid_zero_mode
     Gout_A4%error = rzero
+    Gout_A4%ndrs = 0
+    Gout_A4%nred = 0
+#ifdef PRECISION_dp
+    Gout_A4%ndrs_qp = 0
+    Gout_A4%nred_qp = 0
+#endif
   end if
 
 
@@ -5014,15 +5160,39 @@ subroutine Hotf_5pt_red_R1(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
   if (RedSet_5%perm(4) .eq. 1 ) then
     Gout_A1%mode = hybrid_zero_mode
     Gout_A1%error = rzero
+    Gout_A1%ndrs = 0
+    Gout_A1%nred = 0
+#ifdef PRECISION_dp
+    Gout_A1%ndrs_qp = 0
+    Gout_A1%nred_qp = 0
+#endif
   else if (RedSet_5%perm(4) .eq. 2) then
     Gout_A2%mode = hybrid_zero_mode
     Gout_A2%error = rzero
+    Gout_A2%ndrs = 0
+    Gout_A2%nred = 0
+#ifdef PRECISION_dp
+    Gout_A2%ndrs_qp = 0
+    Gout_A2%nred_qp = 0
+#endif
   else if (RedSet_5%perm(4) .eq. 3) then
     Gout_A3%mode = hybrid_zero_mode
     Gout_A3%error = rzero
+    Gout_A3%ndrs = 0
+    Gout_A3%nred = 0
+#ifdef PRECISION_dp
+    Gout_A3%ndrs_qp = 0
+    Gout_A3%nred_qp = 0
+#endif
   else if (RedSet_5%perm(4) .eq. 4) then
     Gout_A4%mode = hybrid_zero_mode
     Gout_A4%error = rzero
+    Gout_A4%ndrs = 0
+    Gout_A4%nred = 0
+#ifdef PRECISION_dp
+    Gout_A4%ndrs_qp = 0
+    Gout_A4%nred_qp = 0
+#endif
   end if
 
 #ifdef PRECISION_dp
@@ -5291,15 +5461,39 @@ subroutine Hotf_5pt_red_last(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
   if (RedSet_5%perm(4) .eq. 1) then
     Gout_A1%mode = hybrid_zero_mode
     Gout_A1%error = rzero
+    Gout_A1%ndrs = 0
+    Gout_A1%nred = 0
+#ifdef PRECISION_dp
+    Gout_A1%ndrs_qp = 0
+    Gout_A1%nred_qp = 0
+#endif
   else if (RedSet_5%perm(4) .eq. 2) then
     Gout_A2%mode = hybrid_zero_mode
     Gout_A2%error = rzero
+    Gout_A2%ndrs = 0
+    Gout_A2%nred = 0
+#ifdef PRECISION_dp
+    Gout_A2%ndrs_qp = 0
+    Gout_A2%nred_qp = 0
+#endif
   else if (RedSet_5%perm(4) .eq. 3) then
     Gout_A3%mode = hybrid_zero_mode
     Gout_A3%error = rzero
+    Gout_A3%ndrs = 0
+    Gout_A3%nred = 0
+#ifdef PRECISION_dp
+    Gout_A3%ndrs_qp = 0
+    Gout_A3%nred_qp = 0
+#endif
   else if (RedSet_5%perm(4) .eq. 4) then
     Gout_A4%mode = hybrid_zero_mode
     Gout_A4%error = rzero
+    Gout_A4%ndrs = 0
+    Gout_A4%nred = 0
+#ifdef PRECISION_dp
+    Gout_A4%ndrs_qp = 0
+    Gout_A4%nred_qp = 0
+#endif
   end if
 
 #ifdef PRECISION_dp
@@ -5394,15 +5588,39 @@ subroutine Hotf_5pt_red_last_R1(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
   if (RedSet_5%perm(4) .eq. 1) then
     Gout_A1%mode = hybrid_zero_mode
     Gout_A1%error = rzero
+    Gout_A1%ndrs = 0
+    Gout_A1%nred = 0
+#ifdef PRECISION_dp
+    Gout_A1%ndrs_qp = 0
+    Gout_A1%nred_qp = 0
+#endif
   else if (RedSet_5%perm(4) .eq. 2) then
     Gout_A2%mode = hybrid_zero_mode
     Gout_A2%error = rzero
+    Gout_A2%ndrs = 0
+    Gout_A2%nred = 0
+#ifdef PRECISION_dp
+    Gout_A2%ndrs_qp = 0
+    Gout_A2%nred_qp = 0
+#endif
   else if (RedSet_5%perm(4).eq. 3) then
     Gout_A3%mode = hybrid_zero_mode
     Gout_A3%error = rzero
+    Gout_A3%ndrs = 0
+    Gout_A3%nred = 0
+#ifdef PRECISION_dp
+    Gout_A3%ndrs_qp = 0
+    Gout_A3%nred_qp = 0
+#endif
   else if (RedSet_5%perm(4) .eq. 4) then
     Gout_A4%mode = hybrid_zero_mode
     Gout_A4%error = rzero
+    Gout_A4%ndrs = 0
+    Gout_A4%nred = 0
+#ifdef PRECISION_dp
+    Gout_A4%ndrs_qp = 0
+    Gout_A4%nred_qp = 0
+#endif
   end if
 
 #ifdef PRECISION_dp

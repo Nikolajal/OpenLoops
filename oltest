@@ -1,3 +1,0 @@
-#!/bin/bash
-#nosetests-2.7 -c nose.cfg -v --nocapture
-nosetests-2.7 -c test/nose.cfg -v

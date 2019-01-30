@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -21,9 +21,10 @@
 module ol_version
   implicit none
   character(16) :: version = VERSION
-  character(4) :: revision = REVISION
+  integer :: process_api = PROCESSAPI
+  character(7) :: revision = REVISION
   logical :: splash_todo = .true.
-  integer, parameter :: welcome_length = 1100
+  integer, parameter :: welcome_length = 1200
 
   contains
 
@@ -41,7 +42,9 @@ module ol_version
       & " #####################################################################" // LF // &
       & " #       You are using OpenLoops 2 to evaluate loop amplitudes       #" // LF // &
       & " #                             Authors:                              #" // LF // &
-      & " # F. Buccioni, J. Lindert, P. Maierhoefer, S. Pozzorini, M. Zoller  #" // LF // &
+      & " #       F. Buccioni, J.-N. Lang, J. Lindert, P. Maierhoefer,        #" // LF // &
+      & " #                S. Pozzorini, M. Zoller, H. Zhang                  #" // LF // &
+      & " #                                                                   #" // LF // &
       & " #         Please cite Phys. Rev. Lett. 108 (2012) 111601            #" // LF // &
       & " #                     Eur.Phys.J. C78 (2018) no.1, 70               #" // LF // &
       & " #                                                                   #" // LF // &
@@ -62,11 +65,10 @@ module ol_version
       & "#        ___  ___  ____  _  _       __   __  ___   __    ___       #" // LF // &
       & "#       /   \ |__| |__   |\ |  |   /  \ /  \ |__| /__    __/       #" // LF // &
       & "#       \___/ |    |___  | \|  |__ \__/ \__/ |    __/   /__        #" // LF // &
-      & "#                                                                  #" // LF // &
       & "#       You are using OpenLoops 2 to evaluate loop amplitudes      #" // LF // &
-      & "# F. Buccioni, J. Lindert, P. Maierhoefer, S. Pozzorini, M. Zoller #" // LF // &
-      & "#         Please cite Phys. Rev. Lett. 108 (2012) 111601           #" // LF // &
-      & "#                     Eur.Phys.J. C78 (2018) no.1, 70              #" // LF // &
+      & "#        F. Buccioni, J.-N. Lang, J. Lindert, P. Maierhoefer,      #" // LF // &
+      & "#               S. Pozzorini, M. Zoller, H. Zhang                  #" // LF // &
+      & "#                Eur.Phys.J. C78 (2018) no.1, 70                   #" // LF // &
       & "####################################################################"
     if (len(trim(welcome_str)) >= 699) then
       ! Again, so that nobody does anything stupid without noticing.
@@ -92,5 +94,5 @@ end module ol_version
 
 
 module openloops_version
-  use ol_version, only: version, revision, splash_todo
+  use ol_version, only: version, process_api, revision, splash_todo
 end module openloops_version

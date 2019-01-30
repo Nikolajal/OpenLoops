@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -509,12 +509,12 @@ function gluon_ofsse(p2,pid)
   use ol_loop_parameters_decl_/**/REALKIND
 #ifndef PRECISION_dp
   use ol_loop_parameters_decl_/**/DREALKIND, only: &
-    & nc, N_lf, bubble_vertex
+    & nc, nf, N_lf, bubble_vertex, CT_is_on, R2_is_on
 #endif
   complex(REALKIND), intent(in) :: p2
   integer,           intent(in) :: pid
   complex(REALKIND) :: cc1,gluon_ofsse(3),B01,B02,B03,B04
-  complex(REALKIND) :: cc1R1
+  complex(REALKIND) :: cc1R1,dZ
 
   !complex(REALKIND) :: B0_1,B0_2,B1_1,B1_2,B11_1,B11_2,B00_1,B00_2
   real(REALKIND) :: ncc,nlf
@@ -527,7 +527,7 @@ function gluon_ofsse(p2,pid)
 
   ncc = real(nc,kind=REALKIND)
   nlf = real(N_lf,kind=REALKIND)
-  ! gs**2/(16*pi**2) stripped, assert(N_lf == 5, Nf == 6)
+  ! gs**2/(16*pi**2) stripped, assert(Nf == 6)
 
   B01 = calcB0(p2,ZERO,ZERO)
   cc1 = +(5*ncc-2*nlf)*(B01)/real(3,kind=REALKIND)
@@ -554,11 +554,23 @@ function gluon_ofsse(p2,pid)
   end select
   end do
 
+  if (CT_is_on .eq. 0) then
+    dZ = 0
+  else
+    dZ = dZg
+  end if
+
   ! only R1
   cc1R1 = (12 + ncc)/real(9,kind=REALKIND)
   gluon_ofsse(1) =  (dZg - cc1 - cc1R1)  ! w^\mu_out = p^2 w^\mu_in
   gluon_ofsse(2) =  0                        ! w^\mu_out = w^\mu_in
   gluon_ofsse(3) = -(-cc1 + cc1R1)  ! w^\mu_out = (w_in.p) p^\mu
+
+  if (R2_is_on .eq. 0) then
+    gluon_ofsse(1) = gluon_ofsse(1) + ca/2 + (2*tf*nf)/3
+    gluon_ofsse(2) = gluon_ofsse(2) - 4*tf*MQ2sum
+    gluon_ofsse(3) = gluon_ofsse(3) - cONE
+  end if
 
   end function
 
@@ -569,7 +581,7 @@ function quark_ofsse(p2,pid)
   use ol_loop_parameters_decl_/**/REALKIND
 #ifndef PRECISION_dp
   use ol_loop_parameters_decl_/**/DREALKIND, only: &
-    & nc, N_lf, bubble_vertex
+    & nc, N_lf, bubble_vertex, CT_is_on, R2_is_on
 #endif
   complex(REALKIND), intent(in) :: p2
   integer,           intent(in) :: pid
@@ -615,6 +627,10 @@ function quark_ofsse(p2,pid)
     call ol_fatal('Cannot use quark_ofsse for pidse other than 1,2,3,4,5,6. ' // &
                   'pid=' // trim(to_string(pid)) // '.')
   end select
+  if (CT_is_on .eq. 0) then
+    dZ = 0
+    dM = 0
+  end if
 
   B0_1 = calcB0(p2,ZERO,M2)
   A0_1 = calcA0(M2)
@@ -622,6 +638,10 @@ function quark_ofsse(p2,pid)
   quark_ofsse(1) = dZ + fac*((M2+p2) * B0_1 - A0_1 -p2)/p2  ! w^i_out = pslash^{ij} w^j_in
   quark_ofsse(2) = M*(dM + dZ) + fac*(4*M*B0_1-2*M)         ! w^i_out = w^i_in
 
+  if (R2_is_on .eq. 0) then
+    quark_ofsse(1) = quark_ofsse(1) + cf
+    quark_ofsse(2) = quark_ofsse(2) + 2*M*cf
+  end if
 
   end function
 
@@ -680,9 +700,9 @@ function quark_ofsse(p2,pid)
 #ifdef USE_ONELOOP
     if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
       call olo_a0(rslt,m12_in)
-      calcA0 = rslt(0) + rslt(1)*de1_IR + rslt(2)*de2_i_IR
+      calcA0 = rslt(0) + rslt(1)*de1_UV
       if (ew_renorm_switch == 99) then
-        print*, "A0 OLO: ", calcB0
+        print*, "A0 OLO: ", calcA0
       end if
     end if
 #endif
@@ -755,7 +775,11 @@ function quark_ofsse(p2,pid)
     if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
       p2q = real(p2_in)
       call olo_b0(rslt,real(p2q),m12_in,m22_in)
-      calcB0 = rslt(0) + rslt(1)*de1_IR + rslt(2)*de2_i_IR
+      if (p2q .eq. 0 .and. m12_in .eq. 0 .and. m22_in .eq. 0) then
+        calcB0 = de1_UV - de1_IR
+      else
+        calcB0 = rslt(0) + rslt(1)*de1_UV
+      end if
       if (ew_renorm_switch == 99) then
         print*, "B0 OLO: ", calcB0
       end if
@@ -831,7 +855,11 @@ function quark_ofsse(p2,pid)
 #ifdef USE_ONELOOP
     if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
       call olo_b11(rslt_b11,rslt_b00,rslt_b1,rslt_b0,real(p2_in),m12_in,m22_in)
-      calcB1 = rslt_b1(0) + rslt_b1(1)*de1_IR + rslt_b1(2)*de2_i_IR
+      if (p2 .eq. 0 .and. m12_in .eq. 0 .and. m22_in .eq. 0) then
+        calcB1 = rslt_b1(0) + (de1_IR - de1_UV)/2
+      else
+        calcB1 = rslt_b1(0) + rslt_b1(1)*de1_UV
+      end if
       if (ew_renorm_switch == 99) then
         print*, "B1 OLO: ", calcB1
       end if
@@ -907,7 +935,7 @@ function quark_ofsse(p2,pid)
 #ifdef USE_ONELOOP
     if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
       call olo_b11(rslt_b11,rslt_b00,rslt_b1,rslt_b0,real(p2_in),m12_in,m22_in)
-      calcB00 = rslt_b00(0) + rslt_b00(1)*de1_IR + rslt_b00(2)*de2_i_IR
+      calcB00 = rslt_b00(0) + rslt_b00(1)*de1_UV
       if (ew_renorm_switch == 99) then
         print*, "B00 OLO: ", calcB00
       end if
@@ -983,7 +1011,7 @@ function quark_ofsse(p2,pid)
 #ifdef USE_ONELOOP
     if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
       call olo_b11(rslt_b11,rslt_b00,rslt_b1,rslt_b0,real(p2_in),m12_in,m22_in)
-      calcB11 = rslt_b11(0) + rslt_b11(1)*de1_IR + rslt_b11(2)*de2_i_IR
+      calcB11 = rslt_b11(0) + rslt_b11(1)*de1_UV
       if (ew_renorm_switch == 99) then
         print*, "B11 OLO: ", calcB11
       end if

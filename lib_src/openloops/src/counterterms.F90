@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -857,18 +857,18 @@ end subroutine counter_VWW_V
 !   use KIND_TYPES, only: REALKIND
 !   use ol_contractions_/**/REALKIND, only: cont_VV
 !   implicit none
-! 
+!
 !   complex(REALKIND), intent(in)  :: J_V1(4), J_V2(4), J_V3(4), ctWWVV(3)
 !   complex(REALKIND), intent(out) :: Jout_V(4)
 !   complex(REALKIND) :: J1J2, J1J3, J2J3
-! 
+!
 !   J1J2 = cont_VV(J_V1, J_V2)
 !   J1J3 = cont_VV(J_V1, J_V3)
 !   J2J3 = cont_VV(J_V2, J_V3)
 !   Jout_V = J1J2 * J_V3 * ctWWVV(2) + J2J3 * J_V1 * ctWWVV(1) + J1J3 * J_V2 * ctWWVV(2)
-! 
+!
 ! end subroutine counter_WVV_W
-! 
+!
 
 ! ! **********************************************************************
 ! subroutine counter_WVW_V(ctWWVV, J_V1, J_V2, J_V3, Jout_V)
@@ -876,18 +876,18 @@ end subroutine counter_VWW_V
 !   use KIND_TYPES, only: REALKIND
 !   use ol_contractions_/**/REALKIND, only: cont_VV
 !   implicit none
-! 
+!
 !   complex(REALKIND), intent(in)  :: J_V1(4), J_V2(4), J_V3(4), ctWWVV(2)
 !   complex(REALKIND), intent(out) :: Jout_V(4)
 !   complex(REALKIND) :: J1J2, J1J3, J2J3
-! 
+!
 !   J1J2 = cont_VV(J_V1, J_V2)
 !   J1J3 = cont_VV(J_V1, J_V3)
 !   J2J3 = cont_VV(J_V2, J_V3)
 !   Jout_V = J1J2 * J_V3 * ctWWVV(2) + J2J3 * J_V1 * ctWWVV(1) + J1J3 * J_V2 * ctWWVV(1)
-! 
+!
 ! end subroutine counter_WVW_V
-! 
+!
 
 ! **********************************************************************
 subroutine counter_VVS_S(J_V1, J_V2, J_S, Jout_S)

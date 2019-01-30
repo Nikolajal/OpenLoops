@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -53,7 +53,11 @@ subroutine hol_allocation(alpha,rank,beta,hel_states,ol_coeff,m)
     allocate(ol_coeff(i)%j(alpha, rank, beta, hel_states))
     ol_coeff(i)%j = 0
     ol_coeff(i)%error = 0
+    ol_coeff(i)%ndrs = 0
+    ol_coeff(i)%nred = 0
 #ifdef PRECISION_dp
+    ol_coeff(i)%ndrs_qp = 0
+    ol_coeff(i)%nred_qp = 0
     if (hp_mode .eq. 1) then
       if (hp_alloc_mode .eq. 0) then
         allocate(ol_coeff(i)%j_qp(alpha, rank, beta, hel_states))
@@ -68,7 +72,7 @@ subroutine hol_allocation(alpha,rank,beta,hel_states,ol_coeff,m)
 end subroutine hol_allocation
 
 !************************************************************************
-subroutine hol_deallocation(ol_coeff, m)
+subroutine hol_deallocation(ol_coeff, m, dmode)
 !************************************************************************
 ! Allocation of the OpenLoops coefficient of type hol
 !************************************************************************
@@ -79,6 +83,7 @@ subroutine hol_deallocation(ol_coeff, m)
 ! ol_coeff   = type(hol) OpenLoops coefficient to be allocated in memory
 ! m          = number of ol_coeff with the same number of hel_stases to
 !              be allocated
+! dmode      = deallocation mode (0 = dp + qp, 1 = only qp) ! TODO
 !************************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: hol
@@ -86,17 +91,23 @@ subroutine hol_deallocation(ol_coeff, m)
   use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hp_alloc_mode
 #endif
 
-  integer,   intent(in)    :: m
+  integer,   intent(in)    :: m, dmode
   type(hol), intent(inout) :: ol_coeff(:)
 
   integer :: i
 
   do i = 1, m
-    deallocate(ol_coeff(i)%hf)
-    deallocate(ol_coeff(i)%j)
+    if(dmode == 0) then
+      deallocate(ol_coeff(i)%hf)
+      deallocate(ol_coeff(i)%j)
+    endif
+    ol_coeff(i)%error = 0
 #ifdef PRECISION_dp
-    if (allocated(ol_coeff(i)%j_qp)) then
-      deallocate(ol_coeff(i)%j_qp)
+    if (hp_mode .eq. 1) then
+      if (hp_alloc_mode .ne. 2 .and. dmode .eq. 1) cycle
+      if (allocated(ol_coeff(i)%j_qp)) then
+        deallocate(ol_coeff(i)%j_qp)
+      end if
     end if
 #endif
   end do
@@ -130,7 +141,11 @@ subroutine hcl_allocation(rank,ol_coeff, m)
     ! TODO: initialization of cmp needed?
     ol_coeff(i)%cmp(:) = 0
     ol_coeff(i)%error = 0
+    ol_coeff(i)%ndrs = 0
+    ol_coeff(i)%nred = 0
 #ifdef PRECISION_dp
+    ol_coeff(i)%ndrs_qp = 0
+    ol_coeff(i)%nred_qp = 0
     if (hp_mode .eq. 1) then
       if (hp_alloc_mode .eq. 0) then
         allocate(ol_coeff(i)%cmp_qp(rank))
@@ -145,7 +160,7 @@ subroutine hcl_allocation(rank,ol_coeff, m)
 end subroutine hcl_allocation
 
 !************************************************************************
-subroutine hcl_deallocation(ol_coeff, m)
+subroutine hcl_deallocation(ol_coeff, m, dmode)
 !************************************************************************
 ! Allocation of the OpenLoops coefficient of type hcl
 !************************************************************************
@@ -156,6 +171,7 @@ subroutine hcl_deallocation(ol_coeff, m)
 ! ol_coeff   = type(hol) OpenLoops coefficient to be allocated in memory
 ! m          = number of ol_coeff with the same number of hel_stases to
 !              be allocated
+! dmode      = deallocation mode (0 = dp + qp, 1 = only qp) ! TODO
 !************************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: hcl
@@ -164,16 +180,22 @@ subroutine hcl_deallocation(ol_coeff, m)
 #endif
   implicit none
 
-  integer,   intent(in)    :: m
+  integer,   intent(in)    :: m, dmode
   type(hcl), intent(inout) :: ol_coeff(:)
 
   integer :: i
 
   do i = 1, m
-    deallocate(ol_coeff(i)%cmp)
+    if(dmode == 0) then
+      deallocate(ol_coeff(i)%cmp)
+    endif
+    ol_coeff(i)%error = 0
 #ifdef PRECISION_dp
-    if (allocated(ol_coeff(i)%cmp_qp)) then
-      deallocate(ol_coeff(i)%cmp_qp)
+    if (hp_mode .eq. 1) then
+      if (hp_alloc_mode .ne. 2 .and. dmode .eq. 1) cycle
+      if (allocated(ol_coeff(i)%cmp_qp)) then
+        deallocate(ol_coeff(i)%cmp_qp)
+      end if
     end if
 #endif
   end do
@@ -233,8 +255,13 @@ subroutine G0_hol_initialisation(ntry,G0coeff,ol_coeff,nhel_in,h0t, &
 
   ol_coeff%mode = hybrid_dp_mode
   ol_coeff%error = 0._/**/REALKIND
-  ol_coeff%hit = 0
   ol_coeff%npoint = size(momids)
+  ol_coeff%ndrs = 0
+  ol_coeff%nred = 0
+#ifdef PRECISION_dp
+  ol_coeff%ndrs_qp = 0
+  ol_coeff%nred_qp = 0
+#endif
 
   if (ntry == 1) then
 
@@ -513,15 +540,15 @@ subroutine G0_hol_initialisation(ntry,G0coeff,ol_coeff,nhel_in,h0t, &
 
     check_collinear_tr = .false.
     if (m1ext .and. m2ext) then
-      if (iand(m1,collconf) .ne. 0 .and. iand(m2,collconf) .ne. 0) then
+      if (iand(m1,collconf) .ne. 0 .and. iand(m2,collconf) .ne. 0 .and. sum(massids) .eq. 0) then
         check_collinear_tr = .true.
       end if
     else if (m1ext .and. m3ext) then
-      if (iand(m1,collconf) .ne. 0 .and. iand(m3,collconf) .ne. 0) then
+      if (iand(m1,collconf) .ne. 0 .and. iand(m3,collconf) .ne. 0 .and. sum(massids) .eq. 0) then
         check_collinear_tr = .true.
       end if
     else if (m2ext .and. m3ext) then
-      if (iand(m2,collconf) .ne. 0 .and. iand(m3,collconf) .ne. 0) then
+      if (iand(m2,collconf) .ne. 0 .and. iand(m3,collconf) .ne. 0 .and. sum(massids) .eq. 0) then
         check_collinear_tr = .true.
       end if
     end if
@@ -637,9 +664,12 @@ function valid_hol_hol(Gin, Gout) result(valid_hol)
     valid_hol = .false.
     Gout%j = 0
     Gout%error = 0
-    Gout%hit = 0
     Gout%npoint = Gin%npoint
+    Gout%ndrs = 0
+    Gout%nred = 0
 #ifdef PRECISION_dp
+    Gout%ndrs_qp = 0
+    Gout%nred_qp = 0
     if (hp_mode .eq. 1 .and. hp_alloc_mode .eq. 0) then
       Gout%j_qp = 0
     end if
@@ -647,9 +677,21 @@ function valid_hol_hol(Gin, Gout) result(valid_hol)
   else
     valid_hol = .true.
     Gout%error = Gin%error
-    Gout%hit = Gin%hit
     Gout%npoint = Gin%npoint
 #ifdef PRECISION_dp
+    if (Gin%mode .gt. hybrid_dp_mode) then
+      Gout%ndrs = Gin%ndrs
+      Gout%ndrs_qp = Gin%ndrs_qp + 1
+    else
+      Gout%ndrs = Gin%ndrs + 1
+      Gout%ndrs_qp = 0
+    end if
+#else
+    Gout%ndrs = Gin%ndrs + 1
+#endif
+    Gout%nred = Gin%nred
+#ifdef PRECISION_dp
+    Gout%nred_qp = Gin%nred_qp
     if (hp_mode .eq. 1 .and. hp_alloc_mode .gt. 1 .and. &
         Gin%mode .gt. hybrid_dp_mode) call hol_alloc_hybrid(Gout)
 #endif
@@ -674,8 +716,11 @@ function valid_hol_hcl(Gin, Gout) result(valid_hol)
     valid_hol = .false.
     Gout%cmp = 0
     Gout%error = 0
-    Gout%hit = 0
+    Gout%ndrs = 0
+    Gout%nred = 0
 #ifdef PRECISION_dp
+    Gout%ndrs_qp = 0
+    Gout%nred_qp = 0
     if (hp_mode .eq. 1 .and. hp_alloc_mode .eq. 0) then
       Gout%cmp_qp = 0
     end if
@@ -683,8 +728,20 @@ function valid_hol_hcl(Gin, Gout) result(valid_hol)
   else
     valid_hol = .true.
     Gout%error = Gin%error
-    Gout%hit = Gin%hit
 #ifdef PRECISION_dp
+    if (Gin%mode .gt. hybrid_dp_mode) then
+      Gout%ndrs = Gin%ndrs
+      Gout%ndrs_qp = Gin%ndrs_qp + 1
+    else
+      Gout%ndrs = Gin%ndrs + 1
+      Gout%ndrs_qp = 0
+    end if
+#else
+    Gout%ndrs = Gin%ndrs + 1
+#endif
+    Gout%nred = Gin%nred
+#ifdef PRECISION_dp
+    Gout%nred_qp = Gin%nred_qp
     if (hp_mode .eq. 1 .and. hp_alloc_mode .gt. 1 .and. &
         Gin%mode .gt. hybrid_dp_mode) call hcl_alloc_hybrid(Gout)
 #endif

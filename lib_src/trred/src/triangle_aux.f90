@@ -2,15 +2,13 @@
 !                                                                              !
 !    triangle_aux.f90                                                          !
 !    is part of trred & OpenLoops2                                             !
-!    Copyright (C) 2017-2018 Federico Buccioni, Jean-Nicolas Lang,             !
-!                            Stefano Pozzorini, Hantian Zhang and Max Zoller   !
+!    Copyright (C) 2017-2019  For authors see authors.txt.                     !
 !                                                                              !
 !    trred has been developed by J.-N. Lang, H. Zhang and F. Buccioni          !
 !    trred is licenced under the GNU GPL version 3,                            !
 !    see COPYING for details.                                                  !
 !                                                                              !
 !******************************************************************************!
-
 
 module triangle_aux_DP
   implicit none
@@ -35,7 +33,30 @@ module triangle_aux_DP
   real(dp), parameter :: rone = real(1,kind=dp)
   real(dp), parameter :: rnul = real(0,kind=dp)
 
+  real(dp), save :: muUV2 = 0._dp, muIR2 = 0._dp
+  real(dp), save :: duv = 0._dp, dir = 0._dp
+
   contains
+
+  subroutine set_muUV2(m)
+    real(dp), intent(in) :: m
+    muUV2 = m
+  end subroutine set_muUV2
+
+  subroutine set_muIR2(m)
+    real(dp), intent(in) :: m
+    muIR2 = m
+  end subroutine set_muIR2
+
+  subroutine set_duv(d)
+    real(dp), intent(in) :: d
+    duv = d
+  end subroutine set_duv
+
+  subroutine set_dir(d)
+    real(dp), intent(in) :: d
+    dir = d
+  end subroutine set_dir
 
   function gamma_int(n) result(res)
     integer, intent(in) :: n
@@ -49,30 +70,28 @@ module triangle_aux_DP
     acoth = cone/2._dp*log( (x+cone)/(x-cone) )
   end function acoth
 
-  function A0(m2,muUV2)
+  function A0(m2)
     complex(dp), intent(in) :: m2
-    real(dp),    intent(in) :: muUV2
     real(dp) :: A0
-    A0 = m2*(cone-log(m2/muUV2))
+    A0 = m2*(cone-log(m2/muUV2) + duv)
   end function A0
 
-  function B0_zero(muUV2,muIR2)
-    real(dp), intent(in) :: muUV2,muIR2
+  function B0_zero()
     real(dp) :: B0_zero
-    B0_zero = log(muUV2/muIR2)
+    B0_zero = log(muUV2/muIR2) + duv - dir
   end function B0_zero
 
   function factorial (n) result (res)
- 
+
     implicit none
     integer, intent (in) :: n
     real(dp) :: res
     integer :: i
- 
+
     res = product ((/(real(i,kind=dp), i = 1, n)/))
- 
+
   end function factorial
- 
+
 
   function choose(n,k) result(res)
     integer, intent(in) :: n,k
@@ -101,7 +120,7 @@ module triangle_aux_DP
     integer    :: steps
 
     if (abs(x) .gt. 0.9) then
-      write(*,*)  "log1pX should not be used for x>0.9." 
+      write(*,*)  "log1pX should not be used for x>0.9."
       stop
     end if
 
@@ -111,7 +130,7 @@ module triangle_aux_DP
     ! refine step
     steps = ceiling(abs((log(target_precision*steps)-log(x))/log(x)))+1+n
     Cnm = log1pXRec(x,n,0,steps)
-  
+
   end function log1pX
 
   function log1pXdX(x,n) result(Cm)
@@ -133,7 +152,7 @@ module triangle_aux_DP
       Cmp1 = (-x)**m/cmplx(m+1,kind=dp)
     end do
     Cm = Cm + Cmp1
-    
+
   end function log1pXdX
 
   recursive function log1pXRec(x,n,m1,m2) result(Cnm)
@@ -154,7 +173,7 @@ module triangle_aux_DP
     else
       Cnm = x/cmplx(m1,kind=dp)
     end if
-  
+
   end function log1pXRec
 
   function HarmNum(n) result(Hn)
@@ -374,7 +393,7 @@ module triangle_aux_DP
     c1 = w**3*(30+78*d+38*d**2+2*w**2*(1+d)*(-6+11*d**2)+w*(18+d*(12-d*(21+11*d))))/6
     c2 = (1+w)*(-6+w*(6+(3-5*d)*d+w*(1+d)*(-6+11*d**2)))*log1pXdX(w,3)
     AB = prefac*(c1+c2)
-    
+
   end function A0mB0_p1p1p1
 
   function A0mB0_p1p1P12(p2,m2,d) result(AB)
@@ -399,7 +418,7 @@ module triangle_aux_DP
     c1 = w**3*(-16-6*d*(4+3*d)+30*w+d*(46+3*d*(5+d))*w+2*(14+d*(20-3*(-1+d)*d))*w**2)/(6*(1+w))
     c2 = -(-6*d-(22+33*d+9*d**2)*w+(1+d)*(-14+3*(-2+d)*d)*w**2)*log1pXdX(w,3)
     AB = prefac*(c1+c2)
-    
+
   end function A0mB0_p1P12P12
 
   function A0mB0_P12P12P12(p2,m2,d) result(AB)
@@ -432,7 +451,7 @@ module triangle_aux_DP
     complex(dp), intent(in) :: m2
     real(dp),    intent(in) :: p2,d
     complex(dp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2
     c1 = (w**2*(4+4*d+10*w-(-4+d)*d*w+2*w**2+4*(-1+d**2)*w**3))/(6*(1 + w))
@@ -445,7 +464,7 @@ module triangle_aux_DP
     complex(dp), intent(in) :: m2
     real(dp),    intent(in) :: p2,d
     complex(dp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2
     c1 = w**2*(-8-9*d+w*(8+6*d))/6
@@ -458,7 +477,7 @@ module triangle_aux_DP
     complex(dp), intent(in) :: m2
     real(dp),    intent(in) :: p2,d
     complex(dp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2
     c1 = w**2*(7+6*d-2*w*(1+2*d))/6
@@ -471,7 +490,7 @@ module triangle_aux_DP
     complex(dp), intent(in) :: m2
     real(dp),    intent(in) :: p2,d
     complex(dp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2
     c1 = w**2*(4+(3-2*w)*d)/6
@@ -484,7 +503,7 @@ module triangle_aux_DP
     complex(dp), intent(in) :: m2
     real(dp),    intent(in) :: p2,d
     complex(dp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2/(7*w*(1+d)+2*(2+d))
     c1 = w**3*(-18*(1+w)*(3+w*(-1+3*w))-9*(12+w*(3+w+6*w**2))*d + &
@@ -498,7 +517,7 @@ module triangle_aux_DP
     complex(dp), intent(in) :: m2
     real(dp),    intent(in) :: p2,d
     complex(dp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2/(3+d+7*w*(1+d))
     c1 = w**3*(63+127*d+66*d**2-(36+d*(69+d*(61+12*d)))*w+(-9+d*(59+68*d+6*d**2))*w**2 &
@@ -513,7 +532,7 @@ module triangle_aux_DP
     complex(dp), intent(in) :: m2
     real(dp),    intent(in) :: p2,d
     complex(dp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2/(2+7*w*(1+d))
     c1 = w**3*(-16-6*d*(5+2*d)+42*w+d*(85+3*(7-2*d)*d)*w &
@@ -527,7 +546,7 @@ module triangle_aux_DP
     complex(dp), intent(in) :: m2
     real(dp),    intent(in) :: p2,d
     complex(dp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2/(1-d+7*(1+d)*w)
 
@@ -544,7 +563,7 @@ module triangle_aux_DP
     complex(dp), intent(in) :: m2
     real(dp),    intent(in) :: p2,d
     complex(dp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2
 
@@ -559,7 +578,7 @@ module triangle_aux_DP
     complex(dp), intent(in) :: m2
     real(dp),    intent(in) :: p2,d
     complex(dp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2
 
@@ -595,7 +614,30 @@ module triangle_aux_QP
   real(qp), parameter :: rone = real(1,kind=qp)
   real(qp), parameter :: rnul = real(0,kind=qp)
 
+  real(qp), save :: muUV2 = 0._qp, muIR2 = 0._qp
+  real(qp), save :: duv = 0._qp, dir = 0._qp
+
   contains
+
+  subroutine set_muUV2(m)
+    real(qp), intent(in) :: m
+    muUV2 = m
+  end subroutine set_muUV2
+
+  subroutine set_muIR2(m)
+    real(qp), intent(in) :: m
+    muIR2 = m
+  end subroutine set_muIR2
+
+  subroutine set_duv(d)
+    real(qp), intent(in) :: d
+    duv = d
+  end subroutine set_duv
+
+  subroutine set_dir(d)
+    real(qp), intent(in) :: d
+    dir = d
+  end subroutine set_dir
 
   function gamma_int(n) result(res)
     integer, intent(in) :: n
@@ -609,30 +651,28 @@ module triangle_aux_QP
     acoth = cone/2._qp*log( (x+cone)/(x-cone) )
   end function acoth
 
-  function A0(m2,muUV2)
+  function A0(m2)
     complex(qp), intent(in) :: m2
-    real(qp),    intent(in) :: muUV2
     real(qp) :: A0
-    A0 = m2*(cone-log(m2/muUV2))
+    A0 = m2*(cone-log(m2/muUV2) + duv)
   end function A0
 
-  function B0_zero(muUV2,muIR2)
-    real(qp), intent(in) :: muUV2,muIR2
+  function B0_zero()
     real(qp) :: B0_zero
-    B0_zero = log(muUV2/muIR2)
+    B0_zero = log(muUV2/muIR2) + duv - dir
   end function B0_zero
 
   function factorial (n) result (res)
- 
+
     implicit none
     integer, intent (in) :: n
     real(qp) :: res
     integer :: i
- 
+
     res = product ((/(real(i,kind=qp), i = 1, n)/))
- 
+
   end function factorial
- 
+
   function choose(n,k) result(res)
     integer, intent(in) :: n,k
     integer :: i
@@ -660,7 +700,7 @@ module triangle_aux_QP
     integer    :: steps
 
     if (abs(x) .gt. 0.9) then
-      write(*,*)  "log1pX should not be used for x>0.9." 
+      write(*,*)  "log1pX should not be used for x>0.9."
       stop
     end if
 
@@ -670,7 +710,7 @@ module triangle_aux_QP
     ! refine step
     steps = ceiling(abs((log(target_precision*steps)-log(x))/log(x)))+1+n
     Cnm = log1pXRec(x,n,0,steps)
-  
+
   end function log1pX
 
   function log1pXdX(x,n) result(Cm)
@@ -692,7 +732,7 @@ module triangle_aux_QP
       Cmp1 = (-x)**m/cmplx(m+1,kind=qp)
     end do
     Cm = Cm + Cmp1
-    
+
   end function log1pXdX
 
   recursive function log1pXRec(x,n,m1,m2) result(Cnm)
@@ -713,7 +753,7 @@ module triangle_aux_QP
     else
       Cnm = x/cmplx(m1,kind=qp)
     end if
-  
+
   end function log1pXRec
 
   function HarmNum(n) result(Hn)
@@ -933,7 +973,7 @@ module triangle_aux_QP
     c1 = w**3*(30+78*d+38*d**2+2*w**2*(1+d)*(-6+11*d**2)+w*(18+d*(12-d*(21+11*d))))/6
     c2 = (1+w)*(-6+w*(6+(3-5*d)*d+w*(1+d)*(-6+11*d**2)))*log1pXdX(w,3)
     AB = prefac*(c1+c2)
-    
+
   end function A0mB0_p1p1p1
 
   function A0mB0_p1p1P12(p2,m2,d) result(AB)
@@ -958,7 +998,7 @@ module triangle_aux_QP
     c1 = w**3*(-16-6*d*(4+3*d)+30*w+d*(46+3*d*(5+d))*w+2*(14+d*(20-3*(-1+d)*d))*w**2)/(6*(1+w))
     c2 = -(-6*d-(22+33*d+9*d**2)*w+(1+d)*(-14+3*(-2+d)*d)*w**2)*log1pXdX(w,3)
     AB = prefac*(c1+c2)
-    
+
   end function A0mB0_p1P12P12
 
   function A0mB0_P12P12P12(p2,m2,d) result(AB)
@@ -991,7 +1031,7 @@ module triangle_aux_QP
     complex(qp), intent(in) :: m2
     real(qp),    intent(in) :: p2,d
     complex(qp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2
     c1 = (w**2*(4+4*d+10*w-(-4+d)*d*w+2*w**2+4*(-1+d**2)*w**3))/(6*(1 + w))
@@ -1004,7 +1044,7 @@ module triangle_aux_QP
     complex(qp), intent(in) :: m2
     real(qp),    intent(in) :: p2,d
     complex(qp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2
     c1 = w**2*(-8-9*d+w*(8+6*d))/6
@@ -1017,7 +1057,7 @@ module triangle_aux_QP
     complex(qp), intent(in) :: m2
     real(qp),    intent(in) :: p2,d
     complex(qp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2
     c1 = w**2*(7+6*d-2*w*(1+2*d))/6
@@ -1030,7 +1070,7 @@ module triangle_aux_QP
     complex(qp), intent(in) :: m2
     real(qp),    intent(in) :: p2,d
     complex(qp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2
     c1 = w**2*(4+(3-2*w)*d)/6
@@ -1043,7 +1083,7 @@ module triangle_aux_QP
     complex(qp), intent(in) :: m2
     real(qp),    intent(in) :: p2,d
     complex(qp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2/(7*w*(1+d)+2*(2+d))
     c1 = w**3*(-18*(1+w)*(3+w*(-1+3*w))-9*(12+w*(3+w+6*w**2))*d + &
@@ -1057,7 +1097,7 @@ module triangle_aux_QP
     complex(qp), intent(in) :: m2
     real(qp),    intent(in) :: p2,d
     complex(qp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2/(3+d+7*w*(1+d))
     c1 = w**3*(63+127*d+66*d**2-(36+d*(69+d*(61+12*d)))*w+(-9+d*(59+68*d+6*d**2))*w**2 &
@@ -1072,7 +1112,7 @@ module triangle_aux_QP
     complex(qp), intent(in) :: m2
     real(qp),    intent(in) :: p2,d
     complex(qp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2/(2+7*w*(1+d))
     c1 = w**3*(-16-6*d*(5+2*d)+42*w+d*(85+3*(7-2*d)*d)*w &
@@ -1086,7 +1126,7 @@ module triangle_aux_QP
     complex(qp), intent(in) :: m2
     real(qp),    intent(in) :: p2,d
     complex(qp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2/(1-d+7*(1+d)*w)
 
@@ -1103,7 +1143,7 @@ module triangle_aux_QP
     complex(qp), intent(in) :: m2
     real(qp),    intent(in) :: p2,d
     complex(qp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2
 
@@ -1118,7 +1158,7 @@ module triangle_aux_QP
     complex(qp), intent(in) :: m2
     real(qp),    intent(in) :: p2,d
     complex(qp) :: w,AB,c1,c2,prefac
-    
+
     w = p2/m2
     prefac = m2
 

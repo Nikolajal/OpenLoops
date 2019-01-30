@@ -31,19 +31,22 @@ class CPPContainer:
     cpp_script = os.path.join('pyol', 'build', 'cpp.scons')
 
     def __init__(self, mp_src = [], dp_src = [], version_src = [], mp = ['dp'],
-                 version = 'none', revision = 'none', cpp_defs = [],
-                 scons_cmd = 'scons', version_macro = 'VERSION',
-                 revision_macro = 'REVISION', kind_parameter = 'REALKIND',
-                 target = 'cpp', target_prefix = ''):
+                 version = 'none', process_api = -1, revision = 'none',
+                 cpp_defs = [], scons_cmd = 'scons', version_macro = 'VERSION',
+                 process_api_macro = 'PROCESSAPI', revision_macro = 'REVISION',
+                 kind_parameter = 'REALKIND', target = 'cpp',
+                 target_prefix = ''):
         self.mp_src = list(mp_src)
         self.dp_src = list(dp_src)
         self.version_src = list(version_src)
         self.mp = list(mp)
         self.version = version
+        self.process_api = process_api
         self.revision = revision
         self.cpp_defs = [(cppdef,) if isinstance(cppdef, str) else cppdef for cppdef in cpp_defs]
         self.scons_cmd = scons_cmd
         self.version_macro = version_macro
+        self.process_api_macro = process_api_macro
         self.revision_macro = revision_macro
         self.kind_parameter = kind_parameter
         self.target = target
@@ -91,8 +94,10 @@ class CPPContainer:
 
         success = subprocess.call([self.scons_cmd] + scons_flags + ['-f', self.cpp_script,
             'version=' + self.version,
+            'process_api=' + str(self.process_api),
             'revision=' + self.revision,
             'version_macro=' + self.version_macro,
+            'process_api_macro=' + self.process_api_macro,
             'revision_macro=' + self.revision_macro,
             'kind_parameter=' + self.kind_parameter,
             'mp_src=' + ','.join(self.mp_src),

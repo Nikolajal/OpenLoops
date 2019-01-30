@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -969,10 +969,10 @@ subroutine ew_renormalisation
     dZeQEDEW = dZeQEDEW - 0.5/sw2*(6.+(7.-4.*sw2)/(2.*sw2)*log(cw2))
     dZeQEDEW = dZeQEDEW +  0.5*(dZMW2EW-SiW0)/MW2
   else if (ew_renorm_scheme == 2) then ! alpha(mZ) scheme
-!    dZAAEW  = -real(dSiAAheavy0 + PiAAlightZ/rMZ2 + dAlphaQED_MZ)  ! as in a(0)
-!    dZeQEDEW = -0.5*(dZAAEW+dAlphaQED_MZ) - sw/cw*SiAZ0/MZ2   !NB: dAlphaQED_MZ drops out
-    dZAAEW = -dSiAA0 ! Note: light fermions in dim.reg.
-    dZeQEDEW = 0.5*dSiAAZ - sw/cw*SiAZ0/MZ2
+    dZAAEW  = -real(dSiAAheavy0 + PiAAlightZ/rMZ2 + dAlphaQED_MZ)  ! as in a(0)
+    dZeQEDEW = -0.5*(dZAAEW+dAlphaQED_MZ) - sw/cw*SiAZ0/MZ2   !NB: dAlphaQED_MZ drops out
+    !dZAAEW = -dSiAA0 ! Note: light fermions in dim.reg.
+    !dZeQEDEW = 0.5*dSiAAZ - sw/cw*SiAZ0/MZ2
   else
     call ol_error(2, 'in ew_renormalisation: ew_renorm_scheme= ' // to_string(ew_renorm_scheme) // ' not supported!')
     call ol_fatal()
@@ -1962,7 +1962,11 @@ subroutine ew_renormalisation
     if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
       p2q = real(p2_in)
       call olo_b0(rslt,p2q,m12_in,m22_in)
-      calcB0 = rslt(0) + rslt(1)*de1_IR + rslt(2)*de2_i_IR
+      if (p2q .eq. 0 .and. m12_in .eq. 0 .and. m22_in .eq. 0) then
+        calcB0 = de1_UV - de1_IR
+      else
+        calcB0 = rslt(0) + rslt(1)*de1_UV
+      end if
       if (ew_renorm_switch == 99) then
         print*, "B0 OLO: ", calcB0
       end if
@@ -2026,7 +2030,7 @@ subroutine ew_renormalisation
         calcdB0 = 0.
       else
         call olo_db0(rslt,p2q,m12_in,m22_in)
-        calcdB0 = rslt(0) + rslt(1)*de1_IR + rslt(2)*de2_i_IR
+        calcdB0 = rslt(0) + rslt(1)*de1_IR
       end if
       if (ew_renorm_switch == 99) then
         print*, "dB0 OLO: ", calcdB0
@@ -2089,7 +2093,11 @@ subroutine ew_renormalisation
 #ifdef USE_ONELOOP
     if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
       call olo_b11(rslt_b11,rslt_b00,rslt_b1,rslt_b0,real(p2_in),m12_in,m22_in)
-      calcB1 = rslt_b1(0) + rslt_b1(1)*de1_IR + rslt_b1(2)*de2_i_IR
+      if (p2 .eq. 0 .and. m12_in .eq. 0 .and. m22_in .eq. 0) then
+        calcB1 = rslt_b1(0) + (de1_IR - de1_UV)/2
+      else
+        calcB1 = rslt_b1(0) + rslt_b1(1)*de1_UV
+      end if
       if (ew_renorm_switch == 99) then
         print*, "B1 OLO: ", calcB1
       end if

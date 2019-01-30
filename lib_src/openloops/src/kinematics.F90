@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -197,7 +197,7 @@ function get_mass_id(mid) result(m)
   case default
     call ol_error(2,"Unknown mass id: " // to_string(mid))
     call ol_fatal()
-  end select 
+  end select
 end function get_mass_id
 
 
@@ -266,7 +266,7 @@ function get_mass2_id(mid) result(m2)
   case default
     call ol_error(2,"Unknown mass id: " // to_string(mid))
     call ol_fatal()
-  end select 
+  end select
 end function get_mass2_id
 
 
@@ -317,7 +317,7 @@ function get_rmass2_id(mid) result(m2)
   case default
     call ol_error(2,"Unknown mass id: " // to_string(mid))
     call ol_fatal()
-  end select 
+  end select
 end function get_rmass2_id
 
 
@@ -922,16 +922,18 @@ subroutine init_kinematics_mexpl(P_scatt, m_ext2, P_in_clean, perm_inv, n)
 
 end subroutine init_kinematics_mexpl
 
-subroutine init_kinematics_mids(P_scatt, m_ext2, P_in_clean, perm_inv, n)
+subroutine init_kinematics_mids(P_scatt, m_ext2, P_in_clean, perm_inv, n, qp_kinematics)
 #ifdef PRECISION_dp
-  use ol_parameters_decl_/**/REALKIND, only: hp_mode
+  use ol_parameters_decl_/**/REALKIND, only: hp_mode, hp_nsi, hp_nsi_qp, hp_ndrs, hp_ndrs_qp, &
+    & hp_nred, hp_nred_qp, hp_max_err
   use ol_kinematics_/**/QREALKIND, only: init_kinematics_mids_qp=>init_kinematics_mids
 #endif
-  integer,           intent(in)  :: n
-  real(DREALKIND),   intent(in)  :: P_scatt(0:3,n)
-  integer,           intent(in)  :: m_ext2(n)
-  real(REALKIND),    intent(inout) :: P_in_clean(0:3,n)
-  integer,           intent(in)  :: perm_inv(n)
+  integer,         intent(in)  :: n
+  real(DREALKIND), intent(in)  :: P_scatt(0:3,n)
+  integer,         intent(in)  :: m_ext2(n)
+  real(REALKIND),  intent(inout) :: P_in_clean(0:3,n)
+  integer,         intent(in)  :: perm_inv(n)
+  logical,         intent(in)  :: qp_kinematics
 #ifdef PRECISION_dp
   real(QREALKIND) :: P_qp(0:3,n)
   integer :: i1
@@ -940,11 +942,18 @@ subroutine init_kinematics_mids(P_scatt, m_ext2, P_in_clean, perm_inv, n)
   call conv_mom_scatt2in_mids(P_scatt, m_ext2, P_in_clean, perm_inv, n)
 #ifdef PRECISION_dp
   ! initialize qp kinematics for hybrid mode
-  if (hp_mode .eq. 1) then
-    call init_kinematics_mids_qp(P_scatt, m_ext2, P_qp, perm_inv, n)
+  if (qp_kinematics .and. (hp_mode .eq. 1)) then
+    hp_nsi = 0
+    hp_nsi_qp = 0
+    hp_ndrs = 0
+    hp_ndrs_qp = 0
+    hp_nred = 0
+    hp_nred_qp = 0
+    hp_max_err = 0._/**/REALKIND
+    call init_kinematics_mids_qp(P_scatt, m_ext2, P_qp, perm_inv, n, qp_kinematics)
   end if
 #endif
-  call internal_momenta_six(P_in_clean, n, m_ext2)
+  call internal_momenta_six(P_in_clean, n, m_ext2, qp_kinematics)
 
 end subroutine init_kinematics_mids
 
@@ -1086,7 +1095,7 @@ end subroutine write_INmom
 
 
 ! **********************************************************************
-subroutine internal_momenta_std(P, Npart, invariants_mode)
+subroutine internal_momenta_std(P, Npart)
 ! **********************************************************************
 ! P(0:3,Npart) = external real-valued four-momenta (standard representation)
 ! Npart        = total (in & out) external particle number
@@ -1104,7 +1113,6 @@ subroutine internal_momenta_std(P, Npart, invariants_mode)
 
   real(REALKIND), intent(in) :: P(0:3,Npart)
   integer,        intent(in)  :: Npart
-  integer, optional, intent(in)  :: invariants_mode
   integer :: i, j
   integer :: Jmax
   integer :: i1, i2 ! conventional particle numbers
@@ -1140,21 +1148,19 @@ subroutine internal_momenta_std(P, Npart, invariants_mode)
     call intmom(P, Npart, i)
   end if
 
-  if(.not. present(invariants_mode)) then
-    do i = 1, Npart
-      ! QInvariantsMatrix(i,i) = m_ex2(i)
-      do j = i + 1, Npart
-        QInvariantsMatrix(i,j) = Q(5,2**(i-1)+2**(j-1))
-        QInvariantsMatrix(j,i) = QInvariantsMatrix(i,j)
-      end do
+  do i = 1, Npart
+    ! QInvariantsMatrix(i,i) = m_ex2(i)
+    do j = i + 1, Npart
+      QInvariantsMatrix(i,j) = Q(5,2**(i-1)+2**(j-1))
+      QInvariantsMatrix(j,i) = QInvariantsMatrix(i,j)
     end do
-  end if
+  end do
 
 end subroutine internal_momenta_std
 
 
 ! **********************************************************************
-subroutine internal_momenta_six(P, Npart, ext_masses)
+subroutine internal_momenta_six(P, Npart, ext_masses, init_qp_kinematics)
 ! **********************************************************************
 ! P(0:3,Npart)       = external real-valued four-momenta
 !                      (standard-representation)
@@ -1182,14 +1188,16 @@ subroutine internal_momenta_six(P, Npart, ext_masses)
   integer,        intent(in) :: Npart
   real(REALKIND), intent(in) :: P(0:3,Npart)
   integer,        intent(in) :: ext_masses(Npart)
+  logical,        intent(in) :: init_qp_kinematics
   complex(REALKIND) :: zero = 0._/**/REALKIND
   real(REALKIND)    :: maxinv
-  integer :: i, j, invariants_mode
+  integer :: i, j
   integer :: Jmax
   integer :: i1, i2 ! conventional particle numbers
   integer :: l1, l2 ! individual 2^(i-1) particles numbers
   integer :: s1, s2 ! sums of 2^(i-1) particle numbers
   integer :: r1, r2 ! inverse of s1, s2, ...
+  integer :: t1
 
   i = 2**Npart - 2
   L(:,i+1) = 0
@@ -1197,23 +1205,39 @@ subroutine internal_momenta_six(P, Npart, ext_masses)
   collconf = 0
   softconf = 0
 
-  call internal_momenta_std(P, Npart, invariants_mode)
+  if (Npart == 2) then
 #ifdef PRECISION_dp
-    ! overwrite dp kinematics by qp ones
-    if (hp_mode .eq. 1 .and. use_qp_invariants .eq. 1) then
-      L(1:4,0:i) = L_qp(1:4,0:i)
+    if (init_qp_kinematics .and. hp_mode .eq. 1 .and. use_qp_invariants .eq. 1) then
+      L(1:4,1) = L_qp(1:4,1)
     else
-      L(1:4,0:i) = Q(1:4,0:i)
+      call Std2LC_Rep(P(:,1),L(1:4,1))
     end if
 #else
-  L(1:4,0:i) = Q(1:4,0:i)
+    call Std2LC_Rep(P(:,1),L(1:4,1))
 #endif
-
-  if (Npart == 2) then
     L(5,1) = get_rmass2(ext_masses(1))
     L(6,1) = zero
     L(5:6,2) = L(5:6,1)
   else if (Npart == 3) then
+#ifdef PRECISION_dp
+    if (init_qp_kinematics .and. hp_mode .eq. 1 .and. use_qp_invariants .eq. 1) then
+      L(1:4,1:6) = L_qp(1:4,1:6)
+    else
+      call Std2LC_Rep(P(:,1),L(1:4,1))
+      call Std2LC_Rep(P(:,2),L(1:4,2))
+      L(1:4,3) = L(1:4,1) + L(1:4,2)
+      L(1:4,4) = - L(1:4,3)
+      L(1:4,5) = - L(1:4,2)
+      L(1:4,6) = - L(1:4,1)
+    end if
+#else
+    call Std2LC_Rep(P(:,1),L(1:4,1))
+    call Std2LC_Rep(P(:,2),L(1:4,2))
+    L(1:4,3) = L(1:4,1) + L(1:4,2)
+    L(1:4,4) = - L(1:4,3)
+    L(1:4,5) = - L(1:4,2)
+    L(1:4,6) = - L(1:4,1)
+#endif
     L(5,1) = get_rmass2(ext_masses(1))
     L(5,2) = get_rmass2(ext_masses(2))
     L(6,1) = zero
@@ -1221,8 +1245,10 @@ subroutine internal_momenta_six(P, Npart, ext_masses)
     L(5,3) = get_rmass2(ext_masses(1)) + get_rmass2(ext_masses(2))
 #ifdef PRECISION_dp
     ! overwrite dp invariants by qp ones
-    if (hp_mode .eq. 1 .and. use_qp_invariants .eq. 1) then
+    if (init_qp_kinematics .and. hp_mode .eq. 1 .and. use_qp_invariants .eq. 1) then
       L(6,3) = L_qp(6,3)
+    else
+      L(6,3) = 2*cont_LC_cntrv(L(1:4,1),L(1:4,2))
     end if
 #else
     L(6,3) = 2*cont_LC_cntrv(L(1:4,1),L(1:4,2))
@@ -1232,24 +1258,24 @@ subroutine internal_momenta_six(P, Npart, ext_masses)
     L(5:6,6) = L(5:6,1)
   else
     ! compute masses and scalar products
-    call intmom_six(Npart, i, get_rmass2(ext_masses))
+    call intmom_six(P, Npart, i, get_rmass2(ext_masses), init_qp_kinematics)
   end if
 
   maxinv = 0
   do i = 1, Npart
-    ! QInvariantsMatrix(i,i) = m_ex2(i)
     do j = i + 1, Npart
-      QInvariantsMatrix(i,j) = L(5,2**(i-1)+2**(j-1)) + L(6,2**(i-1)+2**(j-1))
+      t1 = 2**(i-1)+2**(j-1)
+      QInvariantsMatrix(i,j) = L(5,t1) + L(6,t1)
       QInvariantsMatrix(j,i) = QInvariantsMatrix(i,j)
       maxinv = max(abs(QInvariantsMatrix(i,j)), maxinv)
     end do
   end do
 
-  do i = 1, Npart
-    if (maxval(abs(L(1:4,2**(i-1))))**2/maxinv .lt. softthres) then
-     softconf  = 2**(i-1)
-    end if
-  end do
+  if(init_qp_kinematics) then
+    do i = 1, Npart
+      if (maxval(abs(L(1:4,2**(i-1))))**2/maxinv .lt. softthres) softconf  = 2**(i-1)
+    end do
+  end if
 
 end subroutine internal_momenta_six
 
@@ -1290,7 +1316,7 @@ end subroutine intmom
 
 
 ! **********************************************************************
-subroutine intmom_six(Npart,Jmax,ext_masses)
+subroutine intmom_six(P_ex,Npart,Jmax,ext_masses,init_qp_kinematics)
 ! **********************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_momenta_decl_/**/REALKIND, only: L
@@ -1299,20 +1325,20 @@ subroutine intmom_six(Npart,Jmax,ext_masses)
 
   integer,        intent(in) :: Npart, Jmax
   real(REALKIND), intent(in) :: ext_masses(Npart)
-  integer :: A
+  real(REALKIND), intent(in) :: P_ex(0:3,Npart)
+  logical, intent(in)        :: init_qp_kinematics
   integer :: i1 ! conventional particle numbers
   integer :: l1 ! individual 2^(i-1) particles numbers
-  integer :: s1 ! sums of 2^(i-1) particle numbers
-  integer :: r1 ! inverse of s1, s2, ...
 
   l1 = 1
   do i1 = 1, Npart
-    s1 = l1
-    r1 = Jmax + 1 - s1
     L(5,l1) = ext_masses(i1)
-    L(5,r1) = L(5,s1)
+    L(6,l1) = zero
+    L(5:6,Jmax + 1 - l1) = L(5:6,l1)
+    call Std2LC_Rep(P_ex(0,i1),L(1,l1))
+    L(1:4,Jmax + 1 - l1) = -L(1:4,l1)
+    call intmom_rec_six(Npart, Jmax, i1, l1, 1, init_qp_kinematics)
     l1 = 2*l1
-    call intmom_rec_six(Npart, Jmax, i1, s1, 1)
   end do !i1
 
 end subroutine intmom_six
@@ -1356,7 +1382,7 @@ end subroutine intmom_rec
 
 
 ! **********************************************************************
-recursive subroutine intmom_rec_six(Npart, Jmax, i1, s1, x)
+recursive subroutine intmom_rec_six(Npart, Jmax, i1, s1, x, init_qp_kinematics)
 ! **********************************************************************
   use ol_momenta_decl_/**/REALKIND, only: L,collconf,softconf
 #ifdef PRECISION_dp
@@ -1365,7 +1391,9 @@ recursive subroutine intmom_rec_six(Npart, Jmax, i1, s1, x)
   use ol_kinematics_/**/QREALKIND, only: cont_LC_cntrv_qp=>cont_LC_cntrv
 #endif
   implicit none
-  integer,        intent(in) :: Npart, Jmax, i1, s1, x
+  integer,    intent(in) :: Npart, Jmax, i1, s1, x
+  logical,    intent(in) :: init_qp_kinematics
+  real(REALKIND) :: sp
   integer :: A
   integer :: ix ! conventional particle numbers
   integer :: lx ! individual 2^(i-1) particles numbers
@@ -1385,25 +1413,34 @@ recursive subroutine intmom_rec_six(Npart, Jmax, i1, s1, x)
     ! avoid double determination for even Npart
 #ifdef PRECISION_dp
       ! overwrite dp invariants by qp ones (not the masses squared terms though)
-      if (hp_mode .eq. 1 .and. use_qp_invariants .eq. 1) then
-        L(6,sx) = 2*cont_LC_cntrv_qp(L_qp(1:4,s1),L_qp(1:4,lx)) + L(6,s1)
+      if (init_qp_kinematics .and. hp_mode .eq. 1 .and. use_qp_invariants .eq. 1) then
+        L(1:5,sx) = L_qp(1:5,sx)
+        L(1:4,rx) = L_qp(1:4,rx)
+        sp = 2*cont_LC_cntrv_qp(L_qp(1:4,s1),L_qp(1:4,lx))
+        L(6,sx) = sp + L(6,s1)
         L(6,3) = L_qp(6,3)
       else
-        L(6,sx) = 2*cont_LC_cntrv(L(1:4,s1),L(1:4,lx)) + L(6,s1)
+        L(1:5,sx) = L(1:5,s1) + L(1:5,lx)
+        L(1:4,rx) = -L(1:4,sx)
+        sp = 2*cont_LC_cntrv(L(1:4,s1),L(1:4,lx))
+        L(6,sx) = sp + L(6,s1)
       end if
 #else
-      L(6,sx) = 2*cont_LC_cntrv(L(1:4,s1),L(1:4,lx)) + L(6,s1)
+      L(1:5,sx) = L(1:5,s1) + L(1:5,lx)
+      L(1:4,rx) = -L(1:4,sx)
+      sp = 2*cont_LC_cntrv(L(1:4,s1),L(1:4,lx))
+      L(6,sx) = sp + L(6,s1)
 #endif
-      if (abs(L(6,sx)/(maxval(abs(L(1:4,s1)))*maxval(abs(L(1:4,lx))))) .lt. collthres) then
-        collconf = ior(collconf,sx)
+      L(5:6,rx) = L(5:6,sx)
+      if(init_qp_kinematics) then
+        if (abs(sp/(maxval(abs(L(1:4,s1)))*maxval(abs(L(1:4,lx))))) .lt. collthres) then
+          collconf = ior(collconf,sx)
+        end if
       end if
-      L(5,sx) = L(5,s1) + L(5,lx)
-      L(6,rx) = L(6,sx)
-      L(5,rx) = L(5,sx)
     end if
     lx = 2*lx
     if ( last .eqv. .false. ) then ! recursion
-      call intmom_rec_six(Npart, Jmax, ix, sx, x+1)
+      call intmom_rec_six(Npart, Jmax, ix, sx, x+1, init_qp_kinematics)
     end if
   end do  !ix
 

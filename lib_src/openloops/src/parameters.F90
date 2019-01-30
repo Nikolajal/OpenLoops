@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -52,8 +52,13 @@ module ol_data_types_/**/REALKIND
     integer(intkind2), dimension(:)      , allocatable :: hf
     integer :: mode = 1
     real(REALKIND) :: error
-    integer :: hit = 0
     integer :: npoint = 0
+    integer :: ndrs = 0
+    integer :: nred = 0
+#ifdef PRECISION_dp
+    integer :: ndrs_qp = 0
+    integer :: nred_qp = 0
+#endif
   end type hol
 
   ! derived tensor data type for closed-loop
@@ -64,7 +69,12 @@ module ol_data_types_/**/REALKIND
 #endif
     integer :: mode = 1
     real(REALKIND) :: error
-    integer :: hit = 0
+    integer :: ndrs = 0
+    integer :: nred = 0
+#ifdef PRECISION_dp
+    integer :: ndrs_qp = 0
+    integer :: nred_qp = 0
+#endif
   end type hcl
 
   type met
@@ -74,9 +84,14 @@ module ol_data_types_/**/REALKIND
 #endif
     integer :: mode = 1
     real(REALKIND) :: error
-    integer :: hit = 0
     integer :: sicount = 0
+    integer :: ndrs = 0
+    integer :: nred = 0
+#ifdef PRECISION_dp
     integer :: sicount_qp = 0
+    integer :: ndrs_qp = 0
+    integer :: nred_qp = 0
+#endif
   end type met
 
   ! equivalent to polcont, with the addition of an extra hf label for
@@ -290,15 +305,20 @@ module ol_parameters_decl_/**/REALKIND
   ! Counted up by 1 each time parameters_init() is called
   integer, save :: parameters_status = 0
 
+  ! flag for hybrid preset mode
+  integer, save :: hp_preset = 1
+
   ! flag of hybrid baseline mode
   integer, save :: hp_mode = 1
 
-  ! QP trigger threshold on large \alpha parameters (\propto 1/GD3) in on-the-fly reduction
-  real(REALKIND), save :: hp_step_thres = 1.5_/**/REALKIND
-  real(REALKIND), save :: hp_gd3_thres = 4._/**/REALKIND
-  real(REALKIND), save :: hp_err_thres = 4.5_/**/REALKIND  ! accumulated error threshold
+  ! writes a log on number of dressing and reduction steps (and of which are upraded to qp
+  ! written to the points file
+  integer, save :: write_hp_log = 1
 
-  real(REALKIND), save :: max_error = 0._/**/REALKIND
+  ! QP trigger threshold on large \alpha parameters (\propto 1/GD3) in on-the-fly reduction
+  real(REALKIND), save :: hp_step_thres = 0.5_/**/REALKIND
+  real(REALKIND), save :: hp_gd3_thres = 7._/**/REALKIND
+  real(REALKIND), save :: hp_err_thres = 7.5_/**/REALKIND  ! accumulated error threshold
 
   ! merging dp and qp channel the dp channel is upgraded to qp (which comes at zero cost.)
   logical, save :: hp_automerge = .true.
@@ -335,8 +355,23 @@ module ol_parameters_decl_/**/REALKIND
   integer, parameter :: hybrid_qp_mode = 2
   integer, parameter :: hybrid_dp_qp_mode = 3
 
+  ! hp stability log variables
+  ! scalar integral counter
+  integer, save :: hp_nsi = 0, hp_nsi_qp = 0
+  ! dressing step counter
+  integer, save :: hp_ndrs = 0, hp_ndrs_qp = 0
+  ! reduction step counter
+  integer, save :: hp_nred = 0, hp_nred_qp = 0
+  ! highest on-the-fly reduction error
+  real(REALKIND), save :: hp_max_err = 0._/**/REALKIND
+
+  real(REALKIND), save :: max_error = 0._/**/REALKIND
+
   !  compute real bubble diagrams in counterterms.
 #ifdef PRECISION_dp
+  integer, save :: use_bubble_vertex = 1
+  ! internal parameter which is set to 1 if use_bubble_vertex=1 and
+  ! process not require ew renormalization
   integer, save :: bubble_vertex = 0
 #endif
   !  use some hacks to stabilize ir events
@@ -395,9 +430,9 @@ module ol_parameters_decl_/**/REALKIND
   integer, save :: coli_cache_use = 0
   logical, save :: no_collier_stop = .false.
   ! select alpha_QED input scheme: 0 = on-shell = alpha(0), 1 = G_mu, 2 = alpha(MZ)
-  integer, save :: ew_scheme = 2
+  integer, save :: ew_scheme = 1
   ! select alpha_QED renormalization scheme: 0 = on-shell = alpha(0), 1 = G_mu, 2 = alpha(MZ)
-  integer, save :: ew_renorm_scheme = 2
+  integer, save :: ew_renorm_scheme = 1
   ! select FS gamma scheme: 0: on-shell, 1: allow gamma -> FF splittings
   integer, save :: eps_fs_gamma = 0
   ! coupling order

@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -1050,13 +1050,13 @@ subroutine vert_loop_TV_S(rank_in, rank_out, Gin_S, Ploop, J_V, Ptree, Gout_S)
 
 !   JP = cont_VV(2*Ploop+Ptree,J_V)
 !   Gout_S = 0
-! 
+!
 !   do l = 1, rank_in
 !     Gout_S(HR(1,l)) = Gout_S(HR(1,l)) - Gin_S(l)*J_V(2) ! -2*J_V covariant components (simplifies factor 1/2 in covariant components)
 !     Gout_S(HR(2,l)) = Gout_S(HR(2,l)) - Gin_S(l)*J_V(1) ! -2*J_V covariant components
 !     Gout_S(HR(3,l)) = Gout_S(HR(3,l)) + Gin_S(l)*J_V(4) ! -2*J_V covariant components
 !     Gout_S(HR(4,l)) = Gout_S(HR(4,l)) + Gin_S(l)*J_V(3) ! -2*J_V covariant components
-! 
+!
 !     Gout_S(l) = Gout_S(l) - Gin_S(l)*JP
 !   end do
 

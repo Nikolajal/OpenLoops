@@ -2,8 +2,7 @@
 !                                                                              !
 !    ttred.f90                                                                 !
 !    is part of trred & OpenLoops2                                             !
-!    Copyright (C) 2017-2018 Federico Buccioni, Jean-Nicolas Lang,             !
-!                            Stefano Pozzorini, Hantian Zhang and Max Zoller   !
+!    Copyright (C) 2017-2019  For authors see authors.txt.                     !
 !                                                                              !
 !    trred has been developed by J.-N. Lang, H. Zhang and F. Buccioni          !
 !    trred is licenced under the GNU GPL version 3,                            !
@@ -11,10 +10,26 @@
 !                                                                              !
 !******************************************************************************!
 
-! Last Modified: November 07, 2018
-! Version 0.9.1
+!Last Modified: January 10, 2019
+!Version 0.9.3
 
 module trred
+  use triangle_expansion_dp, only: &
+  get_errflag_trred=>get_errflag, &
+  reset_errflag_trred=>reset_errflag
+
+  use triangle_aux_dp, only: &
+  set_muUV2_dp=>set_muUV2, &
+  set_muIR2_dp=>set_muIR2, &
+  set_duv_dp=>set_duv, &
+  set_dir_dp=>set_dir
+
+  use triangle_aux_qp, only: &
+  set_muUV2_qp=>set_muUV2, &
+  set_muIR2_qp=>set_muIR2, &
+  set_duv_qp=>set_duv, &
+  set_dir_qp=>set_dir
+
   use triangle_reduction_dp, only: &
   C_0mm_P12_DP, C_0mm_p1_DP, C_0mm_p1p1_DP, C_0mm_p1P12_DP, C_0mm_P12P12_DP, &
   C_0mm_g_DP, C_0mm_p1p1p1_DP, C_0mm_p1p1P12_DP, C_0mm_p1P12P12_DP, &
@@ -51,6 +66,19 @@ module trred
   C_m0m1m1_p1p1p1_QP, C_m0m1m1_p1p1P12_QP, C_m0m1m1_p1P12P12_QP, &
   C_m0m1m1_P12P12P12_QP, C_m0m1m1_gp1_QP, C_m0m1m1_gP12_QP
   implicit none
+
+  interface set_muUV2
+    module procedure set_muUV2_dp, set_muUV2_qp
+  end interface
+  interface set_muIR2
+    module procedure set_muIR2_dp, set_muIR2_qp
+  end interface
+  interface set_duv
+    module procedure set_duv_dp, set_duv_qp
+  end interface
+  interface set_dir
+    module procedure set_dir_dp, set_dir_qp
+  end interface
 
   interface C_0mm_P12
     module procedure C_0mm_P12_DP, C_0mm_P12_QP

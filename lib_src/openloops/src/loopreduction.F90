@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -97,9 +97,40 @@ subroutine TI_bubble_red(Gin_A,momid,msq,Gout_A,M2R1,A0_0,A0_1)
   if (present(A0_0) .AND. present(A0_1)) then
     A0_0%error = Gin_A%error
     A0_1%error = Gin_A%error
+    A0_0%ndrs = 0
+    A0_0%nred = 0
+    A0_1%ndrs = 0
+    A0_1%nred = 0
+#ifdef PRECISION_dp
+    A0_0%ndrs_qp = 0
+    A0_0%nred_qp = 0
+    A0_1%ndrs_qp = 0
+    A0_1%nred_qp = 0
+#endif
   else if(present(A0_0)) then
     A0_0%error = Gin_A%error
+    A0_0%ndrs = 0
+    A0_0%nred = 0
+#ifdef PRECISION_dp
+    A0_0%ndrs_qp = 0
+    A0_0%nred_qp = 0
+#endif
   end if
+
+#ifdef PRECISION_dp
+  Gout_A%ndrs = Gin_A%ndrs
+  Gout_A%nred = Gin_A%nred
+  Gout_A%ndrs_qp = Gin_A%ndrs_qp
+  Gout_A%nred_qp = Gin_A%nred_qp
+  if (req_qp_cmp(Gin_A)) then
+    Gout_A%nred_qp = Gout_A%nred_qp + 1
+  else
+    Gout_A%nred = Gout_A%nred + 1
+  end if
+#else
+  Gout_A%ndrs = Gin_A%ndrs
+  Gout_A%nred = Gin_A%nred + 1
+#endif
 
   p = get_LC_5(momid)
 
@@ -140,6 +171,7 @@ subroutine TI_bubble_red(Gin_A,momid,msq,Gout_A,M2R1,A0_0,A0_1)
 
 #ifdef PRECISION_dp
   if (req_qp_cmp(Gin_A)) then
+
     p_qp = get_LC_5_qp(momid)
     redcoeff_qp = 0._/**/QREALKIND
 
@@ -259,9 +291,6 @@ subroutine TI_triangle_red(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1, &
   end if
 #endif
 
-  !! TEMPORARY: check if exact formulas or expansions are available for special cases
-  call tch_triangle_mass_check(Gin_A, get_mass2(msq), tch_top, perm)
-
   Gout_A%mode = Gin_A%mode
   Gout_A0%mode = Gin_A%mode
   Gout_A1%mode = Gin_A%mode
@@ -276,16 +305,67 @@ subroutine TI_triangle_red(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1, &
   if (present(A0_2)) then
     A0_2%mode = Gin_A%mode
     A0_2%error = Gin_A%error
+    A0_2%ndrs = 0
+    A0_2%nred = 0
+#ifdef PRECISION_dp
+    A0_2%ndrs_qp = 0
+    A0_2%nred_qp = 0
+#endif
   end if
   if (present(A0_1)) then
     A0_1%mode = Gin_A%mode
     A0_1%error = Gin_A%error
+    A0_1%ndrs = 0
+    A0_1%nred = 0
+#ifdef PRECISION_dp
+    A0_1%ndrs_qp = 0
+    A0_1%nred_qp = 0
+#endif
   end if
   if (present(A0_0)) then
     A0_0%mode = Gin_A%mode
     A0_0%error = Gin_A%error
+    A0_0%ndrs = 0
+    A0_0%nred = 0
+#ifdef PRECISION_dp
+    A0_0%ndrs_qp = 0
+    A0_0%nred_qp = 0
+#endif
   end if
 
+
+#ifdef PRECISION_dp
+  Gout_A%ndrs = Gin_A%ndrs
+  Gout_A0%ndrs = 0
+  Gout_A1%ndrs = 0
+  Gout_A2%ndrs = 0
+  Gout_A%ndrs_qp = Gin_A%ndrs_qp
+  Gout_A0%ndrs_qp = 0
+  Gout_A1%ndrs_qp = 0
+  Gout_A2%ndrs_qp = 0
+  Gout_A%nred = Gin_A%nred
+  Gout_A0%nred = 0
+  Gout_A1%nred = 0
+  Gout_A2%nred = 0
+  Gout_A%nred_qp = Gin_A%nred_qp
+  Gout_A0%nred_qp = 0
+  Gout_A1%nred_qp = 0
+  Gout_A2%nred_qp = 0
+  if (req_qp_cmp(Gin_A)) then
+    Gout_A%nred_qp = Gout_A%nred_qp + 1
+  else
+    Gout_A%nred = Gout_A%nred + 1
+  end if
+#else
+  Gout_A%ndrs = Gin_A%ndrs
+  Gout_A0%ndrs = 0
+  Gout_A1%ndrs = 0
+  Gout_A2%ndrs = 0
+  Gout_A%nred = Gin_A%nred + 1
+  Gout_A0%nred = 0
+  Gout_A1%nred = 0
+  Gout_A2%nred = 0
+#endif
 
 #ifdef PRECISION_dp
   if (Gin_A%mode .ne. hybrid_qp_mode) then
@@ -602,10 +682,10 @@ subroutine tch_triangle_check(mom1, mom2, tr_t_top, perm, sdlt, mom)
     mom(5,3)   =   k12(5)
     if(abs(k2(5)) > abs(k12(5))) then
       perm = [2,0,1]
-      sdlt = ABS(k2(5)/k12(5)) - rone
+      sdlt = abs(k2(5))/abs(k12(5)) - rone
     else
       perm = [2,1,0]
-      sdlt = ABS(k12(5)/k2(5)) - rone
+      sdlt = abs(k12(5))/abs(k2(5)) - rone
     end if
 
   else if(zero_mass(2) .AND. REAL(k1(5)*k12(5)) > 0) then
@@ -615,10 +695,10 @@ subroutine tch_triangle_check(mom1, mom2, tr_t_top, perm, sdlt, mom)
     mom(1:5,3) = k12(1:5)
     if(abs(k1(5)) > abs(k12(5))) then
       perm = [0,2,1]
-      sdlt = ABS(k1(5)/k12(5)) - rone
+      sdlt = abs(k1(5))/abs(k12(5)) - rone
     else
       perm = [0,1,2]
-      sdlt = ABS(k12(5)/k1(5)) - rone
+      sdlt = abs(k12(5))/abs(k1(5)) - rone
     end if
 
   else if(zero_mass(3) .AND. REAL(k1(5)*k2(5)) > 0) then
@@ -629,10 +709,10 @@ subroutine tch_triangle_check(mom1, mom2, tr_t_top, perm, sdlt, mom)
     mom(1:5,3) =   k12(1:5)
     if(abs(k1(5)) > abs(k2(5))) then
       perm = [1,2,0]
-      sdlt = ABS(k1(5)/k2(5)) - rone
+      sdlt = abs(k1(5))/abs(k2(5)) - rone
     else
       perm = [1,0,2]
-      sdlt = ABS(k2(5)/k1(5)) - rone
+      sdlt = abs(k2(5))/abs(k1(5)) - rone
     end if
   else
     tr_t_top = .FALSE.
@@ -740,104 +820,6 @@ subroutine triangle_check_ir(mom1, mom2, unstable)
 
 end subroutine triangle_check_ir
 
-subroutine tch_triangle_mass_check(Gin_A, msq, tch_top, perm)
-! ------------------------------------------------------------------------------
-! Check for a t-channel triangle topology with one external massless leg
-! Check on masses
-! ******************************************************************************
-  use KIND_TYPES, only: REALKIND
-  use ol_data_types_/**/REALKIND, only: hcl
-  use ol_momenta_decl_/**/REALKIND, only: L
-  use ol_kinematics_/**/REALKIND, only: get_mass2
-  use ol_loop_parameters_decl_/**/REALKIND, only: mureg
-  implicit none
-  type(hcl), intent(inout) :: Gin_A
-  integer, intent(in) :: perm(3)
-  complex(REALKIND), intent(in) :: msq(0:2)
-  logical, intent(inout) :: tch_top
-  complex(REALKIND) :: masses(0:2)
-  integer :: m_ind
-  complex(REALKIND) :: zero = 0._/**/REALKIND
-
-  !! Nothing checked
-  if(.not. tch_top) return
-
-  if(perm(1) == 2) then
-    if(perm(2) == 0) then
-      masses = (/msq(2),msq(0),msq(1)/)
-    else
-      masses = (/msq(2),msq(1),msq(0)/)
-    end if
-  else if(perm(1) == 0) then
-    if(perm(2) == 2) then
-      masses = (/msq(0),msq(2),msq(1)/)
-    else
-      masses = (/msq(0),msq(1),msq(2)/)
-    end if
-  else if(perm(1) == 1) then
-
-    if(perm(2) == 2) then
-      masses = (/msq(1),msq(2),msq(0)/)
-    else
-      masses = (/msq(1),msq(0),msq(2)/)
-    end if
-  end if
-
-  !! Check on masses
-  if (masses(1)==masses(2) .AND. masses(1)==masses(0) .AND. masses(0)==zero) then
-    !! (0,0,0) masses configuration
-    m_ind = 0
-  else if (masses(1)==masses(2) .AND. masses(1)==zero) then
-    !! (m0,0,0) masses configuration
-    m_ind = 1
-  else if (masses(0)==masses(2) .AND. masses(0)==zero) then
-    !! (0,m1,0) masses configuration
-    m_ind = 2
-  else if (masses(0)==masses(1) .AND. masses(0)==zero) then
-    !! (0,0,m2) masses configuration
-    m_ind = 3
-  else if (masses(1)==masses(2) .AND. masses(1)==masses(0)) then
-    !! (m,m,m) masses configuration
-    m_ind = 4
-  else if (masses(1)==masses(2) .AND. masses(0)==zero) then
-    !! (0,m,m) masses configuration
-    m_ind = 5
-  else if (masses(0)==masses(2) .AND. masses(1)==zero) then
-    !! (m,0,m) masses configuration
-    m_ind = 6
-  else if (masses(0)==masses(1) .AND. masses(2)==zero) then
-    !! (m,m,0) masses configuration
-    m_ind = 7
-  else if (masses(1)==masses(2)) then
-    !! (m0,m1,m1) masses configuration
-    m_ind = 8
-  else if (masses(0)==masses(1)) then
-    !! (m0,m0,m2) masses configuration
-    m_ind = 9
-  else if (masses(0)==masses(2)) then
-    !! (m0,m1,m0) masses configuration
-    m_ind = 10
-  else if (masses(0)==zero) then
-    !! (0,m1,m2) masses configuration
-    m_ind = 11
-  else if (masses(1)==zero) then
-    !! (m0,0,m2) masses configuration
-    m_ind = 12
-  else if (masses(2)==zero) then
-    !! (m0,m1,0) masses configuration
-    m_ind = 13
-  else
-    !! (m0,m1,m2) masses configuration
-    m_ind = 14
-  end if
-
-  if(m_ind == 14 .and. size(Gin_A%cmp) > 15) then
-    tch_top = .false.
-  else
-    tch_top = .true.
-  end if
-
-end subroutine tch_triangle_mass_check
 
 ! ******************************************************************************
 subroutine tch_triangle_exact(r,G_in,msq,masses_ind,dlt,psq,p1,p2,&
@@ -1385,11 +1367,10 @@ subroutine tch_triangle_exact(r,G_in,msq,masses_ind,dlt,psq,p1,p2,&
   !! masses: (0,0,0)
     if (masses_ind == 0) then
       redcoeff(1) = psq*(-T/dlt3 + U/dlt2 + V1/dlt - P111)
+      redcoeff(2) = (-(one - dlt/2 + dlt2/3)*T/dlt3 - (dlt-two)*U/(2*dlt2) + V1/dlt)
       redcoeff(3) = (11*T/3)/dlt4 + (T-10*U/3)/dlt3 - (Gm + T/2 + U + 17*V1/6)/dlt2    +&
       (2*T + 3*U - 6*V1 + 11*P111 - Gp1)/(6*dlt) - Gp
-
       redcoeff(4) = -(11*T/3)/dlt4+(10*U/3)/dlt3+(Gm+17*V1/6)/dlt2+(Gp1 -11*P111)/(6*dlt)
-
       redcoeff(8) = (5*T/3)/dlt3 - (T+4*U)/(3*dlt2) + (T/18 + (U - 5*V1)/6 -Gm)/dlt    -&
       (5*Gp1+2*Gp2)/36
 
@@ -2036,6 +2017,95 @@ subroutine tch_triangle_exact(r,G_in,msq,masses_ind,dlt,psq,p1,p2,&
       3*Gp12*(2*z01 - z1) + 6*Gp1*z1 - 12*P111*z1)/(72*dlt) - (5*(-2*U*z1 + T*(-2*z01  +&
       z1)))/(6*dlt3) + (T*(-one + 7*z0 - 3*z1) + 2*Gp12*z1 + 8*V1*z1 + U*(-16*one-4*z0 +&
       9*z1))/(12*dlt2)
+
+    !! masses: (m0,m1,m2)
+    else if (masses_ind == 14) then
+      z0  = msq(0)/psq
+      z1  = msq(1)/psq
+      z2  = msq(2)/psq
+      z12 = z1 - z2
+      z01 = one + z0 - z1
+      z22 = z12**2
+
+      redcoeff(1) = psq*(-P111-Gp1*z1/2+ 20*T*z12**3/dlt6+(V1*(z01-2*z1)-Gp12*z01*z1/2 +&
+      3*P111*z12 - (Gp1*(z01 -z1)*z12)/2)/dlt+(U*(z01**2+2*z1*(z1-two-z0))-2*V1*(3*one +&
+      2*z0-3*z1)*z12-(Gp12*(z01**2-2*z1)*z12)/2-3*P111*z22+(Gp1*(one+z01)*z22)/2)/dlt2 +&
+      (-(T*z01*(z01**2-6*z1))-3*U*(z01**2 +2*(z01-z1))*z12+1.5*Gp12*z01*z22 +3*V1*(two +&
+      z01)*z22 - Gp1*z12**3/2 + P111*z12**3)/dlt3 + (-30*T*z01*z22 - 10*U*z12**3)/dlt5 +&
+      (12*T*(z01**2 - z1)*z12 + 6*U*(one + 2*z01)*z22 - Gp12*z12**3 - 4*V1*z12**3)/dlt4)
+
+      redcoeff(3) = 20*T*z22/dlt6 + (-10*U*z22 + 10*T*z12*(z12-2*z01))/dlt5+(Gp1*(-two -&
+      (z0 - z2)**2/(dlt + one)))/12 +(Gp12*(one+(z0-z2)**2/(dlt+one)))/12+(U*(2*z0**2  +&
+      z2*(7*(one+dlt) + 3*(one + dlt)*z1 - z2-3*dlt*z2)-z0*(five+5*dlt+3*(one +dlt)*z1 +&
+      z2-3*dlt*z2)))/(6*(one+dlt)**2)+(V1*(-((3*one+dlt)*z0**2)+z0*(five+ 5*dlt+3*(one +&
+      dlt)*z1+3*z2-dlt*z2)+z2*(2*dlt*z2-7*(one+dlt)-3*(one+dlt)*z1)))/(6*(one+dlt)**2) +&
+      (T*(-((-one + dlt)*z0**2) + z2*(7*(one+dlt) + 3*(one + dlt)*z1 - 2*z2 -4*dlt*z2) +&
+      z0*(-5*(one+dlt)- 3*(one +dlt)*z1+z2+5*dlt*z2)))/(6*(one+dlt)**2)+(P111*(-2*(two +&
+      dlt)*z0**2 + z2*(-7*(one + dlt) - 3*(one + dlt)*z1+(dlt-one)*z2)+z0*(5*(one+dlt) +&
+      3*(one + dlt)*z1 + (five + dlt)*z2)))/(6*(one + dlt)**2) + (-Gp1*z22/2 +P111*z22 -&
+      (Gp12*z12*(-2*(one + z0) + 3*z1 - z2))/2 + V1*z12*(7*one + z0 - 3*z1 + 2*z2)     +&
+      (T*(3 + 8*z0**2 - 9*z1 + 3*z1**2 + z0*(11*one - 6*z1 - 10*z2) -10*z2+5*z2**2))/3 +&
+      (U*(-10*one - z0**2 - 9*z1**2 + z0*(-11*one + 15*z1 - 13*z2) - 17*z2 + 5*z2**2   +&
+      3*z1*(12*one + z2)))/3)/dlt3+((U*(3*one+z0*(5+3*z12)-(7*one+3*z1)*z2+3*z2**2))/6 +&
+      (T*(two+z0**2+z0*(five+3*z1-5*z2)-(7*one+3*z1)*z2+4*z2**2))/6+(V1*(z0**2 - 6*one +&
+      (7*one + 3*z1)*z2 - 2*z2**2 + z0*(-5*one - 3*z1 + z2)))/6 +(P111*(11*one+2*z0**2 +&
+      (7*one + 3*z1)*z2 - z2**2 - z0*(five+3*z1+z2)))/6+(Gp12*(-z0**2+3*z1-(z2-two)*z2 +&
+      z0*(-one + 2*z2)))/12 + (Gp1*(-two+z0**2+9*z1-4*z2+z2**2-z0*(one+2*z2)))/12)/dlt +&
+      (-(Gp1*z12*(-3*one -z0+2*z1-z2))/4-(P111*z12*(5*one-z0+z2))/2+(V1*(-17*one+z0**2 +&
+      z0*(-4*one + 3*z1 - 5*z2) - 3*z1*(-9*one + z2) -19*z2+4*z2**2))/6+(U*(-6-2*z0**2 +&
+      z0*(-3*z1 + 7*(-2*one+z2))+13*z2-5*z2**2+3*z1*(3*one+z2)))/6+(Gp12*(-one - z0**2 -&
+      6*z1**2 +z0*(-two+9*z1-7*z2)-5*z2+2*z2**2+3*z1*(five+z2)))/12+(T*(-3*(one+z0**2) +&
+      11*z2 - 6*z2**2 + 3*z1*(one + z2) +z0*(-10*one-3*z1+9*z2)))/6)/dlt2+(-(Gp12*z22) -&
+      4*V1*z22 + U*z12*(13*one + 7*z0 - 12*z1 +5*z2)+(T*(11*(one+z0**2)+36*z1**2+25*z2 -&
+      10*z2**2 - 3*z1*(21*one + 5*z2) + z0*(22*one - 57*z1 + 35*z2)))/3)/dlt4
+
+      redcoeff(4) = ((Gp1*(2 + z0 - (z0 - z1)**2-5*z1))/12+(P111*(-11*one-2*z0**2-7*z1 -&
+      2*z1**2 + z0*(five + 4*z1)))/6)/dlt - (20*T*z22)/dlt6 + ((Gp12*(z01**2-8*z1))/12 +&
+      (V1*(17*one + 4*z0 - (z0 - z1)**2 - 8*z1))/6 - (Gp1*(two+z01)*z12)/4+(P111*(five -&
+      z0 + z1)*z12)/2)/dlt2 + ((U*(10*one + 11*z0 + (z0 -z1)**2-19*z1))/3-Gp12*z01*z12 +&
+      V1*(-7*one - z0 + z1)*z12 +Gp1*z22/2-P111*z22)/dlt3+(20*T*z01*z12+10*U*z22)/dlt5 +&
+      ((T*(38*z1-11*(one+2*z0+(z0-z1)**2)))/3-U*(6*one+7*z01)*z12+Gp12*z22+4*V1*z22)/dlt4
+
+      redcoeff(5) = z0*(10*T*z12/(3*dlt4) + (-(Gp12*z12) - 4*V1*z12+T*(7*one+3*(z0+z1) -&
+      6*z2) + U*(8*one + 2*z0 + 3*z1 - 5*z2))/(6*dlt2) + ((-5*U*z12)/3 -(5*T*(one + z0 -&
+      z2))/3)/dlt3 + ((Gp1 - Gp12)*(z0 - z2))/(12*(dlt + one)) + (T*(5*(one+dlt)+(-one +&
+      dlt)*z0 + 3*(one + dlt)*z1 -2*z2-4*dlt*z2))/(6*(dlt+one)**2)+(P111*(-5*(one+dlt) +&
+      2*(two + dlt)*z0 - 3*(one + dlt)*z1 - z2 + dlt*z2))/(6*(dlt+one)**2)+(V1*((3*one +&
+      dlt)*z0 - (one + dlt)*(five + 3*z1) + 2*dlt*z2))/(6*(dlt +one)**2)-(U*(2*z0-(one +&
+      dlt)*(five + 3*z1) + z2 + 3*dlt*z2))/(6*(dlt + one)**2) + (-Gp1*z12/2 + P111*z12 -&
+      T*(five + z0 + 3*z1 - 4*z2) - U*(five + 3*z12) + (Gp12*(one +z0-z2))/2-V1*(-five +&
+      z0 - 3*z1 + 2*z2))/(6*dlt))
+
+      redcoeff(6) = z1*(((P111*(7*one - 2*(z0 - z1)))/6 + (Gp1*(-4*one - z0 + z1))/12  -&
+      T*z1**2/(3*z12**3) - U*z1/(2*z22) + V1/z12 - Gp12*z1/(4*z12))/dlt -10*T*z12/dlt5 +&
+      ((-5*Gp12*z01)/12+(V1*(-19*one-z0+z1))/6+T*z01*z1/(2*z22)+(U*(2*z01-z1))/(2*z12) +&
+      (Gp1/4 -P111/2)*z12)/dlt2+((25*T*z01)/3+5*U*z12)/dlt4+((U*(-17*one-8*(z0-z1)))/3 -&
+      (T*(one + 2*z0 + z0**2 - 3*z1 - 2*z0*z1 + z1**2))/z12 + Gp12*z12/2 + 2*V1*z12)/dlt3)
+
+      redcoeff(7) = z2*((10*T*z12)/dlt5 + (-Gp1*z12/4 +P111*z12/2-(U*(2*z0*(3*one+z12) -&
+      z1*(9*one + 2*z12) + (two+z12)*(3*one+5*z12)))/(6*z12)+(T*(3*z1**2+3*z1*(-one-z0 +&
+      z12 + z22) - z12*(3*one + 11*z12 +6*z22+3*z0*(one+z12))))/(6*z22)+(V1*(19*one+z0 +&
+      3*z1 - 4*z2))/6 + (Gp12*(5*(one + z0) - 3*z1 - 2*z2))/12)/dlt2 - ((Gp1-Gp12)*(z0 -&
+      z2))/(12*(dlt + one)) + (V1*(-((3*one + dlt)*z0) + (one + dlt)*(7*one + 3*z1)    -&
+      2*dlt*z2))/(6*(dlt + one)**2) + (P111*(7*(one+dlt)-2*(two+dlt)*z0+3*(one+dlt)*z1 +&
+      z2 - dlt*z2))/(6*(dlt + one)**2) + (U*(-7*(one+dlt) + 2*z0-3*(one + dlt)*z1 + z2 +&
+      3*dlt*z2))/(6*(dlt + one)**2) + ((-5*T*(5*(one+z0)-3*z1-2*z2))/3 - 5*U*z12)/dlt4 +&
+      (T*(z0 - (one + dlt)*(7*one + 3*z1) + 2*z2 + dlt*(-z0 + 4*z2)))/(6*(dlt+one)**2) +&
+      (-(V1*(6*one + z12*(7*one -z0+z1+2*z12)))/(6*z12)+(U*(3*z1+z12*(3*one+z12*(7*one +&
+      3*z12))))/(6*z22) + (T*(2*z1**2 - z1*z12*(-two + z22) + z22*(two + z12*(7*one+z0 +&
+      4*z12))))/(6*z12**3) + (Gp1*(4*one + z0 - z2))/12+(P111*(-7*one+2*z0-3*z1+z2))/6 +&
+      (Gp12*((two + z0 - z2)*z2 + z1*(one-z0+z2)))/(12*z12))/dlt+(-Gp12*z12/2-2*V1*z12 +&
+      (U*(17*one + 8*z0 - 3*z1 - 5*z2))/3 + (T*(3*one+3*z0**2+z1+3*z1**2-10*z2-5*z1*z2 +&
+      5*z2**2 - z0*(-6*one + z1 + 5*z2)))/(3*z12))/dlt3)
+
+      redcoeff(8) = (-7*Gp1)/36 + Gp12/18 - 10*T*z12/(3*dlt4) - ((P111 - T - U+V1)*(z0 +&
+      z2))/(6*(dlt + one)) +((5*U*z12)/3-(5*T*(-two-2*z0+3*z1+z2))/6)/dlt3+(Gp12*z12/6 +&
+      (2*V1*z12)/3 + (U*(-16*one - 4*z0 +9*z1+5*z2))/12+(T*(-3*z1**2+z1*(-one+7*z0+z2) -&
+      z2*(-7*one+z0+4*z2)))/(12*z12))/dlt2+(Gp1*z12/12-P111*z12/6+(V1*(-five+z0+z2))/6 +&
+      (Gp12*(-two - 2*z0 + 3*z1 + z2))/24 + (U*(z2*(-five + 2*z0 + 2*z2)-z1*(one+2*(z0 +&
+      z2))))/(12*z12)+(T*((five-3*(z0+z2))*z2**2-z1**2*(4*one+3*(z0+z2))+z1*z2*(-7*one +&
+      6*(z0 + z2))))/(18*z22))/dlt
+
     end if
 
   end if
@@ -2059,7 +2129,11 @@ subroutine tch_triangle_expand(r,G_in,msq,masses_ind,dlt,psq,p1,p2,&
 ! masses_ind = integer for the internal masses configuration
 ! ******************************************************************************
   use KIND_TYPES, only: REALKIND
-  use trred,only: C_m00_p1,C_m00_P12,C_0mm_p1,C_0mm_P12,               &
+  use ol_debug, only: ol_error
+  use ol_generic, only: to_string
+  use trred,only: get_errflag_trred,reset_errflag_trred,               &
+                  set_muUV2,set_muIR2,set_duv,set_dir,                 &
+                  C_m00_p1,C_m00_P12,C_0mm_p1,C_0mm_P12,               &
                   C_m00_P12P12,C_m00_p1P12,C_m00_p1p1,C_m00_g,         &
                   C_0mm_P12P12,C_0mm_p1P12,C_0mm_p1p1,C_0mm_g,         &
                   C_000_p1,C_000_P12,C_000_g,C_000_p1p1,C_000_p1P12,   &
@@ -2077,6 +2151,7 @@ subroutine tch_triangle_expand(r,G_in,msq,masses_ind,dlt,psq,p1,p2,&
                   C_m0m1m1_p1p1P12,C_m0m1m1_p1p1p1,C_m0m1m1_gp1
 
   use ol_loop_parameters_decl_/**/REALKIND, only: mu2_UV, mu2_IR
+  use ol_loop_parameters_decl_/**/DREALKIND, only: de1_UV, de1_IR
   implicit none
   complex(REALKIND), intent(in)  :: G_in(:)
   complex(REALKIND), intent(in)  :: msq(0:2),p1(1:5),p2(1:5)
@@ -2090,7 +2165,7 @@ subroutine tch_triangle_expand(r,G_in,msq,masses_ind,dlt,psq,p1,p2,&
   complex(REALKIND) :: contr_P12P12P12,contr_p1p1p1,contr_p1P12P12,contr_p1p1P12
   complex(REALKIND) :: p1p1(6:15),p2p2(6:15),p1p2(6:15),p1P12(6:15),P12P12(6:15),P12_vec(1:4)
   complex(REALKIND) :: p1p1p1(16:35),p1p1P12(16:35),p1P12P12(16:35),P12P12P12(16:35)
-  integer :: i,j,n,k
+  integer :: i,j,n,k,errflag
 
   redcoeff = 0._/**/REALKIND
   psq_delta = psq*dlt
@@ -2098,6 +2173,16 @@ subroutine tch_triangle_expand(r,G_in,msq,masses_ind,dlt,psq,p1,p2,&
   dlt2 = dlt**2
   dlt3 = dlt**3
   dlt4 = dlt**4
+
+  call set_muUV2(mu2_UV)
+  call set_muIR2(mu2_IR)
+#ifdef PRECISION_dp
+  call set_duv(de1_UV)
+  call set_dir(de1_IR)
+#else
+  call set_duv(real(de1_UV,kind=REALKIND))
+  call set_dir(real(de1_IR,kind=REALKIND))
+#endif
 
   !------------------------------------------------------------------------*
   !--------------------- Formulae for the rank-1 part ---------------------*
@@ -2107,35 +2192,44 @@ subroutine tch_triangle_expand(r,G_in,msq,masses_ind,dlt,psq,p1,p2,&
     contr_p2  = SUM(G_in(2:5)*p2(1:4))
     contr_P12 = contr_p1 - contr_p2
 
+    call reset_errflag_trred
     !! masses: (0,0,0)
     if (masses_ind == 0) then
       redcoeff(:7) = 0._/**/REALKIND
-      redcoeff(8) = contr_P12*C_000_P12(psq,mu2_UV,mu2_IR,dlt) &
-                  + contr_p1*C_000_p1(psq,mu2_UV,mu2_IR,dlt)
+      redcoeff(8) = contr_P12*C_000_P12(psq,dlt) &
+                  + contr_p1*C_000_p1(psq,dlt)
     !! masses: (m0,0,0)
     else if (masses_ind == 1) then
       redcoeff(:7) = 0._/**/REALKIND
-      redcoeff(8) = contr_P12*C_m00_P12(psq,msq(0),mu2_UV,mu2_IR,dlt) &
-                  + contr_p1*C_m00_p1(psq,msq(0),mu2_UV,mu2_IR,dlt)
+      redcoeff(8) = contr_P12*C_m00_P12(psq,msq(0),dlt) &
+                  + contr_p1*C_m00_p1(psq,msq(0),dlt)
 
     !! masses: (m,m,m)
     else if(masses_ind == 4) then
       redcoeff(:7) = 0._/**/REALKIND
-      redcoeff(8) = contr_P12*C_mmm_P12(psq,msq(0),mu2_UV,dlt)  &
-                  + contr_p1*C_mmm_p1(psq,msq(0),mu2_UV,dlt)
+      redcoeff(8) = contr_P12*C_mmm_P12(psq,msq(0),dlt)  &
+                  + contr_p1*C_mmm_p1(psq,msq(0),dlt)
 
     !! masses: (0,m,m)
     else if (masses_ind == 5) then
       redcoeff(:7) = 0._/**/REALKIND
-      redcoeff(8) = contr_P12*C_0mm_P12(psq,msq(1),mu2_UV,dlt)  &
-                  + contr_p1*C_0mm_p1(psq,msq(1),mu2_UV,dlt)
+      redcoeff(8) = contr_P12*C_0mm_P12(psq,msq(1),dlt)  &
+                  + contr_p1*C_0mm_p1(psq,msq(1),dlt)
 
     !! masses: (m0,m1,m1)
     else if (masses_ind == 8) then
       redcoeff(:7) = 0._/**/REALKIND
-      redcoeff(8) = contr_P12*C_m0m1m1_P12(psq,msq(0),msq(1),mu2_UV,dlt)  &
-                  + contr_p1*C_m0m1m1_p1(psq,msq(0),msq(1),mu2_UV,dlt)
-  end if
+      redcoeff(8) = contr_P12*C_m0m1m1_P12(psq,msq(0),msq(1),dlt)  &
+                  + contr_p1*C_m0m1m1_p1(psq,msq(0),msq(1),dlt)
+    end if
+    errflag = get_errflag_trred()
+    if (errflag .ne. 0) then
+      call ol_error("In TrRed for rank 1 and masses id " // &
+                    trim(to_string(masses_ind)) // ". Trred flag: " // &
+                    to_string(errflag))
+      contr_p1 = 0._/**/REALKIND
+      redcoeff = redcoeff/contr_p1
+    end if
   !------------------------------------------------------------------------*
   !--------------------- Formulae for the rank-2 part ---------------------*
   !------------------------------------------------------------------------*
@@ -2155,45 +2249,55 @@ subroutine tch_triangle_expand(r,G_in,msq,masses_ind,dlt,psq,p1,p2,&
     contr_P12P12 = sum(P12P12*G_in(6:15))
     contr_g = 2*(G_in(7)-G_in(14))
 
+    call reset_errflag_trred
     !! masses: (0,0,0)
     if(masses_ind == 0) then
         redcoeff(:7) = 0._/**/REALKIND
-        redcoeff(8) = + contr_P12P12*C_000_P12P12(psq,mu2_UV,mu2_IR,dlt) &
-                      + contr_p1p1*C_000_p1p1(psq,mu2_UV,mu2_IR,dlt)     &
-                      + contr_p1P12*C_000_p1P12(psq,mu2_UV,mu2_IR,dlt)   &
-                      + contr_g*C_000_g(psq,mu2_UV,mu2_IR,dlt)
+        redcoeff(8) = + contr_P12P12*C_000_P12P12(psq,dlt) &
+                      + contr_p1p1*C_000_p1p1(psq,dlt)     &
+                      + contr_p1P12*C_000_p1P12(psq,dlt)   &
+                      + contr_g*C_000_g(psq,dlt)
 
     !! masses: (m0,0,0)
     else if(masses_ind == 1) then
       redcoeff(:7) = 0._/**/REALKIND
-      redcoeff(8) = + contr_P12P12*C_m00_P12P12(psq,msq(0),mu2_UV,mu2_IR,dlt) &
-                    + contr_p1p1*C_m00_p1p1(psq,msq(0),mu2_UV,mu2_IR,dlt)     &
-                    + contr_p1P12*C_m00_p1P12(psq,msq(0),mu2_UV,mu2_IR,dlt)   &
-                    + contr_g*C_m00_g(psq,msq(0),mu2_UV,mu2_IR,dlt)
+      redcoeff(8) = + contr_P12P12*C_m00_P12P12(psq,msq(0),dlt) &
+                    + contr_p1p1*C_m00_p1p1(psq,msq(0),dlt)     &
+                    + contr_p1P12*C_m00_p1P12(psq,msq(0),dlt)   &
+                    + contr_g*C_m00_g(psq,msq(0),dlt)
 
     !! masses: (m,m,m)
     else if(masses_ind == 4) then
       redcoeff(:7) = 0._/**/REALKIND
-      redcoeff(8) = + contr_P12P12*C_mmm_P12P12(psq,msq(0),mu2_UV,dlt) &
-                    + contr_p1p1*C_mmm_p1p1(psq,msq(0),mu2_UV,dlt)     &
-                    + contr_p1P12*C_mmm_p1P12(psq,msq(0),mu2_UV,dlt)   &
-                    + contr_g*C_mmm_g(psq,msq(0),mu2_UV,dlt)
+      redcoeff(8) = + contr_P12P12*C_mmm_P12P12(psq,msq(0),dlt) &
+                    + contr_p1p1*C_mmm_p1p1(psq,msq(0),dlt)     &
+                    + contr_p1P12*C_mmm_p1P12(psq,msq(0),dlt)   &
+                    + contr_g*C_mmm_g(psq,msq(0),dlt)
 
     !! masses: (0,m,m)
     else if(masses_ind == 5) then
       redcoeff(:7) = 0._/**/REALKIND
-      redcoeff(8) = + contr_P12P12*C_0mm_P12P12(psq,msq(1),mu2_UV,dlt) &
-                    + contr_p1p1*C_0mm_p1p1(psq,msq(1),mu2_UV,dlt)     &
-                    + contr_p1P12*C_0mm_p1P12(psq,msq(1),mu2_UV,dlt)   &
-                    + contr_g*C_0mm_g(psq,msq(1),mu2_UV,dlt)
+      redcoeff(8) = + contr_P12P12*C_0mm_P12P12(psq,msq(1),dlt) &
+                    + contr_p1p1*C_0mm_p1p1(psq,msq(1),dlt)     &
+                    + contr_p1P12*C_0mm_p1P12(psq,msq(1),dlt)   &
+                    + contr_g*C_0mm_g(psq,msq(1),dlt)
 
     !! masses: (m0,m1,m1)
     else if(masses_ind == 8) then
       redcoeff(:7) = 0._/**/REALKIND
-      redcoeff(8) = + contr_P12P12*C_m0m1m1_P12P12(psq,msq(0),msq(1),mu2_UV,dlt) &
-                    + contr_p1p1*C_m0m1m1_p1p1(psq,msq(0),msq(1),mu2_UV,dlt)     &
-                    + contr_p1P12*C_m0m1m1_p1P12(psq,msq(0),msq(1),mu2_UV,dlt)   &
-                    + contr_g*C_m0m1m1_g(psq,msq(0),msq(1),mu2_UV,dlt)
+      redcoeff(8) = + contr_P12P12*C_m0m1m1_P12P12(psq,msq(0),msq(1),dlt) &
+                    + contr_p1p1*C_m0m1m1_p1p1(psq,msq(0),msq(1),dlt)     &
+                    + contr_p1P12*C_m0m1m1_p1P12(psq,msq(0),msq(1),dlt)   &
+                    + contr_g*C_m0m1m1_g(psq,msq(0),msq(1),dlt)
+    end if
+
+    errflag = get_errflag_trred()
+    if (errflag .ne. 0) then
+      call ol_error("In TrRed for rank 2 and masses id " // &
+                    trim(to_string(masses_ind)) // ". Trred flag: " // &
+                    to_string(errflag))
+      contr_p1 = 0._/**/REALKIND
+      redcoeff = redcoeff/contr_p1
     end if
 
   !------------------------------------------------------------------------*
@@ -2234,53 +2338,63 @@ subroutine tch_triangle_expand(r,G_in,msq,masses_ind,dlt,psq,p1,p2,&
                 (G_in(21) - 2*G_in(33))*P12_vec(3) +     &
                 (G_in(22) - 2*G_in(34))*P12_vec(4))
 
+    call reset_errflag_trred
     !! masses: (0,0,0)
     if(masses_ind == 0) then
       redcoeff(:7) = 0._/**/REALKIND
-      redcoeff(8) = + contr_P12P12P12*C_000_P12P12P12(psq,mu2_UV,mu2_IR,dlt) &
-                    + contr_p1P12P12*C_000_p1P12P12(psq,mu2_UV,mu2_IR,dlt)   &
-                    + contr_p1p1P12*C_000_p1p1P12(psq,mu2_UV,mu2_IR,dlt)     &
-                    + contr_p1p1p1*C_000_p1p1p1(psq,mu2_UV,mu2_IR,dlt)       &
-                    + contr_gp1*C_000_gp1(psq,mu2_UV,mu2_IR,dlt)             &
-                    + contr_gP12*C_000_gP12(psq,mu2_UV,mu2_IR,dlt)
+      redcoeff(8) = + contr_P12P12P12*C_000_P12P12P12(psq,dlt) &
+                    + contr_p1P12P12*C_000_p1P12P12(psq,dlt)   &
+                    + contr_p1p1P12*C_000_p1p1P12(psq,dlt)     &
+                    + contr_p1p1p1*C_000_p1p1p1(psq,dlt)       &
+                    + contr_gp1*C_000_gp1(psq,dlt)             &
+                    + contr_gP12*C_000_gP12(psq,dlt)
 
     !! masses: (m0,0,0)
     else if(masses_ind == 1) then
       redcoeff(:7) = 0._/**/REALKIND
-      redcoeff(8) = + contr_P12P12P12*C_m00_P12P12P12(psq,msq(0),mu2_UV,mu2_IR,dlt) &
-                    + contr_p1P12P12*C_m00_p1P12P12(psq,msq(0),mu2_UV,mu2_IR,dlt)   &
-                    + contr_p1p1P12*C_m00_p1p1P12(psq,msq(0),mu2_UV,mu2_IR,dlt)     &
-                    + contr_p1p1p1*C_m00_p1p1p1(psq,msq(0),mu2_UV,mu2_IR,dlt)       &
-                    + contr_gp1*C_m00_gp1(psq,msq(0),mu2_UV,mu2_IR,dlt)             &
-                    + contr_gP12*C_m00_gP12(psq,msq(0),mu2_UV,mu2_IR,dlt)
+      redcoeff(8) = + contr_P12P12P12*C_m00_P12P12P12(psq,msq(0),dlt) &
+                    + contr_p1P12P12*C_m00_p1P12P12(psq,msq(0),dlt)   &
+                    + contr_p1p1P12*C_m00_p1p1P12(psq,msq(0),dlt)     &
+                    + contr_p1p1p1*C_m00_p1p1p1(psq,msq(0),dlt)       &
+                    + contr_gp1*C_m00_gp1(psq,msq(0),dlt)             &
+                    + contr_gP12*C_m00_gP12(psq,msq(0),dlt)
 
     !! masses: (m,m,m)
     else if(masses_ind == 4) then
       redcoeff(:7) = 0._/**/REALKIND
-      redcoeff(8) = + contr_P12P12P12*C_mmm_P12P12P12(psq,msq(0),mu2_UV,dlt) &
-                    + contr_p1P12P12*C_mmm_p1P12P12(psq,msq(0),mu2_UV,dlt)   &
-                    + contr_p1p1P12*C_mmm_p1p1P12(psq,msq(0),mu2_UV,dlt)     &
-                    + contr_p1p1p1*C_mmm_p1p1p1(psq,msq(0),mu2_UV,dlt)       &
-                    + contr_gp1*C_mmm_gp1(psq,msq(0),mu2_UV,dlt)             &
-                    + contr_gP12*C_mmm_gP12(psq,msq(0),mu2_UV,dlt)
+      redcoeff(8) = + contr_P12P12P12*C_mmm_P12P12P12(psq,msq(0),dlt) &
+                    + contr_p1P12P12*C_mmm_p1P12P12(psq,msq(0),dlt)   &
+                    + contr_p1p1P12*C_mmm_p1p1P12(psq,msq(0),dlt)     &
+                    + contr_p1p1p1*C_mmm_p1p1p1(psq,msq(0),dlt)       &
+                    + contr_gp1*C_mmm_gp1(psq,msq(0),dlt)             &
+                    + contr_gP12*C_mmm_gP12(psq,msq(0),dlt)
     !! masses: (0,m,m)
     else if(masses_ind == 5) then
       redcoeff(:7) = 0._/**/REALKIND
-      redcoeff(8) = + contr_P12P12P12*C_0mm_P12P12P12(psq,msq(1),mu2_UV,dlt) &
-                    + contr_p1P12P12*C_0mm_p1P12P12(psq,msq(1),mu2_UV,dlt)   &
-                    + contr_p1p1P12*C_0mm_p1p1P12(psq,msq(1),mu2_UV,dlt)     &
-                    + contr_p1p1p1*C_0mm_p1p1p1(psq,msq(1),mu2_UV,dlt)       &
-                    + contr_gp1*C_0mm_gp1(psq,msq(1),mu2_UV,dlt)             &
-                    + contr_gP12*C_0mm_gP12(psq,msq(1),mu2_UV,dlt)
+      redcoeff(8) = + contr_P12P12P12*C_0mm_P12P12P12(psq,msq(1),dlt) &
+                    + contr_p1P12P12*C_0mm_p1P12P12(psq,msq(1),dlt)   &
+                    + contr_p1p1P12*C_0mm_p1p1P12(psq,msq(1),dlt)     &
+                    + contr_p1p1p1*C_0mm_p1p1p1(psq,msq(1),dlt)       &
+                    + contr_gp1*C_0mm_gp1(psq,msq(1),dlt)             &
+                    + contr_gP12*C_0mm_gP12(psq,msq(1),dlt)
     !! masses: (m0,m1,m1)
     else if(masses_ind == 8) then
       redcoeff(:7) = 0._/**/REALKIND
-      redcoeff(8) = + contr_P12P12P12*C_m0m1m1_P12P12P12(psq,msq(0),msq(1),mu2_UV,dlt) &
-                    + contr_p1P12P12*C_m0m1m1_p1P12P12(psq,msq(0),msq(1),mu2_UV,dlt)   &
-                    + contr_p1p1P12*C_m0m1m1_p1p1P12(psq,msq(0),msq(1),mu2_UV,dlt)     &
-                    + contr_p1p1p1*C_m0m1m1_p1p1p1(psq,msq(0),msq(1),mu2_UV,dlt)       &
-                    + contr_gp1*C_m0m1m1_gp1(psq,msq(0),msq(1),mu2_UV,dlt)             &
-                    + contr_gP12*C_m0m1m1_gP12(psq,msq(0),msq(1),mu2_UV,dlt)
+      redcoeff(8) = + contr_P12P12P12*C_m0m1m1_P12P12P12(psq,msq(0),msq(1),dlt) &
+                    + contr_p1P12P12*C_m0m1m1_p1P12P12(psq,msq(0),msq(1),dlt)   &
+                    + contr_p1p1P12*C_m0m1m1_p1p1P12(psq,msq(0),msq(1),dlt)     &
+                    + contr_p1p1p1*C_m0m1m1_p1p1p1(psq,msq(0),msq(1),dlt)       &
+                    + contr_gp1*C_m0m1m1_gp1(psq,msq(0),msq(1),dlt)             &
+                    + contr_gP12*C_m0m1m1_gP12(psq,msq(0),msq(1),dlt)
+    end if
+
+    errflag = get_errflag_trred()
+    if (errflag .ne. 0) then
+      call ol_error("In TrRed for rank 3 and masses id " // &
+                    trim(to_string(masses_ind)) // ". Trred flag: " // &
+                    to_string(errflag))
+      contr_p1 = 0._/**/REALKIND
+      redcoeff = redcoeff/contr_p1
     end if
 
   end if
@@ -2643,7 +2757,7 @@ Gout_R1,A0_0,A0_1,A0_2)
   dlt_exp = (dlt < delta_thres) .AND. DeltaExp .AND. (REAL(p1(5)) < 0)
 
   ! TEMPORARY: expansions are switched off in case polecheck = 1
-  dlt_exp = dlt_exp .and. (polecheck_is == 0)
+  !dlt_exp = dlt_exp .and. (polecheck_is == 0)
 
 ! TEMPORARY: expansions are switched off if they have not been implemented yet
   if((m_ind == 14) .or. (m_ind == 13) .or. (m_ind == 12) .or. (m_ind == 11) .or. &
@@ -2770,7 +2884,7 @@ subroutine avh_olo_interface(momenta, masses2, Gsum, M2add)
   use ol_momenta_decl_/**/REALKIND, only: L
   use avh_olo, only: olo_scale_prec, olo
   use ol_loop_parameters_decl_/**/REALKIND, only: mureg
-  use ol_loop_parameters_decl_/**/DREALKIND, only: de1_IR, de2_i_IR
+  use ol_loop_parameters_decl_/**/DREALKIND, only: de1_UV, de1_IR, de2_i_IR
   implicit none
   complex(REALKIND), intent(in)  :: masses2(:), Gsum(:)
   integer, intent(in) :: momenta(:)
@@ -2803,7 +2917,7 @@ subroutine avh_olo_interface(momenta, masses2, Gsum, M2add)
     end if
 
     call olo(rslt, tadpole_mass)
-    M2add = (Gsum(1)/tadpole_mass)*(rslt(0) + rslt(1)*de1_IR + rslt(2)*de2_i_IR)
+    M2add = (Gsum(1)/tadpole_mass)*(rslt(0) + rslt(1)*de1_UV)
     return
   end if
 
@@ -2840,7 +2954,13 @@ subroutine avh_olo_interface(momenta, masses2, Gsum, M2add)
     call ol_error('avh_olo_interface: integration called for a non-MI')
   end if
 
-  M2add = Gsum(1)*(rslt(0) + rslt(1)*de1_IR + rslt(2)*de2_i_IR)
+  if (size(masses2) .gt. 2) then
+    M2add = Gsum(1)*(rslt(0) + rslt(1)*de1_IR + rslt(2)*de2_i_IR)
+  else if (size(masses2) .eq. 2 .and. p1_2 .eq. 0 .and. sum(masses2) .eq. 0) then
+    M2add = Gsum(1)*(rslt(0) + de1_UV - de1_IR)
+  else
+    M2add = Gsum(1)*(rslt(0) + rslt(1)*de1_UV)
+  end if
 
 end subroutine avh_olo_interface
 
@@ -3146,7 +3266,7 @@ subroutine TI_reduction_1(rank, momenta, masses2, Gtensor, M2add, scboxes, all_s
 !*************************************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: scalarbox, hcl
-  use ol_parameters_decl_/**/REALKIND, only: max_error
+  use ol_parameters_decl_/**/DREALKIND, only: hp_max_err
   implicit none
   integer,           intent(in)  :: rank
   type(hcl), intent(in) :: Gtensor
@@ -3164,7 +3284,7 @@ subroutine TI_reduction_1(rank, momenta, masses2, Gtensor, M2add, scboxes, all_s
     call reduction_5points(rank, momenta, masses2, Gtensor%cmp, M2add, scboxes, all_scboxes, error_box)
   end if
   error_OPP = Gtensor%error + error_box
-  if (error_OPP > max_error) max_error = error_OPP
+  if (error_OPP > hp_max_err) hp_max_err = error_OPP
 
 end subroutine TI_reduction_1
 

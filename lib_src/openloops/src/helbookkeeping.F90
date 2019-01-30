@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -1272,9 +1272,32 @@ subroutine ol_merge_2(ntry,Gin_0, Gin_1)
     HelMatch_loc = .not. hel_mismatch(mct)
   end if
 
+  Gin_0%error = max( abs(Gin_0%error), abs(Gin_1%error) )
+
+  if (Gin_1%mode .eq. hybrid_zero_mode .and. Gin_0%mode .eq. hybrid_zero_mode) then
+    Gin_0%ndrs = 0
+    Gin_0%nred = 0
+#ifdef PRECISION_dp
+    Gin_0%ndrs_qp = 0
+    Gin_0%nred_qp = 0
+#endif
+  else if (Gin_1%mode .ne. hybrid_zero_mode .and. Gin_0%mode .eq. hybrid_zero_mode) then
+    Gin_0%ndrs = Gin_1%ndrs
+    Gin_0%nred = Gin_1%nred
+#ifdef PRECISION_dp
+    Gin_0%ndrs_qp = Gin_1%ndrs_qp
+    Gin_0%nred_qp = Gin_1%nred_qp
+#endif
+  else if (Gin_1%mode .ne. hybrid_zero_mode .and. Gin_0%mode .ne. hybrid_zero_mode) then
+    Gin_0%ndrs = Gin_0%ndrs + Gin_1%ndrs
+    Gin_0%nred = Gin_0%nred + Gin_1%nred
+#ifdef PRECISION_dp
+    Gin_0%ndrs_qp = Gin_0%ndrs_qp + Gin_1%ndrs_qp
+    Gin_0%nred_qp = Gin_0%nred_qp + Gin_1%nred_qp
+#endif
+  end if
+
   if(HelMatch_loc) then
-    Gin_0%error = max( abs(Gin_0%error), abs(Gin_1%error) )
-    Gin_0%hit = max(Gin_0%hit, Gin_1%hit)
 #ifdef PRECISION_dp
     if (hp_mode .eq. 1 .and. Gin_1%mode .ge. hybrid_qp_mode) then
       if (Gin_0%mode .ge. hybrid_qp_mode) then
@@ -1339,7 +1362,30 @@ subroutine ol_merge_last(Gin_0, Gin_1)
   s1 = size(Gin_1%j,2)
 
   Gin_0%error = max(abs(Gin_0%error), abs(Gin_1%error))
-  Gin_0%hit = max(Gin_0%hit, Gin_1%hit)
+
+  if (Gin_1%mode .eq. hybrid_zero_mode .and. Gin_0%mode .eq. hybrid_zero_mode) then
+    Gin_0%ndrs = 0
+    Gin_0%nred = 0
+#ifdef PRECISION_dp
+    Gin_0%ndrs_qp = 0
+    Gin_0%nred_qp = 0
+#endif
+  else if (Gin_1%mode .ne. hybrid_zero_mode .and. Gin_0%mode .eq. hybrid_zero_mode) then
+    Gin_0%ndrs = Gin_1%ndrs
+    Gin_0%nred = Gin_1%nred
+#ifdef PRECISION_dp
+    Gin_0%ndrs_qp = Gin_1%ndrs_qp
+    Gin_0%nred_qp = Gin_1%nred_qp
+#endif
+  else if (Gin_1%mode .ne. hybrid_zero_mode .and. Gin_0%mode .ne. hybrid_zero_mode) then
+    Gin_0%ndrs = Gin_0%ndrs + Gin_1%ndrs
+    Gin_0%nred = Gin_0%nred + Gin_1%nred
+#ifdef PRECISION_dp
+    Gin_0%ndrs_qp = Gin_0%ndrs_qp + Gin_1%ndrs_qp
+    Gin_0%nred_qp = Gin_0%nred_qp + Gin_1%nred_qp
+#endif
+  end if
+
 #ifdef PRECISION_dp
   if (hp_mode .eq. 1 .and. Gin_1%mode .ge. hybrid_qp_mode) then
     if (Gin_0%mode .ge. hybrid_qp_mode) then
@@ -1411,7 +1457,8 @@ subroutine ol_merge_tensor2(tout,tin)
 #ifdef PRECISION_dp
   use ol_loop_handling_/**/REALKIND, only: upgrade_qp,req_qp_cmp, &
                                            hp_mode,hp_alloc_mode, &
-                                           hcl_alloc_hybrid
+                                           hcl_alloc_hybrid, &
+                                           hybrid_zero_mode
 #endif
 
   type(hcl), intent(in)    :: tin
@@ -1421,6 +1468,29 @@ subroutine ol_merge_tensor2(tout,tin)
   rein = size(tin%cmp)
   reout = size(tout%cmp)
   tout%error = max(tout%error, tin%error)
+
+  if (tin%mode .eq. hybrid_zero_mode .and. tout%mode .eq. hybrid_zero_mode) then
+    tout%ndrs = 0
+    tout%nred = 0
+#ifdef PRECISION_dp
+    tout%ndrs_qp = 0
+    tout%nred_qp = 0
+#endif
+  else if (tin%mode .ne. hybrid_zero_mode .and. tout%mode .eq. hybrid_zero_mode) then
+    tout%ndrs = tin%ndrs
+    tout%nred = tin%nred
+#ifdef PRECISION_dp
+    tout%ndrs_qp = tin%ndrs_qp
+    tout%nred_qp = tin%nred_qp
+#endif
+  else if (tin%mode .ne. hybrid_zero_mode .and. tout%mode .ne. hybrid_zero_mode) then
+    tout%ndrs = tout%ndrs + tin%ndrs
+    tout%nred = tout%nred + tin%nred
+#ifdef PRECISION_dp
+    tout%ndrs_qp = tout%ndrs_qp + tin%ndrs_qp
+    tout%nred_qp = tout%nred_qp + tin%nred_qp
+#endif
+  end if
 
 #ifdef PRECISION_dp
   if (hp_mode .eq. 1 .and. tin%mode .ge. hybrid_qp_mode) then

@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -106,6 +106,7 @@ module openloops
     integer :: EWorder(0:1)
     integer :: QCDorder(0:1)
     integer :: OLMode
+    integer :: API
     integer :: LeadingColour
     integer :: NF
     integer :: NC
@@ -198,8 +199,10 @@ module openloops
     type(process_handle) :: get_process_handle
     integer :: k
     procedure(), pointer :: tmp_fun
+
     ! number of external particles
     tmp_fun => dlsym(lib, "ol_f_n_external_" // trim(proc))
+
     call tmp_fun(get_process_handle%n_particles)
     get_process_handle%library_name = trim(libname)
     get_process_handle%process_name = trim(proc)
@@ -302,8 +305,10 @@ module openloops
     integer :: j, k
     type(process_handle) :: prochandle
     type(process_handle), allocatable :: process_handles_bak(:)
+
     lib = dlopen(libname, RTLD_LAZY, 2)
     prochandle = get_process_handle(lib, libname, proc, content, amptype, n_in, perm=perm, pol=pol, extid=extid)
+
     if (error > 1) return
     ! Check if the process was registered before with the same permutation, polarization and amptype.
     ! If yes, return the previously assigned id
@@ -383,8 +388,7 @@ module openloops
     ! amptype: integer 1,2,3,4,11,12
     ! return (integer) process id to be used in evaluate_process
     use KIND_TYPES, only: DREALKIND
-    use ol_generic, only: to_int, string_to_integerlist, count_substring, to_string, to_lowercase, &
-      & to_string
+    use ol_generic, only: to_int, string_to_integerlist, count_substring, to_string, to_lowercase
     use ol_parameters_decl_/**/DREALKIND, only: &
       & install_path,flavour_mapping_on, coupling_qcd, coupling_ew, &
       & write_shopping_list, add_associated_ew, loop_order_ew, loop_order_qcd, &
@@ -821,7 +825,9 @@ module openloops
       & install_path, rMB, rMC, &
       & allowed_libs, tmp_dir, auto_preset
     use ol_generic, only: to_string, to_lowercase, count_substring, string_to_integerlist
-    use ol_loop_parameters_decl_/**/DREALKIND, only: stability_mode,a_switch,a_switch_rescue,redlib_qp
+    use ol_loop_parameters_decl_/**/DREALKIND, only: stability_mode,hp_preset,a_switch,a_switch_rescue,redlib_qp, &
+    use_bubble_vertex
+    use ol_version, only: process_api
     implicit none
     character(len=max_parameter_length), intent(in) :: proc_in
     integer, intent(in) :: amptype, librarytype, n_in
@@ -1056,6 +1062,7 @@ module openloops
           if ( trim(proc) /= trim(process_infos(p)%PROC) .or. &
             &  trim(libname) /= trim(process_infos(p)%LIBNAME) .or. &
             &  trim(lib_specification) /= trim(process_infos(p)%LTYPE) .or. &
+            &  process_api /= process_infos(p)%API .or. &
             &  index(trim(process_infos(p)%TYPE), trim(loops_specification)) == 0 .or. &
             &  proc_in(index(proc_in,"_",.true.)+1:) /=  trim(process_infos(p)%ID) &
             & ) cycle InfoLoop
@@ -1117,6 +1124,8 @@ module openloops
           if (index(trim(process_infos(p)%TYPE), loops_flags(i:i)) > 0) lib_content = ibset(lib_content, i-1)
         end do
 
+        if(process_infos(p)%OLMode .le. 0) call set_if_modified(use_bubble_vertex, 0)
+
         if(auto_preset) then
           if (process_infos(p)%OLMode .ge. 2) then
             call set_if_modified(a_switch,1)
@@ -1127,10 +1136,16 @@ module openloops
               call set_if_modified(a_switch_rescue,7)
               call set_if_modified(stability_mode,21)
             else
-              call set_if_modified(a_switch,1)
-              call set_if_modified(a_switch_rescue,7)
-              call set_if_modified(redlib_qp,5)
-              call set_if_modified(stability_mode,23)
+               if(process_infos(p)%MODEL=="heft") then
+                 call set_if_modified(a_switch,5)
+                 call set_if_modified(redlib_qp,5)
+                 call set_if_modified(stability_mode,14)
+               else
+                 call set_if_modified(a_switch,1)
+                 call set_if_modified(a_switch_rescue,7)
+                 call set_if_modified(redlib_qp,5)
+                 call set_if_modified(stability_mode,23)
+               end if
             end if
           end if
         end if
@@ -1236,6 +1251,7 @@ module openloops
       & loop_order_ew, loop_order_qcd, &
       & approximation, CKMORDER, model, allowed_libs
     use ol_loop_parameters_decl_/**/DREALKIND , only: nf, nc
+    use ol_version, only: process_api
     implicit none
     integer, intent(in) :: p
     integer, intent(in) :: amptype
@@ -1249,6 +1265,7 @@ module openloops
       end if
       found = .true.
 
+      call check(process_infos(p)%API == process_api, found, "API version not ok.")
       call check(process_infos(p)%EWorder(0) == coupling_EW(0) .or. coupling_EW(0) == -1, found, "EW tree coupling NOT ok.")
       call check(amptype == 1 .or. process_infos(p)%eworder(1) == coupling_ew(1) &
                   .or. coupling_ew(1) == -1, found, "ew loop not ok.")
@@ -1332,7 +1349,7 @@ module openloops
     logical, optional, intent(in) :: load_channel_lib
     integer :: readok
     integer, parameter :: gf_info = 994
-    integer :: counter
+    integer :: counter,API
     character(len=500) :: infofilename
     character(len=500) :: infoline
     character(len=5) :: info_file_suffix = 'info'
@@ -1375,6 +1392,7 @@ module openloops
         exit
       end if
       counter = 0
+      API = 1
       InfoFileLoop: do
         read (gf_info, '(A)', iostat=readok )  infoline
         if (readok /= 0) then ! EOF -> exit
@@ -1399,6 +1417,7 @@ module openloops
 
         ! strip lines starting with OPTIONS=... (deprecated)
         if (infoline(1:8) == "options ") then
+          call readInfoInt(infoline, 'API', API)
           cycle InfoFileLoop
         end if
 
@@ -1415,7 +1434,7 @@ module openloops
           infos%LTYPE = infofilename(index(infofilename,'_',.true.)+1:index(infofilename,'.info')-1)
         end if
 
-        call readAllInfos(infoline, infos)
+        call readAllInfos(infoline, infos, API)
         if (error > 1) then
           call ol_error("reading infofile line: " // trim(infoline))
           exit ProclibDirLoop
@@ -1449,9 +1468,10 @@ module openloops
 
     contains
 
-    subroutine readAllInfos(lineinfo, infos)
+    subroutine readAllInfos(lineinfo, infos, api)
       implicit none
       character(len=*), intent(in) :: lineinfo
+      integer,          intent(in) :: api
       type(processinfos), intent(inout) :: infos
       integer :: ccount
 
@@ -1505,6 +1525,7 @@ module openloops
       call readInfo(lineinfo, 'CC', infos%CC)
       call readInfo(lineinfo, 'MODEL', infos%Model)
       call readInfoInt(lineinfo, 'OLMode', infos%OLMode)
+      infos%API = api
       if (len_trim(infos%Model) == 0) then
         infos%Model = "sm"
       end if
@@ -3459,7 +3480,7 @@ module openloops
     use ol_generic, only: to_string
     use ol_parameters_decl_/**/DREALKIND, only: add_associated_ew
     use ol_loop_parameters_decl_/**/DREALKIND, only: IR_is_on, loop_parameters_status
-    use ol_loop_parameters_decl_/**/DREALKIND, only: stability_mode,a_switch,a_switch_rescue,redlib_qp
+    use ol_loop_parameters_decl_/**/DREALKIND, only: stability_mode,a_switch,a_switch_rescue,redlib_qp,use_bubble_vertex
     implicit none
     integer, intent(in) :: id
     real(DREALKIND), intent(in) :: psp(:,:)
@@ -3797,14 +3818,14 @@ module openloops
 
   subroutine evaluate_ct(id, psp, m2l0, m2ct)
     use ol_parameters_decl_/**/DREALKIND, only: add_associated_ew
-    use ol_loop_parameters_decl_/**/DREALKIND, only: CT_is_on, R2_is_on, TP_is_on, do_ew_renorm
+    use ol_loop_parameters_decl_/**/DREALKIND, only: CT_is_on, R2_is_on, TP_is_on, do_ew_renorm,use_bubble_vertex
     use ol_init, only: set_if_modified, parameters_flush
     use ol_stability
     use ol_generic, only: to_string
     implicit none
     integer, intent(in)  :: id
     real(DREALKIND), intent(in)  :: psp(:,:)
-    integer :: CT_on_bak, R2_on_bak, TP_on_bak
+    integer :: CT_on_bak, R2_on_bak, TP_on_bak, use_bubble_vertex_bak
     real(DREALKIND), intent(out) :: m2l0, m2ct
     real(DREALKIND) :: m2l0ew, m2ctew
     type(process_handle)  :: subprocess, subprocessew
@@ -3822,9 +3843,11 @@ module openloops
     CT_on_bak = CT_is_on
     R2_on_bak = R2_is_on
     TP_on_bak = TP_is_on
+    use_bubble_vertex_bak = use_bubble_vertex
     call set_if_modified(CT_is_on, 2)
     call set_if_modified(R2_is_on, 0)
     call set_if_modified(TP_is_on, 0)
+    call set_if_modified(use_bubble_vertex, 0)
     ! call parameters_flush() is done in ctamp2base,
     ! because only there we know if ew renormalisation needs to be activated.
     n_scatt = subprocess%n_in
@@ -3838,6 +3861,7 @@ module openloops
         call set_if_modified(CT_is_on, CT_on_bak)
         call set_if_modified(R2_is_on, R2_on_bak)
         call set_if_modified(TP_is_on, TP_on_bak)
+        call set_if_modified(use_bubble_vertex, use_bubble_vertex_bak)
         call parameters_flush()
         return
       end if
@@ -3854,6 +3878,7 @@ module openloops
     call set_if_modified(CT_is_on, CT_on_bak)
     call set_if_modified(R2_is_on, R2_on_bak)
     call set_if_modified(TP_is_on, TP_on_bak)
+    call set_if_modified(use_bubble_vertex, use_bubble_vertex_bak)
     call parameters_flush()
   end subroutine evaluate_ct
 

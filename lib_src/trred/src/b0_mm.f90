@@ -2,8 +2,7 @@
 !                                                                              !
 !    b0_mm.f90                                                                 !
 !    is part of trred & OpenLoops2                                             !
-!    Copyright (C) 2017-2018 Federico Buccioni, Jean-Nicolas Lang,             !
-!                            Stefano Pozzorini, Hantian Zhang and Max Zoller   !
+!    Copyright (C) 2017-2019  For authors see authors.txt.                     !
 !                                                                              !
 !    trred has been developed by J.-N. Lang, H. Zhang and F. Buccioni          !
 !    trred is licenced under the GNU GPL version 3,                            !
@@ -13,19 +12,19 @@
 
 module b0_mm_DP
   use triangle_aux_DP, only: target_precision,dp,i8,cone,cnul,choose,Lphi,zlogzf, &
-                          acoth,factorial,gamma_int,recursion_threshold
+                          acoth,factorial,gamma_int,recursion_threshold,duv,muUV2
   implicit none
 
   complex(dp), dimension(0:recursion_threshold+1) :: HyperPn,HyperP_diff
-    
+
   contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!         Optimized Recursive Version
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
- function B0_n_mm(p2,m2,muUV2,n) result(Bn)
-    complex(dp), intent(in) :: p2,m2(:),muUV2
+ function B0_n_mm(p2,m2,n) result(Bn)
+    complex(dp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(dp) :: z,x,y,Bn,output
 
@@ -34,10 +33,10 @@ module b0_mm_DP
     y = sqrt(4*z + cone)
 
     if (n==0) then
-      Bn = -(log(z) - y*log((-1+y)/(1+y)) -2._dp) - log(p2/muUV2)
+      Bn = -(log(z) - y*log((-1+y)/(1+y)) -2._dp) - log(p2/muUV2) + duv
     else
       call b0_table_init3(z, y, n, output)
-      Bn = - 2*output 
+      Bn = - 2*output
     end if
 
   end function B0_n_mm
@@ -77,8 +76,8 @@ module b0_mm_DP
 !!!         Optimized Explicit Version
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  function B0_n_mm_init(p2,m2,muUV2,muIR2,n) result(Bn)
-    complex(dp), intent(in) :: p2,m2(:),muUV2,muIR2
+  function B0_n_mm_init(p2,m2,n) result(Bn)
+    complex(dp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(dp) :: Bn
     complex(dp) :: z,x,y,sum, Pdiff, Pn
@@ -90,7 +89,7 @@ module b0_mm_DP
     y = sqrt(4*z + cone)
 
     if (n==0) then
-      Bn = -(log(z) - y*log((-1+y)/(1+y))-2._dp) - log(p2/muUV2)
+      Bn = -(log(z) - y*log((-1+y)/(1+y))-2._dp) - log(p2/muUV2) + duv
     else
       do j = 0, n-1
         HyperPn(j) = HyperGeo( cone/2, -j, 2, 4/(x*y**2) )
@@ -98,7 +97,7 @@ module b0_mm_DP
       end do
       sum = cnul
       do j = 0, n-1
-        if (j == 0) then 
+        if (j == 0) then
           Pn = y
           Pdiff =  (-1)**(-j+n) *x**(j-n) *y**(1+2*j-2*n)/((j-n)) * HyperP_diff(-(1+j-n))
         else
@@ -114,8 +113,8 @@ module b0_mm_DP
 
   end function B0_n_mm_init
 
-  function B0_n_mm_update(p2,m2,muUV2,muIR2,n) result(Bn)
-    complex(dp), intent(in) :: p2,m2(:),muUV2,muIR2
+  function B0_n_mm_update(p2,m2,n) result(Bn)
+    complex(dp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(dp) :: Bn
     complex(dp) :: z,x,y,sum, Pdiff, Pn
@@ -131,7 +130,7 @@ module b0_mm_DP
       HyperP_diff(j) = HyperGeo( cone/2, -j, 1, -4/x )
       sum = cnul
       do j = 0, n-1
-        if (j == 0) then 
+        if (j == 0) then
           Pn = y
         else
           Pn = 2*(-1)**j * x**(-1-j) / y * HyperPn(-(1-j))
@@ -163,7 +162,7 @@ module b0_mm_DP
           a_tmp = a_tmp*(a+k-1)
           b_tmp = b_tmp*(b+k-1)
           c_tmp = c_tmp*(c+k-1)
-          res = res + a_tmp*b_tmp/c_tmp * (value)**k/factorial (k) 
+          res = res + a_tmp*b_tmp/c_tmp * (value)**k/factorial (k)
         else if (k == 1) then
           res = res + a_tmp*b_tmp/c_tmp * (value)
         end if
@@ -176,8 +175,8 @@ module b0_mm_DP
 !!!         Naive Explicit Version
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
- function B0_n_mm_explict(p2,m2,muUV2,n) result(Bn)
-    complex(dp), intent(in) :: p2,m2(:),muUV2
+ function B0_n_mm_explict(p2,m2,n) result(Bn)
+    complex(dp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(dp) :: z,x,y,Bn,g,f, part1, part2, prod, sum
     integer       :: k, a, j, i
@@ -187,7 +186,7 @@ module b0_mm_DP
     y = sqrt(4*z + cone)
 
     if (n==0) then
-      Bn = -(log(z) - y*log((-1+y)/(1+y)) -2._dp) - log(p2/muUV2)
+      Bn = -(log(z) - y*log((-1+y)/(1+y)) -2._dp) - log(p2/muUV2) + duv
     else if (n ==1) then
       Bn = -(-P_n(1,x)*log((-1+y)/(1+y))+cone/x)/z
     else
@@ -226,7 +225,7 @@ module b0_mm_DP
           b(k) = b(k-1)*( b(1)+k-1 )
           c(k) = c(k-1)*( c(1)+k-1 )
         end if
-        sum = sum + a(k)*b(k)/c(k) * (4._dp/(x*y**2))**k/factorial (k) 
+        sum = sum + a(k)*b(k)/c(k) * (4._dp/(x*y**2))**k/factorial (k)
       end do
 
       Pn = 2*(-1)**n * x**(-1-n) * gamma_int(n+1) * sum / y
@@ -259,7 +258,7 @@ module b0_mm_DP
         b(k) = b(k-1)*( b(1)+k-1 )
         c(k) = c(k-1)*( c(1)+k-1 )
       end if
-      sum = sum + a(k)*b(k)/c(k) * (-4._dp/x)**k/factorial (k) 
+      sum = sum + a(k)*b(k)/c(k) * (-4._dp/x)**k/factorial (k)
     end do
 
     P_diff_nj = (-1)**(-j+n) *x**(j-n) *y**(1+2*j-2*n)*gamma_int(n+1)*sum/((j-n)*gamma_int(1+j))
@@ -299,12 +298,12 @@ module b0_mm_DP
         g(n,k) = cone/cmplx(n,kind=dp)*( (k-cone/2._dp)/(4*z)*(g(n-1,k-1) - 2*g(n-1,k) + g(n-1,k+1)) &
                                          + 1/(8*z)*(f0(n-1,k-1) - f0(n-1,k)) )
         ! f(n,k) = 1/cmplx(n,kind=dp)*( (k-cone/2._dp) * (f(n-1,k) - f(n-1,k+1)) + cone/2._dp*f0(n-1,k) )
-        
+
         if (k == (r-n) ) then
           ! print *, "n,k", n,k
           edge_g(n) = g(n,k)
           ! edge_f(n) = f(n,k)
-          ! edge_f0(n-1) = f0(n-1,k) 
+          ! edge_f0(n-1) = f0(n-1,k)
         end if
       end do
     end do
@@ -341,19 +340,19 @@ end module b0_mm_DP
 
 module b0_mm_QP
   use triangle_aux_QP, only: target_precision,qp,i8,cone,cnul,choose,Lphi,zlogzf, &
-                          acoth,factorial,gamma_int,recursion_threshold
+                          acoth,factorial,gamma_int,recursion_threshold,duv,muUV2
   implicit none
 
   complex(qp), dimension(0:recursion_threshold+1) :: HyperPn,HyperP_diff
-    
+
   contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!         Optimized Recursive Version
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
- function B0_n_mm(p2,m2,muUV2,n) result(Bn)
-    complex(qp), intent(in) :: p2,m2(:),muUV2
+ function B0_n_mm(p2,m2,n) result(Bn)
+    complex(qp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(qp) :: z,x,y,Bn,output
 
@@ -362,10 +361,10 @@ module b0_mm_QP
     y = sqrt(4*z + cone)
 
     if (n==0) then
-      Bn = -(log(z) - y*log((-1+y)/(1+y)) -2._qp) - log(p2/muUV2)
+      Bn = -(log(z) - y*log((-1+y)/(1+y)) -2._qp) - log(p2/muUV2) + duv
     else
       call b0_table_init3(z, y, n, output)
-      Bn = - 2*output 
+      Bn = - 2*output
     end if
 
   end function B0_n_mm
@@ -405,8 +404,8 @@ module b0_mm_QP
 !!!         Optimized Explicit Version
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  function B0_n_mm_init(p2,m2,muUV2,muIR2,n) result(Bn)
-    complex(qp), intent(in) :: p2,m2(:),muUV2,muIR2
+  function B0_n_mm_init(p2,m2,n) result(Bn)
+    complex(qp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(qp) :: Bn
     complex(qp) :: z,x,y,sum, Pdiff, Pn
@@ -418,7 +417,7 @@ module b0_mm_QP
     y = sqrt(4*z + cone)
 
     if (n==0) then
-      Bn = -(log(z) - y*log((-1+y)/(1+y))-2._qp) - log(p2/muUV2)
+      Bn = -(log(z) - y*log((-1+y)/(1+y))-2._qp) - log(p2/muUV2) + duv
     else
       do j = 0, n-1
         HyperPn(j) = HyperGeo( cone/2, -j, 2, 4/(x*y**2) )
@@ -426,7 +425,7 @@ module b0_mm_QP
       end do
       sum = cnul
       do j = 0, n-1
-        if (j == 0) then 
+        if (j == 0) then
           Pn = y
           Pdiff =  (-1)**(-j+n) *x**(j-n) *y**(1+2*j-2*n)/((j-n)) * HyperP_diff(-(1+j-n))
         else
@@ -442,8 +441,8 @@ module b0_mm_QP
 
   end function B0_n_mm_init
 
-  function B0_n_mm_update(p2,m2,muUV2,muIR2,n) result(Bn)
-    complex(qp), intent(in) :: p2,m2(:),muUV2,muIR2
+  function B0_n_mm_update(p2,m2,n) result(Bn)
+    complex(qp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(qp) :: Bn
     complex(qp) :: z,x,y,sum, Pdiff, Pn
@@ -459,7 +458,7 @@ module b0_mm_QP
       HyperP_diff(j) = HyperGeo( cone/2, -j, 1, -4/x )
       sum = cnul
       do j = 0, n-1
-        if (j == 0) then 
+        if (j == 0) then
           Pn = y
         else
           Pn = 2*(-1)**j * x**(-1-j) / y * HyperPn(-(1-j))
@@ -491,7 +490,7 @@ module b0_mm_QP
           a_tmp = a_tmp*(a+k-1)
           b_tmp = b_tmp*(b+k-1)
           c_tmp = c_tmp*(c+k-1)
-          res = res + a_tmp*b_tmp/c_tmp * (value)**k/factorial (k) 
+          res = res + a_tmp*b_tmp/c_tmp * (value)**k/factorial (k)
         else if (k == 1) then
           res = res + a_tmp*b_tmp/c_tmp * (value)
         end if
@@ -504,8 +503,8 @@ module b0_mm_QP
 !!!         Naive Explicit Version
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
- function B0_n_mm_explict(p2,m2,muUV2,n) result(Bn)
-    complex(qp), intent(in) :: p2,m2(:),muUV2
+ function B0_n_mm_explict(p2,m2,n) result(Bn)
+    complex(qp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(qp) :: z,x,y,Bn,g,f, part1, part2, prod, sum
     integer       :: k, a, j, i
@@ -515,7 +514,7 @@ module b0_mm_QP
     y = sqrt(4*z + cone)
 
     if (n==0) then
-      Bn = -(log(z) - y*log((-1+y)/(1+y)) -2._qp) - log(p2/muUV2)
+      Bn = -(log(z) - y*log((-1+y)/(1+y)) -2._qp) - log(p2/muUV2) + duv
     else if (n ==1) then
       Bn = -(-P_n(1,x)*log((-1+y)/(1+y))+cone/x)/z
     else
@@ -554,7 +553,7 @@ module b0_mm_QP
           b(k) = b(k-1)*( b(1)+k-1 )
           c(k) = c(k-1)*( c(1)+k-1 )
         end if
-        sum = sum + a(k)*b(k)/c(k) * (4._qp/(x*y**2))**k/factorial (k) 
+        sum = sum + a(k)*b(k)/c(k) * (4._qp/(x*y**2))**k/factorial (k)
       end do
 
       Pn = 2*(-1)**n * x**(-1-n) * gamma_int(n+1) * sum / y
@@ -587,7 +586,7 @@ module b0_mm_QP
         b(k) = b(k-1)*( b(1)+k-1 )
         c(k) = c(k-1)*( c(1)+k-1 )
       end if
-      sum = sum + a(k)*b(k)/c(k) * (-4._qp/x)**k/factorial (k) 
+      sum = sum + a(k)*b(k)/c(k) * (-4._qp/x)**k/factorial (k)
     end do
 
     P_diff_nj = (-1)**(-j+n) *x**(j-n) *y**(1+2*j-2*n)*gamma_int(n+1)*sum/((j-n)*gamma_int(1+j))
@@ -627,12 +626,12 @@ module b0_mm_QP
         g(n,k) = cone/cmplx(n,kind=qp)*( (k-cone/2._qp)/(4*z)*(g(n-1,k-1) - 2*g(n-1,k) + g(n-1,k+1)) &
                                          + 1/(8*z)*(f0(n-1,k-1) - f0(n-1,k)) )
         ! f(n,k) = 1/cmplx(n,kind=qp)*( (k-cone/2._qp) * (f(n-1,k) - f(n-1,k+1)) + cone/2._qp*f0(n-1,k) )
-        
+
         if (k == (r-n) ) then
           ! print *, "n,k", n,k
           edge_g(n) = g(n,k)
           ! edge_f(n) = f(n,k)
-          ! edge_f0(n-1) = f0(n-1,k) 
+          ! edge_f0(n-1) = f0(n-1,k)
         end if
       end do
     end do

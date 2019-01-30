@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -445,9 +445,13 @@ subroutine TI_call_OL(qt_pow, rank, momenta, masses, Gsum_hcl, M2, scboxes, all_
 
   if (Gsum_hcl%mode .eq. hybrid_zero_mode) return
   M2add = 0
+  M2%ndrs = M2%ndrs + Gsum_hcl%ndrs
+  M2%nred = M2%nred + Gsum_hcl%nred
 #ifdef PRECISION_dp
   if (hp_mode .eq. 1) then
     M2add_qp = 0
+    M2%ndrs_qp = M2%ndrs_qp + Gsum_hcl%ndrs_qp
+    M2%nred_qp = M2%nred_qp + Gsum_hcl%nred_qp
   end if
 #endif
 
@@ -679,7 +683,6 @@ subroutine TI_call_OL(qt_pow, rank, momenta, masses, Gsum_hcl, M2, scboxes, all_
         allocate(Gsum_hcl_qp%cmp(size(Gsum_hcl%cmp)))
         Gsum_hcl_qp%cmp(:) = Gsum_hcl%cmp_qp(:)
         Gsum_hcl_qp%mode = Gsum_hcl%mode
-        Gsum_hcl_qp%hit = Gsum_hcl%hit
         Gsum_hcl_qp%error = real(Gsum_hcl%error,kind=QREALKIND)
         call TI_reduction_qp(rank,p,get_mass2_qp(masses),Gsum_hcl_qp,M2add_qp, &
                              scboxes_qp,all_scboxes_qp)

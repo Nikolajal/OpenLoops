@@ -2,8 +2,7 @@
 !                                                                              !
 !    b0_m0m1.f90                                                               !
 !    is part of trred & OpenLoops2                                             !
-!    Copyright (C) 2017-2018 Federico Buccioni, Jean-Nicolas Lang,             !
-!                            Stefano Pozzorini, Hantian Zhang and Max Zoller   !
+!    Copyright (C) 2017-2019  For authors see authors.txt.                     !
 !                                                                              !
 !    trred has been developed by J.-N. Lang, H. Zhang and F. Buccioni          !
 !    trred is licenced under the GNU GPL version 3,                            !
@@ -11,9 +10,8 @@
 !                                                                              !
 !******************************************************************************!
 
-
 module b0_m0m1_DP
-  use triangle_aux_DP, only: target_precision,dp,cone,cnul,choose,pi,cima
+  use triangle_aux_DP, only: target_precision,dp,cone,cnul,choose,pi,cima,duv,muUV2
   implicit none
 
   contains
@@ -23,7 +21,7 @@ module b0_m0m1_DP
     integer,       intent(in) :: n
     complex(dp)             :: Brec(n+1)
     integer                   :: i,l
-    
+
     Brec(n) = yk**n * (cone-yk)**(n) / (yk-yr)**(n)
     do l = n-1, 1, -1
       Brec(l) = cnul
@@ -31,7 +29,7 @@ module b0_m0m1_DP
         Brec(l) = Brec(l) + Brec(l+i) * lambda(yk,yr,i,n)
       end do
       Brec(l) = Brec(l) / (n-l)
-      
+
     end do
 
     contains
@@ -42,13 +40,13 @@ module b0_m0m1_DP
       complex(dp)             :: lam
 
       lam = n*(cone/(yr-yk)**i - cone/(cone-yk)**i-cone/(-yk)**i)
-      
+
     end function lambda
 
   end function Brec
 
-  function B0_0_m0m1(p2,m2,muUV2,muIR2) result(B0)
-    complex(dp), intent(in) :: p2,m2(0:),muUV2,muIR2
+  function B0_0_m0m1(p2,m2) result(B0)
+    complex(dp), intent(in) :: p2,m2(0:)
     complex(dp)             :: m0,m1,B0,z0,z1,xr1,xr2
     integer                   :: j
 
@@ -63,8 +61,8 @@ module b0_m0m1_DP
     !B0 = 2*cone - log(p2/muUV2) &
     !   + (xr1 - 1)*log(1 - xr1) + (xr2 - 1)*log(1 - xr2) &
     !   - xr1*log(-xr1) - xr2*log(-xr2) + pi*cima
-    ! stable imaginary part 
-    B0 = 2*cone - log(p2/muUV2) &
+    ! stable imaginary part
+    B0 = 2*cone - log(p2/muUV2) + duv &
        + (xr1 - 1)*log((1 - xr1)/(-xr1)) + (xr2 - 1)*log((1 - xr2)/(-xr2)) &
        - log(-xr1*xr2)
 
@@ -72,14 +70,14 @@ module b0_m0m1_DP
   end function B0_0_m0m1
 
 
-  function B0_n_m0m1(p2,m2,muUV2,muIR2,n) result(B0)
-    complex(dp), intent(in) :: p2,m2(:),muUV2,muIR2
+  function B0_n_m0m1(p2,m2,n) result(B0)
+    complex(dp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(dp)             :: z0,z1,xr1,xr2,B0,loss,Bc1(n),Bc2(n)
     integer                   :: j
 
     if (n .eq. 0) then
-      B0 = B0_0_m0m1(p2,m2,muUV2,muIR2)
+      B0 = B0_0_m0m1(p2,m2)
       return
     end if
 
@@ -106,7 +104,7 @@ module b0_m0m1_DP
 end module b0_m0m1_DP
 
 module b0_m0m1_QP
-  use triangle_aux_QP, only: target_precision,qp,cone,cnul,choose,pi,cima
+  use triangle_aux_QP, only: target_precision,qp,cone,cnul,choose,pi,cima,duv,muUV2
   implicit none
 
   contains
@@ -116,7 +114,7 @@ module b0_m0m1_QP
     integer,       intent(in) :: n
     complex(qp)             :: Brec(n+1)
     integer                   :: i,l
-    
+
     Brec(n) = yk**n * (cone-yk)**(n) / (yk-yr)**(n)
     do l = n-1, 1, -1
       Brec(l) = cnul
@@ -124,7 +122,7 @@ module b0_m0m1_QP
         Brec(l) = Brec(l) + Brec(l+i) * lambda(yk,yr,i,n)
       end do
       Brec(l) = Brec(l) / (n-l)
-      
+
     end do
 
     contains
@@ -135,13 +133,13 @@ module b0_m0m1_QP
       complex(qp)             :: lam
 
       lam = n*(cone/(yr-yk)**i - cone/(cone-yk)**i-cone/(-yk)**i)
-      
+
     end function lambda
 
   end function Brec
 
-  function B0_0_m0m1(p2,m2,muUV2,muIR2) result(B0)
-    complex(qp), intent(in) :: p2,m2(0:),muUV2,muIR2
+  function B0_0_m0m1(p2,m2) result(B0)
+    complex(qp), intent(in) :: p2,m2(0:)
     complex(qp)             :: m0,m1,B0,z0,z1,xr1,xr2
     integer                   :: j
 
@@ -156,8 +154,8 @@ module b0_m0m1_QP
     !B0 = 2*cone - log(p2/muUV2) &
     !   + (xr1 - 1)*log(1 - xr1) + (xr2 - 1)*log(1 - xr2) &
     !   - xr1*log(-xr1) - xr2*log(-xr2) + pi*cima
-    ! stable imaginary part 
-    B0 = 2*cone - log(p2/muUV2) &
+    ! stable imaginary part
+    B0 = 2*cone - log(p2/muUV2) + duv &
        + (xr1 - 1)*log((1 - xr1)/(-xr1)) + (xr2 - 1)*log((1 - xr2)/(-xr2)) &
        - log(-xr1*xr2)
 
@@ -165,14 +163,14 @@ module b0_m0m1_QP
   end function B0_0_m0m1
 
 
-  function B0_n_m0m1(p2,m2,muUV2,muIR2,n) result(B0)
-    complex(qp), intent(in) :: p2,m2(:),muUV2,muIR2
+  function B0_n_m0m1(p2,m2,n) result(B0)
+    complex(qp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(qp)             :: z0,z1,xr1,xr2,B0,loss,Bc1(n),Bc2(n)
     integer                   :: j
 
     if (n .eq. 0) then
-      B0 = B0_0_m0m1(p2,m2,muUV2,muIR2)
+      B0 = B0_0_m0m1(p2,m2)
       return
     end if
 

@@ -2,15 +2,13 @@
 !                                                                              !
 !    c0_m0m1m1.f90                                                             !
 !    is part of trred & OpenLoops2                                             !
-!    Copyright (C) 2017-2018 Federico Buccioni, Jean-Nicolas Lang,             !
-!                            Stefano Pozzorini, Hantian Zhang and Max Zoller   !
+!    Copyright (C) 2017-2019  For authors see authors.txt.                     !
 !                                                                              !
 !    trred has been developed by J.-N. Lang, H. Zhang and F. Buccioni          !
 !    trred is licenced under the GNU GPL version 3,                            !
 !    see COPYING for details.                                                  !
 !                                                                              !
 !******************************************************************************!
-
 
 module c0_m0m1m1_DP
   use triangle_aux_DP, only: target_precision,dp,cone,cnul,choose
@@ -25,7 +23,7 @@ module c0_m0m1m1_DP
     integer,       intent(in) :: n
     complex(dp)             :: Crec(n+1)
     integer                   :: i,l
-    
+
     Crec(n+1) = yk**n * (cone-yk)**(n+1) / (yk-yr)**(n+1)
     do l = n, 1, -1
       Crec(l) = cnul
@@ -33,7 +31,7 @@ module c0_m0m1m1_DP
         Crec(l) = Crec(l) + Crec(l+i) * lambda(yk,yr,i,n)
       end do
       Crec(l) = Crec(l) / (1+n-l)
-      
+
     end do
 
     contains
@@ -44,14 +42,14 @@ module c0_m0m1m1_DP
       complex(dp)             :: lam
 
       lam = (1+n)*(cone/(yr-yk)**i - cone/(cone-yk)**i)-n/(-yk)**i
-      
+
     end function lambda
 
   end function Crec
 
 
-  function C0_n_m0m1m1(p2,m2,muUV2,muIR2,n) result(C0)
-    complex(dp), intent(in) :: p2,m2(:),muUV2,muIR2
+  function C0_n_m0m1m1(p2,m2,n) result(C0)
+    complex(dp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(dp)             :: z0,z1,yr1,yr2,C0,loss,Cc1(n+1),Cc2(n+1)
     integer                   :: j
@@ -91,7 +89,7 @@ module c0_m0m1m1_QP
     integer,       intent(in) :: n
     complex(qp)             :: Crec(n+1)
     integer                   :: i,l
-    
+
     Crec(n+1) = yk**n * (cone-yk)**(n+1) / (yk-yr)**(n+1)
     do l = n, 1, -1
       Crec(l) = cnul
@@ -99,7 +97,7 @@ module c0_m0m1m1_QP
         Crec(l) = Crec(l) + Crec(l+i) * lambda(yk,yr,i,n)
       end do
       Crec(l) = Crec(l) / (1+n-l)
-      
+
     end do
 
     contains
@@ -110,14 +108,14 @@ module c0_m0m1m1_QP
       complex(qp)             :: lam
 
       lam = (1+n)*(cone/(yr-yk)**i - cone/(cone-yk)**i)-n/(-yk)**i
-      
+
     end function lambda
 
   end function Crec
 
 
-  function C0_n_m0m1m1(p2,m2,muUV2,muIR2,n) result(C0)
-    complex(qp), intent(in) :: p2,m2(:),muUV2,muIR2
+  function C0_n_m0m1m1(p2,m2,n) result(C0)
+    complex(qp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(qp)             :: z0,z1,yr1,yr2,C0,loss,Cc1(n+1),Cc2(n+1)
     integer                   :: j

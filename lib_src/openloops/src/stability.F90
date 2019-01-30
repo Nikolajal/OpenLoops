@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -87,7 +87,7 @@ subroutine write_histogram(processname, hist, triggered)
 end subroutine write_histogram
 
 
-subroutine write_point(processname, psp, mu, alphas, perm, me)
+subroutine write_point(processname, psp, mu, alphas, perm, me, hplog, hperr)
   use ol_parameters_decl_/**/DREALKIND, only: pid_string, stability_logdir, max_parameter_length
   implicit none
   character(len=*), intent(in) :: processname
@@ -96,6 +96,8 @@ subroutine write_point(processname, psp, mu, alphas, perm, me)
   real(DREALKIND), intent(in), optional :: alphas
   integer, intent(in), optional :: perm(:)
   real(DREALKIND), intent(in), optional :: me(:)
+  integer, intent(in), optional :: hplog(:)
+  real(DREALKIND), intent(in), optional :: hperr
   character(len=max_parameter_length) :: outfile
   integer :: outunit = 44, k
   outfile = trim(stability_logdir) // "/points_" // trim(processname) // "_" // trim(pid_string) // ".log"
@@ -117,6 +119,12 @@ subroutine write_point(processname, psp, mu, alphas, perm, me)
   end if
   if (present(me)) then
     write(outunit,*) 'me=', me
+  end if
+  if (present(hplog)) then
+    write(outunit,*) 'hplog=', hplog
+  end if
+  if (present(hperr)) then
+    write(outunit,*) 'hperr=', hperr
   end if
   close(outunit)
 end subroutine write_point
@@ -651,6 +659,9 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
     & stability_mode, abscorr_unst, mureg_unscaled, polecheck_is
   use ol_generic, only: relative_deviation, factorial, perm_pos, to_string
   use ol_loop_parameters_decl_/**/DREALKIND, only: loop_parameters_status
+  use ol_parameters_decl_/**/DREALKIND, only: hp_mode, write_hp_log, hp_nsi, &
+                                              hp_nsi_qp, hp_ndrs, hp_ndrs_qp, &
+                                              hp_nred, hp_nred_qp, hp_max_err
   implicit none
   character(*), intent(in) :: processname
   real(DREALKIND), intent(in)  :: P_scatt(:,:)
@@ -947,6 +958,10 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
 
   if (write_psp >= 1) then
     call write_point(processname, me=[M2L0, M2L1(0), M2L1(1), M2L1(2), M2L2(0), last_relative_deviation])
+    if (hp_mode .eq. 1 .and. write_hp_log .ge. 1) then
+      call write_point(processname, hplog=[hp_nsi, hp_nsi_qp, hp_ndrs, hp_ndrs_qp, hp_nred, &
+                                           hp_nred_qp], hperr=hp_max_err)
+    end if
   end if
 
   ! fill matrix element cache

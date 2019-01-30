@@ -1,5 +1,5 @@
 !******************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
 !                                                                              !
@@ -1157,19 +1157,20 @@ subroutine parameters_write(filename)
   write(outid,*) 'ew_renorm_switch  =', ew_renorm_switch
   write(outid,*) 'use_coli_cache    =', coli_cache_use
   write(outid,*) 'use_me_cache      =', use_me_cache
-  write(outid,*) 'bubble_vertex     =', bubble_vertex
+  write(outid,*) 'use_bubble_vertex =', use_bubble_vertex
   write(outid,*) 'check_Ward_tree   =', Ward_tree
   write(outid,*) 'check_Ward_loop   =', Ward_loop
   write(outid,*) 'out_symmetry      =', out_symmetry_on
-  write(outid,*) 'stability_mode         =', stability_mode
-  write(outid,*) 'hp_mode            =', hp_mode
+  write(outid,*) 'hp_mode           =', hp_mode
   if (hp_mode .eq. 1) then
-  write(outid,*) 'hp_err_thres       =', hp_err_thres
-  write(outid,*) 'hp_gd3_thres       =', hp_gd3_thres
-  write(outid,*) 'hp_step_thres      =', hp_step_thres
-  write(outid,*) 'hp_alloc_mode      =', hp_alloc_mode
-  write(outid,*) 'use_qp_invariants  =', use_qp_invariants
+  write(outid,*) 'hp_preset         =', hp_preset
+  write(outid,*) 'hp_err_thres      =', hp_err_thres
+  write(outid,*) 'hp_gd3_thres      =', hp_gd3_thres
+  write(outid,*) 'hp_step_thres     =', hp_step_thres
+  write(outid,*) 'hp_alloc_mode     =', hp_alloc_mode
+  write(outid,*) 'use_qp_invariants =', use_qp_invariants
   end if
+  write(outid,*) 'stability_mode         =', stability_mode
   write(outid,*) 'deviation_mode         =', deviation_mode
   write(outid,*) 'stability_triggerratio =', trigeff_targ
   write(outid,*) 'stability_unstable     =', abscorr_unst
@@ -1204,10 +1205,14 @@ subroutine init_met(M)
   type(met), intent(out) :: M
   M%cmp=0._/**/REALKIND
   M%sicount = 0
+  M%nred = 0
+  M%ndrs = 0
 #ifdef PRECISION_dp
-  if (hp_mode .eq. 1 .and. hp_alloc_mode .eq. 0) then
+  M%nred_qp = 0
+  M%ndrs_qp = 0
+  M%sicount_qp = 0
+  if (hp_mode .eq. 1) then
     M%cmp_qp=0._/**/QREALKIND
-    M%sicount_qp = 0
   end if
 #endif
 end subroutine init_met
@@ -1231,7 +1236,8 @@ subroutine met_to_real(Mout,M)
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: met
 #ifdef PRECISION_dp
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode
+  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hp_nsi,hp_nsi_qp, &
+hp_ndrs,hp_ndrs_qp,hp_nred,hp_nred_qp
 #endif
   real(REALKIND), intent(out) :: Mout
   type(met),      intent(in)  :: M
@@ -1241,6 +1247,16 @@ subroutine met_to_real(Mout,M)
     Mout = Mout + real(M%cmp_qp,kind=REALKIND)
     ! log
     !write(*,*) "QP/DP% <", M%sicount_qp/real(M%sicount + M%sicount_qp) * 100
+    !write(*,*) "M%ndrs:", M%ndrs
+    !write(*,*) "M%nred:", M%nred
+    !write(*,*) "M%ndrs_qp:", M%ndrs_qp
+    !write(*,*) "M%nred_qp:", M%nred_qp
+    hp_nsi = M%sicount
+    hp_nsi_qp = M%sicount_qp
+    hp_ndrs = M%ndrs
+    hp_ndrs_qp = M%ndrs_qp
+    hp_nred = M%nred
+    hp_nred_qp = M%nred_qp
   end if
 #endif
 end subroutine met_to_real
@@ -1255,7 +1271,11 @@ subroutine init_hcl(T)
   T%cmp=0._/**/REALKIND
   T%error = 0
   T%mode = 1
+  T%ndrs = 0
+  T%nred = 0
 #ifdef PRECISION_dp
+  T%ndrs_qp = 0
+  T%nred_qp = 0
   if (hp_mode .eq. 1 .and. hp_alloc_mode .eq. 0) then
     T%cmp_qp=0._/**/QREALKIND
   end if

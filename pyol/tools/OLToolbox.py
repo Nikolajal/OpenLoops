@@ -26,6 +26,11 @@ import sys
 
 timeformat = '%Y-%m-%d-%H-%M-%S'
 
+def remove_duplicates(ls):
+    seen = set()
+    # seen.add() returns None
+    return [el for el in ls if not (el in seen or seen.add(el))]
+
 # =================================================== #
 # functions to manage lists and dictionaries in files #
 # =================================================== #
@@ -144,38 +149,28 @@ def export_dictionary(filename, dic, form='%s %s'):
 
 
 # ============ #
-# SVN revision #
+# git revision #
 # ============ #
 
-def get_svn_revision(mandatory=False):
-    """Get the SVN revision number from `svn info`
+def get_git_revision(mandatory=False):
+    """Get the git revision number from `git log -1`
     in the current working directory."""
     import subprocess
-    svninfo_exitcode = 1
+    git_exitcode = 1
     try:
-        svninfo_proc = subprocess.Popen(
-            ['svn', 'info'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        svninfo_out, svninfo_err = svninfo_proc.communicate()
-        svninfo_exitcode = svninfo_proc.returncode
+        git_proc = subprocess.Popen(
+            ['git', 'rev-parse', '--short', 'HEAD'],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        git_out, git_err = git_proc.communicate()
+        git_exitcode = git_proc.returncode
     except OSError:
-        try:
-            svninfo_proc = subprocess.Popen(
-                ['svnlite', 'info'],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            svninfo_out, svninfo_err = svninfo_proc.communicate()
-            svninfo_exitcode = svninfo_proc.returncode
-        except OSError:
-            pass
+        pass
     revision = 'none'
-    if not svninfo_exitcode:
-        for line in svninfo_out.decode('utf-8').split('\n'):
-            line = line.split()
-            if len(line) == 2 and line[0] == 'Revision:' and line[1].isdigit():
-                revision = int(line[1])
-                break
-    if mandatory and (revision == 'none' or svninfo_exitcode != 0):
-        raise OSError(svninfo_exitcode,
-                      '`svn info` failed. ' + svninfo_err.decode('utf-8').strip())
+    if not git_exitcode:
+        revision = git_out.decode('utf-8').strip()
+    if mandatory and (revision == 'none' or git_exitcode != 0):
+        raise OSError(git_exitcode,
+                      '`git info` failed. ' + git_err.decode('utf-8').strip())
     return revision
 
 

@@ -3207,7 +3207,7 @@ c     analytic continuation requires |r24| < 0
 *                         m42                                          *
 *                                                                      *
 ************************************************************************
-*     22.08.08 Ansgar Denner        last changed  26.04.10             *
+*     22.08.08 Ansgar Denner        last changed  21.12.18             *
 ************************************************************************
 #ifndef ADcode
       use coli_aux2
@@ -3230,7 +3230,7 @@ c     analytic continuation requires |r24| < 0
 
       complex*16 m1,m2,m3,m4
       complex*16 k24,k23,k34,r24,r23,r34
-      real*8     ir24,ir23,ir34
+      real*8     ir24,ir23,ir34,ip1,ip2,ip3,ip4
       complex*16 logxs,logx2,logx3
       complex*16 cln_coli,cspenc_coli
 
@@ -3376,6 +3376,12 @@ c     use K-function of IR paper
       endif
       if(p24.ne.(m2-m4)**2) then
 
+c       imaginary parts are not arbitrary if theta terms omitted!
+c       corrected 21.12.2018
+        ip1 =  sign(1d1,real(r24*r34*r23))     !  irrelevant	
+        ip2 = -sign(1d1,real(r24/r34*r23))     !  relevant
+        ip3 = -sign(1d1,real(r24*r34/r23))     !  relevant
+        ip4 =  sign(1d1,real(r24/(r34*r23)))   !  relevant
 
         logxs = cln_coli(r24,ir24)
         logx2 = cln_coli(r23,ir23)
@@ -3383,17 +3389,49 @@ c     use K-function of IR paper
         D0ms0ir1_coli =
      &      2d0*logxs*cln_coli(1d0-r24*r24,-real(r24)*ir24)
      &      + 3d0*pi2_6
-     &       + cspenc_coli(r24*r24,real(r24)*ir24)
-     &       + (logx2)**2 + (logx3)**2
-     &       - cspenc_coli(r24*r34*r23,1d0)
-     &       - cln_coli(1d0-r24*r34*r23,-1d0)*(logxs+logx2+logx3)
-     &       - cspenc_coli(r24/r34*r23,1d0)
-     &       - cln_coli(1d0-r24/r34*r23,-1d0)*(logxs+logx2-logx3)
-     &       - cspenc_coli(r24*r34/r23,1d0)
-     &       - cln_coli(1d0-r24*r34/r23,-1d0)*(logxs-logx2+logx3)
-     &       - cspenc_coli(r24/(r34*r23),1d0)
-     &       - cln_coli(1d0-r24/(r34*r23),-1d0)
-     &                  * (logxs-logx2-logx3)
+     &      + cspenc_coli(r24*r24,real(r24)*ir24)
+     &      + (logx2)**2 + (logx3)**2
+     &      - cspenc_coli(r24*r34*r23,ip1)
+     &      - cln_coli(1d0-r24*r34*r23,-ip1)*(logxs+logx2+logx3)
+     &      - cspenc_coli(r24/r34*r23,ip2)
+     &      - cln_coli(1d0-r24/r34*r23,-ip2)*(logxs+logx2-logx3)
+     &      - cspenc_coli(r24*r34/r23,ip3)
+     &      - cln_coli(1d0-r24*r34/r23,-ip3)*(logxs-logx2+logx3)
+     &      - cspenc_coli(r24/(r34*r23),ip4)
+     &      - cln_coli(1d0-r24/(r34*r23),-ip4)*(logxs-logx2-logx3)
+
+
+c added 21.12.2018  theta function terms for arbitrary ipi
+c       if(abs(r24*r34*r23).gt.1d0) then
+c         D0ms0ir1_coli = D0ms0ir1_coli -
+c    &       (cln_coli(r24*r34*r23,ip1) - (logxs+logx2+logx3))*
+c    &       (cln_coli(-r24*r34*r23,-ip1)
+c    &        -(cln_coli(r24*r34*r23,ip1)+(logxs+logx2+logx3))/2d0)
+c       end if
+c
+c       if(abs(r24/r34*r23).gt.1d0) then
+c         D0ms0ir1_coli = D0ms0ir1_coli -
+c    &       (cln_coli(r24/r34*r23,ip2) - (logxs+logx2-logx3))*
+c    &       (cln_coli(-r24/r34*r23,-ip2)
+c    &        -(cln_coli(r24/r34*r23,ip2)+(logxs+logx2-logx3))/2d0)
+c       end if
+c
+c       if(abs(r24*r34/r23).gt.1d0) then
+c         D0ms0ir1_coli = D0ms0ir1_coli -
+c    &       (cln_coli(r24*r34/r23,ip3) - (logxs-logx2+logx3))*
+c    &       (cln_coli(-r24*r34/r23,-ip3)
+c    &        -(cln_coli(r24*r34/r23,ip3)+(logxs-logx2+logx3))/2d0)
+c       end if
+c
+c       if(abs(r24/(r34*r23)).gt.1d0) then
+c         D0ms0ir1_coli = D0ms0ir1_coli -
+c    &       (cln_coli(r24/(r34*r23),ip4) - (logxs-logx2-logx3))*
+c    &       (cln_coli(-r24/(r34*r23),-ip4)
+c    &        -(cln_coli(r24/(r34*r23),ip4)+(logxs-logx2-logx3))/2d0)
+c       end if
+c end added 21.12.2018
+
+
 
 
         if(m12.eq.cd0)then

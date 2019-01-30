@@ -2,19 +2,13 @@
 !                                                                              !
 !    c0_0mm.f90                                                                !
 !    is part of trred & OpenLoops2                                             !
-!    Copyright (C) 2017-2018 Federico Buccioni, Jean-Nicolas Lang,             !
-!                            Stefano Pozzorini, Hantian Zhang and Max Zoller   !
+!    Copyright (C) 2017-2019  For authors see authors.txt.                     !
 !                                                                              !
 !    trred has been developed by J.-N. Lang, H. Zhang and F. Buccioni          !
 !    trred is licenced under the GNU GPL version 3,                            !
 !    see COPYING for details.                                                  !
 !                                                                              !
 !******************************************************************************!
-
-! Implements the n-th derivative of C0(-p^2,-p^2(1+\delta),0,m^2,m^2)
-! (C0_n_0mm_small_z). For large values of z = m^2/p^2 the formula is
-! numerically unstable and an expansions in 1/z is performed (C0_n_exp_0mm_2,
-! C0_n_exp_0mm). 
 
 module c0_0mm_DP
   use triangle_aux_DP, only: target_precision,dp,cone,cnul,choose
@@ -24,8 +18,8 @@ module c0_0mm_DP
 
   contains
 
-  function C0_n_0mm(p2,m2,muUV2,muIR2,n) result(C0)
-    complex(dp), intent(in) :: p2,m2(:),muUV2,muIR2
+  function C0_n_0mm(p2,m2,n) result(C0)
+    complex(dp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(dp)             :: z,C0,loss
 
@@ -35,7 +29,7 @@ module c0_0mm_DP
     else
       C0 = C0_n_0mm_small_z(z,p2,n)
     end if
-    
+
   end function C0_n_0mm
 
   function C0_n_0mm_small_z(z,p2,n) result(Cn)
@@ -105,7 +99,7 @@ module c0_0mm_DP
     complex(dp) :: C0
 
     C0 = (-w)**cmplx(q,kind=dp)*cmplx(choose(q-1,n)/q,kind=dp)
-    
+
   end function C0_nq_coeff_0mm
 
 end module c0_0mm_DP
@@ -118,8 +112,8 @@ module c0_0mm_QP
 
   contains
 
-  function C0_n_0mm(p2,m2,muUV2,muIR2,n) result(C0)
-    complex(qp), intent(in) :: p2,m2(:),muUV2,muIR2
+  function C0_n_0mm(p2,m2,n) result(C0)
+    complex(qp), intent(in) :: p2,m2(:)
     integer,       intent(in) :: n
     complex(qp)             :: z,C0,loss
 
@@ -129,7 +123,7 @@ module c0_0mm_QP
     else
       C0 = C0_n_0mm_small_z(z,p2,n)
     end if
-    
+
   end function C0_n_0mm
 
   function C0_n_0mm_small_z(z,p2,n) result(Cn)
@@ -199,7 +193,7 @@ module c0_0mm_QP
     complex(qp) :: C0
 
     C0 = (-w)**cmplx(q,kind=qp)*cmplx(choose(q-1,n)/q,kind=qp)
-    
+
   end function C0_nq_coeff_0mm
 
 end module c0_0mm_QP

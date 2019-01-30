@@ -1,2 +1,3 @@
 
 Collier version 1.2.2 from 24.08.2018.
+Includes a patch to fix analytic continuation of a box integral in COLI (coli_d0.F).
