@@ -20,7 +20,7 @@
 
 module ol_h_last_step_/**/REALKIND
   use ol_h_vert_interface_/**/REALKIND, only: valid_hol
-  use ol_parameters_decl_/**/REALKIND, only: hp_mode
+  use ol_parameters_decl_/**/REALKIND, only: hp_switch
 #ifdef PRECISION_dp
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hol_dealloc_hybrid
 #endif

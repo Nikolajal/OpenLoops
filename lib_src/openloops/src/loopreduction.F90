@@ -61,7 +61,7 @@ subroutine TI_bubble_red(Gin_A,momid,msq,Gout_A,M2R1,A0_0,A0_1)
   use KIND_TYPES, only: REALKIND, QREALKIND
   use ofred_reduction_/**/REALKIND, only: twopoint_reduction
   use ofred_reduction_/**/QREALKIND, only: twopoint_reduction_qp=>twopoint_reduction
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode,hp_alloc_mode
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode,hp_alloc_mode
   use ol_data_types_/**/REALKIND, only: hcl, met
   use ol_kinematics_/**/REALKIND, only: get_mass2,get_LC_5
 #ifdef PRECISION_dp
@@ -198,7 +198,7 @@ subroutine TI_bubble_red(Gin_A,momid,msq,Gout_A,M2R1,A0_0,A0_1)
         A0_0%cmp_qp(1) = get_mass2_qp(msq(0))*redcoeff_qp(2)
       end if
     end if
-  else if (hp_mode .eq. 1 .and. hp_alloc_mode .eq. 0) then
+  else if (hp_switch .eq. 1 .and. hp_alloc_mode .eq. 0) then
     Gout_A%cmp_qp(1) = 0
     if (present(A0_0) .AND. present(A0_1)) then
       A0_0%cmp_qp(1) = 0
@@ -229,9 +229,10 @@ subroutine TI_triangle_red(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1, &
   use KIND_TYPES, only: REALKIND, QREALKIND
   use ol_data_types_/**/REALKIND, only: basis
   use ofred_reduction_/**/REALKIND, only: otf_3pt_reduction_last
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
-                                              hp_irtri_trig,          &
-                                              hp_metri_trig,          &
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,      &
+                                              hybrid_qp_mode, &
+                                              hp_irtri_trig,  &
+                                              hp_metri_trig,  &
                                               hp_alloc_mode
   use ol_data_types_/**/REALKIND, only: hcl,met
   use ol_kinematics_/**/REALKIND, only: get_mass2
@@ -273,14 +274,14 @@ subroutine TI_triangle_red(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1, &
 
 #ifdef PRECISION_dp
   unstable = .false.
-  if (hp_mode .eq. 1 .and. .not. req_qp_cmp(Gin_A)) then
+  if (hp_switch .eq. 1 .and. .not. req_qp_cmp(Gin_A)) then
     if (hp_metri_trig) call tri_check_me
     if (hp_irtri_trig .and. .not. unstable) call triangle_check_ir(RedBasis%mom1, RedBasis%mom2, unstable)
   end if
 #endif
 
 #ifdef PRECISION_dp
-  if (hp_mode .eq. 1 .and. unstable) then
+  if (hp_switch .eq. 1 .and. unstable) then
     call upgrade_qp(Gin_A)
   end if
 #endif
@@ -535,7 +536,7 @@ subroutine TI_triangle_red(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1, &
 
   M2R1%cmp_qp = M2R1%cmp_qp + Gout_R1_qp
 
-  else if (hp_mode .eq. 1 .and. hp_alloc_mode .eq. 0) then
+  else if (hp_switch .eq. 1 .and. hp_alloc_mode .eq. 0) then
     Gout_A%cmp_qp = 0
     Gout_A0%cmp_qp = 0
     Gout_A1%cmp_qp = 0
@@ -2810,50 +2811,91 @@ Gout_R1,A0_0,A0_1,A0_2)
 
 end subroutine triangle_zero_leg
 
-
 !************************************************************************************
-subroutine scalar_MIs(momenta, masses2, Gsum, M2add)
+subroutine scalar_MIs(momenta, masses2, Gsum, M2)
 !************************************************************************************
-  use KIND_TYPES, only: REALKIND
-  use ol_parameters_decl_/**/DREALKIND, only: a_switch
+  use KIND_TYPES, only: REALKIND,QREALKIND
+  use ol_data_types_/**/REALKIND, only: hcl, met
+  use ol_kinematics_/**/REALKIND, only: get_mass2
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_err_thres,hp_step_thres,coli_cache_use
+#ifdef PRECISION_dp
+  use ol_parameters_decl_/**/DREALKIND, only: a_switch, coli_cache_use
+  use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+  use ol_loop_handling_/**/REALKIND, only: req_qp_cmp, upgrade_qp, downgrade_dp
+  use ol_parameters_decl_/**/REALKIND, only: hybrid_zero_mode,hp_step_thres, &
+                                             hp_err_thres,hp_switch,hybrid_dp_mode
+  use ol_loop_reduction_/**/QREALKIND, only: avh_olo_interface_qp=>avh_olo_interface
+#endif
   implicit none
-  integer,           intent(in)    :: momenta(:)
-  complex(REALKIND), intent(in)    :: masses2(:), Gsum(:)
-  complex(REALKIND), intent(out)   :: M2add
+  integer,           intent(in)    :: momenta(:),masses2(:)
+  type(hcl),         intent(inout) :: Gsum
+  type(met),         intent(inout) :: M2
+  complex(REALKIND) :: M2add
+#ifdef PRECISION_dp
+  complex(QREALKIND) :: M2add_qp
+#endif
+  real(REALKIND)    :: error
 
 #ifdef PRECISION_dp
   if(a_switch==1 .or. a_switch==7) then
-    call collier_scalars_interface(momenta, masses2, Gsum, M2add)
+
+    if (iand(Gsum%mode, hybrid_dp_mode) .ne. 0 .or. coli_cache_use .eq. 1) then
+      call collier_scalars_interface(momenta, get_mass2(masses2), Gsum%cmp, M2add, error)
+      if (hp_switch .eq. 1 .and. error > hp_step_thres .and. Gsum%error + error > hp_err_thres) then
+        call upgrade_qp(Gsum)
+      else
+        M2%cmp = M2%cmp + real(M2add,kind=REALKIND)
+        M2%sicount = M2%sicount + 1
+      end if
+    end if
+
+    if (req_qp_cmp(Gsum)) then
+      call avh_olo_interface_qp(momenta, get_mass2_qp(masses2), Gsum%cmp_qp, M2add_qp)
+      M2%cmp_qp = M2%cmp_qp + real(M2add_qp,kind=QREALKIND)
+      M2%sicount_qp = M2%sicount_qp + 1
+    end if
 
   else if(a_switch==5) then
-    call avh_olo_interface(momenta, masses2, Gsum, M2add)
 
-!  else if(sc_switch = 5) then
-!    call QCDLOOPSCALARS
+    if (iand(Gsum%mode, hybrid_dp_mode) .ne. 0) then
+      call avh_olo_interface(momenta, get_mass2(masses2), Gsum%cmp, M2add)
+      M2%cmp = M2%cmp + real(M2add,kind=REALKIND)
+      M2%sicount = M2%sicount + 1
+    end if
+
+    if (req_qp_cmp(Gsum)) then
+      call avh_olo_interface_qp(momenta, get_mass2_qp(masses2), Gsum%cmp_qp, M2add_qp)
+      M2%cmp_qp = M2%cmp_qp + real(M2add_qp,kind=QREALKIND)
+      M2%sicount_qp = M2%sicount_qp + 1
+    end if
+
   end if
 #else
-  call avh_olo_interface(momenta, masses2, Gsum, M2add)
+  call avh_olo_interface(momenta, get_mass2(masses2), Gsum%cmp, M2add)
+  M2%cmp = M2%cmp + real(M2add,kind=REALKIND)
 #endif
 end subroutine scalar_MIs
 
 #ifdef PRECISION_dp
 !************************************************************************************
-subroutine collier_scalars_interface(momenta, masses2, Gsum, M2add)
+subroutine collier_scalars_interface(momenta, masses2, Gsum, M2add, loss)
 !************************************************************************************
   use KIND_TYPES, only: REALKIND, DREALKIND
   use ol_momenta_decl_/**/REALKIND, only: L
   use ol_kinematics_/**/REALKIND, only: LC2Std_Rep_cmplx, collier_invariants
 #ifdef USE_COLLIER
-  use collier, only: tnten_cll
+  use collier, only: A_cll,B_cll,C_cll,D_cll
 #endif
   implicit none
-  integer,           intent(in)    :: momenta(:)
-  complex(REALKIND), intent(in)    :: masses2(:), Gsum(:)
-  complex(REALKIND), intent(out)   :: M2add
+  integer,                  intent(in)  :: momenta(:)
+  complex(REALKIND),        intent(in)  :: masses2(:), Gsum(:)
+  complex(REALKIND),        intent(out) :: M2add
+  real(REALKIND), optional, intent(out) :: loss
   complex(REALKIND) :: TI(size(Gsum)), p(0:3,1:size(momenta)-1)
   complex(REALKIND) :: momenta_TI(0:3,size(momenta)-1)
-  complex(REALKIND) :: sc_int(1), UV_part(1)
-  integer :: i, k, int_mom(1:size(momenta)-1)
+  complex(REALKIND) :: sc_int(1),UV_part(1)
+  real(REALKIND)    :: sc_err(1)
+  integer :: np,i, k, int_mom(1:size(momenta)-1)
 #ifdef USE_COLLIER
   i = momenta(1)
   int_mom(1) = i
@@ -2861,14 +2903,20 @@ subroutine collier_scalars_interface(momenta, masses2, Gsum, M2add)
   do k = 2, size(momenta) - 1
     i = i + momenta(k)
     int_mom(k) = i
-    p(0:3,k) = L(1:4,i)
   end do
 
-  do k = 1, size(p,2)
-    call LC2Std_Rep_cmplx(p(:,k), momenta_TI(:,k))
-  end do
-
-  call tnten_cll(sc_int, UV_part, momenta_TI, collier_invariants(int_mom), masses2, size(masses2), 0)
+  np = size(masses2)
+  select case (np)
+  case (1)
+    call A_cll(sc_int, UV_part, masses2(1), 0, Aerr=sc_err)
+  case (2)
+    call B_cll(sc_int, UV_part, collier_invariants(int_mom), masses2, 0, Berr=sc_err)
+  case (3)
+    call C_cll(sc_int, UV_part, collier_invariants(int_mom), masses2, 0, Cerr=sc_err)
+  case (4)
+    call D_cll(sc_int, UV_part, collier_invariants(int_mom), masses2, 0, Derr=sc_err)
+  end select 
+  if (present(loss)) loss = max(0.,15.+log10(abs(sc_err(1)/real(sc_int(1)))))
   M2add = Gsum(1)*sc_int(1)
 #else
   call ol_error("COLLIER library not compiled")
@@ -2967,19 +3015,21 @@ end subroutine avh_olo_interface
 
 #ifdef PRECISION_dp
 !************************************************************************************
-subroutine collier_scalar_box(momenta, masses2, rslt)
+subroutine collier_scalar_box(momenta, masses2, rslt, err)
 !************************************************************************************
   use KIND_TYPES, only: REALKIND, DREALKIND
   use ol_momenta_decl_/**/REALKIND, only: L
   use ol_kinematics_/**/REALKIND, only: LC2Std_Rep_cmplx, collier_invariants
 #ifdef USE_COLLIER
-  use collier, only: tnten_cll
+  use collier, only: D_cll
 #endif
   implicit none
-  integer,           intent(in)    :: momenta(3)
-  complex(REALKIND), intent(in)    :: masses2(4)
+  integer,           intent(in)  :: momenta(3)
+  complex(REALKIND), intent(in)  :: masses2(4)
   complex(REALKIND), intent(out) :: rslt(0:2)
+  real(REALKIND),    intent(out) :: err
   complex(REALKIND) :: p(0:3,3), momenta_TI(0:3,3), sc_box(1), UV_part(1)
+  real(REALKIND) :: Derr(1)
   integer :: k
 
   rslt = 0._/**/REALKIND
@@ -2992,8 +3042,9 @@ subroutine collier_scalar_box(momenta, masses2, rslt)
     call LC2Std_Rep_cmplx(p(:,k), momenta_TI(:,k))
   end do
 
-  call tnten_cll(sc_box, UV_part, momenta_TI, collier_invariants(momenta), masses2, 4, 0)
+  call D_cll(sc_box, UV_part, collier_invariants(momenta), masses2, 0, Derr=Derr)
   rslt(0) = sc_box(1)
+  err = abs(Derr(1)/real(rslt(0)))
 #else
   call ol_error("COLLIER library not compiled")
 #endif
@@ -3050,14 +3101,22 @@ subroutine compute_scalar_box(mom_ind, masses2in, RedSet, box)
   use ol_kinematics_/**/REALKIND, only: get_LC_5,get_mass2
   use collier, only: tnten_cll
   use ol_parameters_decl_/**/DREALKIND, only: a_switch
+#ifdef PRECISION_dp
+  use ol_loop_reduction_/**/QREALKIND, only: box_onshell_cut_qp=>box_onshell_cut
+  use ol_kinematics_/**/QREALKIND, only: get_LC_5_qp=>get_LC_5,get_mass2_qp=>get_mass2
+#endif
   implicit none
-  integer,         intent(in)  :: mom_ind(3)
-  integer,         intent(in)  :: masses2in(0:3)
-  type(redset4),   intent(in)  :: RedSet
-  type(scalarbox), intent(out) :: box
+  integer,         intent(in)    :: mom_ind(3)
+  integer,         intent(in)    :: masses2in(0:3)
+  type(redset4),   intent(inout) :: RedSet
+  type(scalarbox), intent(out)   :: box
   complex(REALKIND) :: masses2(0:3),p(1:5,3),q0_p(5),q0_m(5),q0_cuts(2,5),sc_box(0:2)
   integer           :: mom_box(3)
-  real(REALKIND)    :: error
+  real(REALKIND)    :: errbox,error
+#ifdef PRECISION_dp
+  complex(QREALKIND) :: p_qp(1:5,3),q0_p_qp(5),q0_m_qp(5)
+  real(QREALKIND)    :: error_qp
+#endif
 
   masses2 = get_mass2(masses2in)
 
@@ -3065,10 +3124,25 @@ subroutine compute_scalar_box(mom_ind, masses2in, RedSet, box)
   p(1:5,2) = get_LC_5(mom_ind(2))
   p(1:5,3) = get_LC_5(mom_ind(3))
 
+#ifdef PRECISION_dp
+  if (RedSet%qp_computed) then
+    p_qp(1:5,1) = get_LC_5_qp(mom_ind(1))
+    p_qp(1:5,2) = get_LC_5_qp(mom_ind(2))
+    p_qp(1:5,3) = get_LC_5_qp(mom_ind(3))
+    call box_onshell_cut_qp(p_qp,get_mass2_qp(masses2in),RedSet%rsqp,q0_p_qp,q0_m_qp,error_qp)
+    q0_cuts(1,:) = q0_p_qp(:)
+    q0_cuts(2,:) = q0_m_qp(:)
+  else
+    call box_onshell_cut(p,masses2,RedSet,q0_p,q0_m,error)
+    q0_cuts(1,:) = q0_p(:)
+    q0_cuts(2,:) = q0_m(:)
+  end if
+#else
   call box_onshell_cut(p,masses2,RedSet,q0_p,q0_m,error)
-
   q0_cuts(1,:) = q0_p(:)
   q0_cuts(2,:) = q0_m(:)
+#endif
+
 
 #ifdef PRECISION_dp
   if (a_switch == 5) then
@@ -3077,23 +3151,29 @@ subroutine compute_scalar_box(mom_ind, masses2in, RedSet, box)
     mom_box(2) = mom_ind(2)-mom_ind(1)
     mom_box(3) = mom_ind(3)-mom_ind(2)
     call avh_olo_box(mom_box,masses2,sc_box)
-
+    ! OneLoop  doesn't provide error estimator for integrals
+    errbox = 10**(-17)
   else if (a_switch == 1 .or. a_switch == 7) then
   !!! Collier/DD call for scalar boxes
-    call collier_scalar_box(mom_ind,masses2,sc_box)
+    call collier_scalar_box(mom_ind,masses2,sc_box,errbox)
   end if
 
-  box = scalarbox(sc_box,               &
-        q0_cuts,error, mom_ind=mom_ind, &
-        mom1=RedSet%redbasis%mom1,      &
-        mom2=RedSet%redbasis%mom2,      &
-        mom3=RedSet%mom3,               &
-        perm=RedSet%perm,               &
-        gd3=RedSet%gd3,                 &
-        masses2=masses2in,              &
-        qp_computed=.false.,            &
-        poles_qp=0,                     &
+  error = 15+log10(errbox)
+  box = scalarbox(sc_box,          &
+        q0_cuts,error,             &
+        mom_ind=mom_ind,           &
+        mom1=RedSet%redbasis%mom1, &
+        mom2=RedSet%redbasis%mom2, &
+        mom3=RedSet%mom3,          &
+        perm=RedSet%perm,          &
+        gd3=RedSet%gd3,            &
+        masses2=masses2in,         &
+        qp_computed=.false.,       &
+        poles_qp=0,                &
         onshell_cuts_qp=0)
+
+  if (a_switch == 1 .or. a_switch == 7) call check_box
+
 #else
   !!! OneLoop used for the scalar boxes
   mom_box(1) = mom_ind(1)
@@ -3101,6 +3181,46 @@ subroutine compute_scalar_box(mom_ind, masses2in, RedSet, box)
   mom_box(3) = mom_ind(3)-mom_ind(2)
   call avh_olo_box(mom_box,masses2,sc_box)
   box = scalarbox(sc_box,q0_cuts,error)
+#endif
+
+#ifdef PRECISION_dp
+contains
+  subroutine check_box()
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_check_box,hp_err_thres
+  use ofred_basis_construction_/**/QREALKIND, only: &
+      construct_RedBasis_qp=>construct_RedBasis, &
+      construct_p3scalars_qp=>construct_p3scalars
+  use ol_data_types_/**/QREALKIND, only: basis_qp=>basis, redset4_qp=>redset4
+  use ol_data_types_/**/QREALKIND, only: scalarbox_qp=>scalarbox
+  use ol_loop_reduction_/**/QREALKIND, only: compute_scalar_box_qp=>compute_scalar_box
+  complex(QREALKIND) :: scalars(0:4),cttmp(0:4)
+  type(basis_qp)     :: Redbasis_qp
+  real(QREALKIND)    :: gd2,gd3
+  type(scalarbox_qp) :: box_qp
+
+  if (hp_check_box .eq. 1 .and. hp_switch .eq. 1 &
+      .and. errbox .gt. 10**(-real(15-hp_err_thres,kind=REALKIND))) then
+    if (.not. redset%qp_computed) then
+      call construct_RedBasis_qp(box%mom1,box%mom2,Redbasis_qp)
+      call construct_p3scalars_qp(box%mom3,Redbasis_qp,scalars,gd2,gd3)
+      redset%qp_computed = .true.
+      redset%rsqp = redset4_qp(redbasis=Redbasis_qp, &
+                               p3scalars=scalars,    &
+                               perm=RedSet%perm,     &
+                               mom3=RedSet%mom3,     &
+                               gd2=gd2,gd3=gd3)
+    end if
+
+    call compute_scalar_box_qp(box%mom_ind,box%masses2,redset%rsqp,box_qp)
+    box%qp_computed = .true.
+    box%poles = box_qp%poles
+    box%poles_qp = box_qp%poles
+    box%onshell_cuts = box_qp%onshell_cuts
+    box%onshell_cuts_qp = box_qp%onshell_cuts
+
+  end if
+
+  end subroutine check_box
 #endif
 
 end subroutine compute_scalar_box

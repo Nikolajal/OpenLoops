@@ -242,45 +242,27 @@ module ol_init
         else
           call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
         end if
-      case ("hp_preset")
-        ! performance thresholds for hard region
-        call set_if_modified(hp_preset, val)
-        call set_if_modified(hp_mode, 1)
-        if (val == 1) then
-          call set_if_modified(hp_step_thres, 0.5_/**/DREALKIND)
-          call set_if_modified(hp_gd3_thres, 7._/**/DREALKIND)
-          call set_if_modified(hp_err_thres, 7.5_/**/DREALKIND)
-          call set_if_modified(hp_gamma_trig, .false.)
-          call set_if_modified(hp_ir_trig, .false.)
-          call set_if_modified(hp_irtri_trig, .false.)
-        ! conservative thresholds for hard regions
-        else if (val == 2) then
-          call set_if_modified(hp_step_thres, 1.5_/**/DREALKIND)
-          call set_if_modified(hp_gd3_thres, 4._/**/DREALKIND)
-          call set_if_modified(hp_err_thres, 4.5_/**/DREALKIND)
-          call set_if_modified(hp_gamma_trig, .false.)
-          call set_if_modified(hp_ir_trig, .false.)
-          call set_if_modified(hp_irtri_trig, .false.)
-        ! performance thresholds for IR regions
-        else if (val == 11) then
-          call set_if_modified(hp_step_thres, 0.5_/**/DREALKIND)
-          call set_if_modified(hp_gd3_thres, 7._/**/DREALKIND)
-          call set_if_modified(hp_err_thres, 7.5_/**/DREALKIND)
-          call set_if_modified(hp_gamma_trig, .true.)
-          call set_if_modified(hp_ir_trig, .true.)
-          call set_if_modified(hp_irtri_trig, .false.)
-        ! standard/conservative thresholds for IR regions
-        else if (val == 12) then
-          call set_if_modified(hp_step_thres, 1.5_/**/DREALKIND)
-          call set_if_modified(hp_gd3_thres, 4._/**/DREALKIND)
-          call set_if_modified(hp_err_thres, 4.5_/**/DREALKIND)
-          call set_if_modified(hp_gamma_trig, .true.)
-          call set_if_modified(hp_ir_trig, .true.)
-          call set_if_modified(hp_irtri_trig, .true.)
-        end if
       case ("hp_mode")
+        call set_if_modified(hp_mode, val)
+        ! hp disabled
+        if (val == 0) then
+          call set_if_modified(hp_switch, 0)
+        ! hard region
+        else if (val == 1) then
+          call set_if_modified(hp_switch, 1)
+          call set_if_modified(hp_gamma_trig, .false.)
+          call set_if_modified(hp_ir_trig, .false.)
+          call set_if_modified(hp_irtri_trig, .false.)
+        ! IR regions
+        else if (val == 2) then
+          call set_if_modified(hp_switch, 1)
+          call set_if_modified(hp_gamma_trig, .true.)
+          call set_if_modified(hp_ir_trig, .true.)
+          call set_if_modified(hp_irtri_trig, .false.)
+        end if
+      case ("hp_switch")
         if (expert_mode) then
-          call set_if_modified(hp_mode, val)
+          call set_if_modified(hp_switch, val)
         else
           call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
         end if
@@ -440,6 +422,7 @@ module ol_init
           call ol_error(1,"unrecognised ew_scheme:" // to_string(val))
         else
           call set_if_modified(ew_scheme, val)
+          call set_if_modified(ew_renorm_scheme, val)
         end if
       case ("ew_renorm_scheme")
         if (val /= 0 .and. val /= 1 .and. val /= 2) then
@@ -449,14 +432,6 @@ module ol_init
         end if
       case ("complex_mass_scheme", "use_cms")
         call set_if_modified(cms_on, val)
-      case ("select_pol_v")
-          call ol_error(1,"select_pol_V is deprecated use direct polarization selection instead.")
-!       case ("nll_order")
-!         call set_if_modified(nll_order, val)
-!       case ("nll_add")
-!         call set_if_modified(nll_add, val)
-!       case ("nll_ll")
-!         call set_if_modified(nll_ll, val)
       case ("cll_tenred")
         call set_if_modified(cll_tenred, val)
       case ("cll_channels")
@@ -577,8 +552,6 @@ module ol_init
         call set_if_modified(hp_gamma_trig, val)
       case ("hp_automerge")
         call set_if_modified(hp_automerge, val)
-      case ("hp_gd3_trig")
-        call set_if_modified(hp_gd3_trig, val)
       case ("hp_irtri_trig")
         call set_if_modified(hp_irtri_trig, val)
       case ("hp_ir_trig")
@@ -712,10 +685,10 @@ module ol_init
         val = coli_cache_use
       case ("ol_params_verbose")
         val = parameters_verbose
-      case ("hp_preset")
-        val = hp_preset
       case ("hp_mode")
         val = hp_mode
+      case ("hp_switch")
+        val = hp_switch
       case ("bubble_vertex")
         val = bubble_vertex
       case ("use_qp_invariants")
@@ -1187,19 +1160,9 @@ module ol_init
         else
           call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
         end if
-      case ("hp_err_thres")
-        if (expert_mode) then
-          call set_if_modified(hp_err_thres, val)
-        else
-          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
-        end if
-      case ("hp_gd3_thres")
-        if (expert_mode) then
-          call set_if_modified(hp_gd3_thres, val)
-        else
-          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
-        end if
-
+      case ("hp_loopacc")
+        call set_if_modified(hp_loopacc, val)
+        call set_if_modified(hp_err_thres, max(0.,16.-hp_loopacc))
       case default
 
         error = 1

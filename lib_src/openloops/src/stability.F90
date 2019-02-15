@@ -659,7 +659,7 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
     & stability_mode, abscorr_unst, mureg_unscaled, polecheck_is
   use ol_generic, only: relative_deviation, factorial, perm_pos, to_string
   use ol_loop_parameters_decl_/**/DREALKIND, only: loop_parameters_status
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode, write_hp_log, hp_nsi, &
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch, write_hp_log, hp_nsi, &
                                               hp_nsi_qp, hp_ndrs, hp_ndrs_qp, &
                                               hp_nred, hp_nred_qp, hp_max_err
   implicit none
@@ -958,7 +958,7 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
 
   if (write_psp >= 1) then
     call write_point(processname, me=[M2L0, M2L1(0), M2L1(1), M2L1(2), M2L2(0), last_relative_deviation])
-    if (hp_mode .eq. 1 .and. write_hp_log .ge. 1) then
+    if (hp_switch .eq. 1 .and. write_hp_log .ge. 1) then
       call write_point(processname, hplog=[hp_nsi, hp_nsi_qp, hp_ndrs, hp_ndrs_qp, hp_nred, &
                                            hp_nred_qp], hperr=hp_max_err)
     end if

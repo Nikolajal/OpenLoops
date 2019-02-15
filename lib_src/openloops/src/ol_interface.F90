@@ -45,7 +45,7 @@ module openloops
   public :: evaluate_scpowheg, evaluate_loopscpowheg, evaluate_scpowheg2
   public :: evaluate_tree_colvect, evaluate_tree_colvect2
   public :: evaluate_full, evaluate_loop, evaluate_loop2, evaluate_loop2ir
-  public :: evaluate_ct, evaluate_r2, evaluate_pt
+  public :: evaluate_ct, evaluate_r2, evaluate_pt, evaluate_schsf
   public :: evaluate_associated
   ! Print parameters
   public :: ol_printparameter
@@ -92,6 +92,7 @@ module openloops
     procedure(), pointer, nopass :: loopcr => null()
     procedure(), pointer, nopass :: ct => null()
     procedure(), pointer, nopass :: pt => null()
+    procedure(), pointer, nopass :: schsf => null()
     procedure(), pointer, nopass :: rambo => null()
     procedure(), pointer, nopass :: tree_colbasis_dim => null()
     procedure(), pointer, nopass :: tree_colbasis => null()
@@ -225,6 +226,7 @@ module openloops
     get_process_handle%loop => dlsym(lib, "ol_f_vamp2_" // trim(proc))
     get_process_handle%ct => dlsym(lib, "ol_f_ctamp2_" // trim(proc))
     get_process_handle%pt => dlsym(lib, "ol_f_ptamp2_" // trim(proc))
+    get_process_handle%schsf => dlsym(lib, "ol_f_schsfamp2_" // trim(proc))
     get_process_handle%content = content
     get_process_handle%n_in = n_in
     ! loop correlators
@@ -377,6 +379,7 @@ module openloops
       process_handles(id)%loop => null()
       process_handles(id)%ct => null()
       process_handles(id)%pt => null()
+      process_handles(id)%schsf => null()
     end do
     if (allocated(process_handles)) deallocate(process_handles)
     last_process_id = 0
@@ -825,7 +828,7 @@ module openloops
       & install_path, rMB, rMC, &
       & allowed_libs, tmp_dir, auto_preset
     use ol_generic, only: to_string, to_lowercase, count_substring, string_to_integerlist
-    use ol_loop_parameters_decl_/**/DREALKIND, only: stability_mode,hp_preset,a_switch,a_switch_rescue,redlib_qp, &
+    use ol_loop_parameters_decl_/**/DREALKIND, only: stability_mode,a_switch,a_switch_rescue,redlib_qp, &
     use_bubble_vertex
     use ol_version, only: process_api
     implicit none
@@ -3881,6 +3884,32 @@ module openloops
     call set_if_modified(use_bubble_vertex, use_bubble_vertex_bak)
     call parameters_flush()
   end subroutine evaluate_ct
+
+
+  subroutine evaluate_schsf(id, psp, m2l0, m2schsf) bind(c,name="ol_evaluate_schsf")
+    use ol_stability
+    use ol_generic, only: to_string
+    implicit none
+    integer, intent(in)  :: id
+    real(DREALKIND), intent(in)  :: psp(:,:)
+    real(DREALKIND), intent(out) :: m2l0, m2schsf
+    type(process_handle)  :: subprocess
+    call stop_invalid_id(id)
+    if (error > 1) return
+    subprocess = process_handles(id)
+    if (.not. btest(subprocess%content, 1)) then
+      call ol_fatal('evaluate: Spin-correlated hard scattering factor not available for process ' // trim(to_string(id)))
+      return
+    end if
+    if(.not. associated(subprocess%schsf)) then
+      call ol_fatal('evaluate: Spin-correlated hard scattering factor not available for process ' // trim(to_string(id)))
+      return
+    end if
+    n_scatt = subprocess%n_in
+    call subprocess%set_permutation(subprocess%permutation)
+    if (subprocess%has_pol) call subprocess%pol_init(subprocess%pol)
+    call subprocess%schsf(psp, m2l0, m2schsf)
+  end subroutine evaluate_schsf
 
 
   subroutine evaluate_ct_c(id, pp, m2l0, m2ct) bind(c,name="ol_evaluate_ct")

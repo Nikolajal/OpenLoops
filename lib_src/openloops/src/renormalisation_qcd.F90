@@ -562,9 +562,9 @@ function gluon_ofsse(p2,pid)
 
   ! only R1
   cc1R1 = (12 + ncc)/real(9,kind=REALKIND)
-  gluon_ofsse(1) =  (dZg - cc1 - cc1R1)  ! w^\mu_out = p^2 w^\mu_in
-  gluon_ofsse(2) =  0                        ! w^\mu_out = w^\mu_in
-  gluon_ofsse(3) = -(-cc1 + cc1R1)  ! w^\mu_out = (w_in.p) p^\mu
+  gluon_ofsse(1) =  (dZ - cc1 - cc1R1)  ! w^\mu_out = p^2 w^\mu_in
+  gluon_ofsse(2) =  0                   ! w^\mu_out = w^\mu_in
+  gluon_ofsse(3) = -(-cc1 + cc1R1)      ! w^\mu_out = (w_in.p) p^\mu
 
   if (R2_is_on .eq. 0) then
     gluon_ofsse(1) = gluon_ofsse(1) + ca/2 + (2*tf*nf)/3

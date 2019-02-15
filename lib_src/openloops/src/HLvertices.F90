@@ -38,7 +38,7 @@ subroutine hol_allocation(alpha,rank,beta,hel_states,ol_coeff,m)
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: hol
 #ifdef PRECISION_dp
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hp_alloc_mode
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_alloc_mode
 #endif
 
   integer,   intent(in)    :: alpha, rank, beta, hel_states, m
@@ -58,7 +58,7 @@ subroutine hol_allocation(alpha,rank,beta,hel_states,ol_coeff,m)
 #ifdef PRECISION_dp
     ol_coeff(i)%ndrs_qp = 0
     ol_coeff(i)%nred_qp = 0
-    if (hp_mode .eq. 1) then
+    if (hp_switch .eq. 1) then
       if (hp_alloc_mode .eq. 0) then
         allocate(ol_coeff(i)%j_qp(alpha, rank, beta, hel_states))
         ol_coeff(i)%j_qp = 0
@@ -88,7 +88,7 @@ subroutine hol_deallocation(ol_coeff, m, dmode)
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: hol
 #ifdef PRECISION_dp
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hp_alloc_mode
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_alloc_mode
 #endif
 
   integer,   intent(in)    :: m, dmode
@@ -103,7 +103,7 @@ subroutine hol_deallocation(ol_coeff, m, dmode)
     endif
     ol_coeff(i)%error = 0
 #ifdef PRECISION_dp
-    if (hp_mode .eq. 1) then
+    if (hp_switch .eq. 1) then
       if (hp_alloc_mode .ne. 2 .and. dmode .eq. 1) cycle
       if (allocated(ol_coeff(i)%j_qp)) then
         deallocate(ol_coeff(i)%j_qp)
@@ -128,7 +128,7 @@ subroutine hcl_allocation(rank,ol_coeff, m)
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: hcl
 #ifdef PRECISION_dp
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hp_alloc_mode
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_alloc_mode
 #endif
 
   integer,   intent(in)    :: rank, m
@@ -146,7 +146,7 @@ subroutine hcl_allocation(rank,ol_coeff, m)
 #ifdef PRECISION_dp
     ol_coeff(i)%ndrs_qp = 0
     ol_coeff(i)%nred_qp = 0
-    if (hp_mode .eq. 1) then
+    if (hp_switch .eq. 1) then
       if (hp_alloc_mode .eq. 0) then
         allocate(ol_coeff(i)%cmp_qp(rank))
         ol_coeff(i)%cmp_qp(:) = 0
@@ -176,7 +176,7 @@ subroutine hcl_deallocation(ol_coeff, m, dmode)
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: hcl
 #ifdef PRECISION_dp
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hp_alloc_mode
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_alloc_mode
 #endif
   implicit none
 
@@ -191,7 +191,7 @@ subroutine hcl_deallocation(ol_coeff, m, dmode)
     endif
     ol_coeff(i)%error = 0
 #ifdef PRECISION_dp
-    if (hp_mode .eq. 1) then
+    if (hp_switch .eq. 1) then
       if (hp_alloc_mode .ne. 2 .and. dmode .eq. 1) cycle
       if (allocated(ol_coeff(i)%cmp_qp)) then
         deallocate(ol_coeff(i)%cmp_qp)
@@ -226,7 +226,7 @@ subroutine G0_hol_initialisation(ntry,G0coeff,ol_coeff,nhel_in,h0t, &
   use ol_loop_routines_/**/REALKIND, only: G0initialisationOLR
   use ol_debug, only: ol_fatal, ol_msg
   use ind_bookkeeping_/**/REALKIND, only : ProjHind
-  use ol_parameters_decl_/**/REALKIND, only: hp_mode,hp_ir_trig, &
+  use ol_parameters_decl_/**/REALKIND, only: hp_switch,hp_ir_trig, &
                                              hp_fake_trig
   use ol_loop_handling_/**/DREALKIND, only: hybrid_dp_mode,hybrid_qp_mode,&
                                             hybrid_dp_qp_mode,hybrid_zero_mode
@@ -501,7 +501,7 @@ subroutine G0_hol_initialisation(ntry,G0coeff,ol_coeff,nhel_in,h0t, &
   ! TODO:  <21-11-18, J.-N. Lang> !
   ! clean this mess
 #ifdef PRECISION_dp
-  if (hp_mode .eq. 1) then
+  if (hp_switch .eq. 1) then
     !if (ol_coeff%npoint .eq. 2) then
     !  if ((.not. bubble_vertex) .or. (bubble_vertex .and. .not. selfenergy)) then
     !    if (check_quasios()) then
@@ -651,7 +651,7 @@ function valid_hol_hol(Gin, Gout) result(valid_hol)
   use ol_data_types_/**/REALKIND, only: hol
   use ol_loop_handling_/**/DREALKIND, only: hybrid_zero_mode
 #ifdef PRECISION_dp
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_dp_mode, &
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_dp_mode, &
                                               hp_alloc_mode
   use ol_loop_handling_/**/REALKIND, only: hol_alloc_hybrid
 #endif
@@ -670,7 +670,7 @@ function valid_hol_hol(Gin, Gout) result(valid_hol)
 #ifdef PRECISION_dp
     Gout%ndrs_qp = 0
     Gout%nred_qp = 0
-    if (hp_mode .eq. 1 .and. hp_alloc_mode .eq. 0) then
+    if (hp_switch .eq. 1 .and. hp_alloc_mode .eq. 0) then
       Gout%j_qp = 0
     end if
 #endif
@@ -692,7 +692,7 @@ function valid_hol_hol(Gin, Gout) result(valid_hol)
     Gout%nred = Gin%nred
 #ifdef PRECISION_dp
     Gout%nred_qp = Gin%nred_qp
-    if (hp_mode .eq. 1 .and. hp_alloc_mode .gt. 1 .and. &
+    if (hp_switch .eq. 1 .and. hp_alloc_mode .gt. 1 .and. &
         Gin%mode .gt. hybrid_dp_mode) call hol_alloc_hybrid(Gout)
 #endif
   end if
@@ -703,7 +703,7 @@ function valid_hol_hcl(Gin, Gout) result(valid_hol)
   use ol_data_types_/**/REALKIND, only: hol, hcl
   use ol_loop_handling_/**/DREALKIND, only: hybrid_zero_mode
 #ifdef PRECISION_dp
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_dp_mode, &
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_dp_mode, &
                                               hp_alloc_mode
   use ol_loop_handling_/**/REALKIND, only: hcl_alloc_hybrid
 #endif
@@ -721,7 +721,7 @@ function valid_hol_hcl(Gin, Gout) result(valid_hol)
 #ifdef PRECISION_dp
     Gout%ndrs_qp = 0
     Gout%nred_qp = 0
-    if (hp_mode .eq. 1 .and. hp_alloc_mode .eq. 0) then
+    if (hp_switch .eq. 1 .and. hp_alloc_mode .eq. 0) then
       Gout%cmp_qp = 0
     end if
 #endif
@@ -742,7 +742,7 @@ function valid_hol_hcl(Gin, Gout) result(valid_hol)
     Gout%nred = Gin%nred
 #ifdef PRECISION_dp
     Gout%nred_qp = Gin%nred_qp
-    if (hp_mode .eq. 1 .and. hp_alloc_mode .gt. 1 .and. &
+    if (hp_switch .eq. 1 .and. hp_alloc_mode .gt. 1 .and. &
         Gin%mode .gt. hybrid_dp_mode) call hcl_alloc_hybrid(Gout)
 #endif
   end if

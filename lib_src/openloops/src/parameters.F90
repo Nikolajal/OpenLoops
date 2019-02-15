@@ -19,6 +19,9 @@
 
 module ol_data_types_/**/REALKIND
   use KIND_TYPES, only: REALKIND, QREALKIND, intkind1, intkind2
+#ifdef PRECISION_dp
+  use ol_data_types_/**/QREALKIND, only: basis_qp=>basis, redset4_qp=>redset4
+#endif
   type wfun
     ! four complex components for the wave function
      complex(REALKIND) :: j(4)
@@ -128,6 +131,10 @@ module ol_data_types_/**/REALKIND
     integer :: perm(3)
     integer :: mom3
     real(REALKIND) :: gd2,gd3
+#ifdef PRECISION_dp
+    logical :: qp_computed = .false.
+    type(redset4_qp) :: rsqp
+#endif
   end type redset4
 
   type redset5
@@ -306,29 +313,28 @@ module ol_parameters_decl_/**/REALKIND
   integer, save :: parameters_status = 0
 
   ! flag for hybrid preset mode
-  integer, save :: hp_preset = 1
+  ! - 0: hp mode disabled
+  ! - 1: hp mode for hard regions (default)
+  ! - 2: hp mode for hard regions (default)
+  integer, save :: hp_mode = 1
 
   ! flag of hybrid baseline mode
-  integer, save :: hp_mode = 1
+  integer, save :: hp_switch = 1
 
   ! writes a log on number of dressing and reduction steps (and of which are upraded to qp
   ! written to the points file
   integer, save :: write_hp_log = 1
 
-  ! QP trigger threshold on large \alpha parameters (\propto 1/GD3) in on-the-fly reduction
-  real(REALKIND), save :: hp_step_thres = 0.5_/**/REALKIND
-  real(REALKIND), save :: hp_gd3_thres = 7._/**/REALKIND
-  real(REALKIND), save :: hp_err_thres = 7.5_/**/REALKIND  ! accumulated error threshold
+  ! hp trigger thresholds in on-the-fly reduction
+  real(REALKIND), save :: hp_loopacc = 8._/**/REALKIND  ! loop accuracy target
 
+  ! internal, do not touch change
+  real(REALKIND), save :: hp_err_thres = 8._/**/REALKIND  ! accumulated error threshold
+  real(REALKIND), save :: hp_step_thres = 0.5_/**/REALKIND ! step threshold
   ! merging dp and qp channel the dp channel is upgraded to qp (which comes at zero cost.)
   logical, save :: hp_automerge = .true.
-
   ! QP trigger on small rank2 GD in on-the-fly reduction (threshold: hybrid_threshold)
   logical, save :: hp_gamma_trig = .false.
-
-  ! QP trigger on small rank3 GD for scalar boxes.
-  logical, save :: hp_gd3_trig = .true.
-
   ! QP trigger for missing triangle expansions.
   logical, save :: hp_metri_trig = .true.
 
@@ -340,6 +346,8 @@ module ol_parameters_decl_/**/REALKIND
 
   ! Fake QP trigger: computes the loop (not trees) in QP
   logical, save :: hp_fake_trig = .false.
+
+  integer, save :: hp_check_box = 1
 
   ! Allocation mode for QP channel
   ! 0: allocate all OL/CL and initialize to zero

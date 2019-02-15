@@ -796,6 +796,10 @@ subroutine ew_renormalisation
 ! set RCs
 
 !gauge bosons
+  dAlphaQED_MZ=4*pi/alpha_QED*(1-alpha_QED_0/alpha_QED_MZ)  ! running of alpha from 0 to MZ
+
+  dZAAEW  = -(dSiAAheavy0 + PiAAlightZ/rMZ2 + dAlphaQED_MZ)
+
   if (imag(MW2) == 0) then
     dZWEW   = -real(dSiW)
     dZMW2EW = real(SiW)
@@ -956,23 +960,15 @@ subroutine ew_renormalisation
   dcwEW     = cw/2.*(dZMW2EW/MW2-dZMZ2EW/MZ2)
   dswEW     =  -1.*cw/sw*dcwEW
 
-  dAlphaQED_MZ=4*pi/alpha_QED*(1-alpha_QED_0/alpha_QED_MZ)  ! running of alpha from 0 to MZ
-
 ! charge renormalization
   if (ew_renorm_scheme == 0 ) then ! on-shell scheme = alpha(0) scheme
-    dZAAEW  = -(dSiAAheavy0 + PiAAlightZ/rMZ2 + dAlphaQED_MZ)
     dZeQEDEW = -0.5*dZAAEW - sw/cw*SiAZ0/MZ2
   else if (ew_renorm_scheme == 1) then ! Gmu scheme
-!    dZAAEW  = -real(dSiAAheavy0 + PiAAlightZ/rMZ2 + dAlphaQED_MZ)
-    dZAAEW = -dSiAA0 ! Note: light fermions in dim.reg.
     dZeQEDEW = dswEW/sw - 1./sw/cw*SiAZ0/MZ2
     dZeQEDEW = dZeQEDEW - 0.5/sw2*(6.+(7.-4.*sw2)/(2.*sw2)*log(cw2))
     dZeQEDEW = dZeQEDEW +  0.5*(dZMW2EW-SiW0)/MW2
   else if (ew_renorm_scheme == 2) then ! alpha(mZ) scheme
-    dZAAEW  = -real(dSiAAheavy0 + PiAAlightZ/rMZ2 + dAlphaQED_MZ)  ! as in a(0)
     dZeQEDEW = -0.5*(dZAAEW+dAlphaQED_MZ) - sw/cw*SiAZ0/MZ2   !NB: dAlphaQED_MZ drops out
-    !dZAAEW = -dSiAA0 ! Note: light fermions in dim.reg.
-    !dZeQEDEW = 0.5*dSiAAZ - sw/cw*SiAZ0/MZ2
   else
     call ol_error(2, 'in ew_renormalisation: ew_renorm_scheme= ' // to_string(ew_renorm_scheme) // ' not supported!')
     call ol_fatal()

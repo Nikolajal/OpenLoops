@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #!******************************************************************************!
-#! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+#! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 #!                                                                              !
 #! This file is part of OpenLoops.                                              !
 #!                                                                              !
@@ -529,6 +529,7 @@ class ProcessInfo(object):
         with open(os.path.join(proclib_dir, info_files[0])) as fh:
             info = fh.readlines()
         for inf in info:
+            if inf.startswith('options'): continue
             inf = inf.split()
             if inf[2].startswith('map='):
                 # mapping[from] = to

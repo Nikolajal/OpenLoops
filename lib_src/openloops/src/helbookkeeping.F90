@@ -989,7 +989,7 @@ end module hel_bookkeeping_/**/REALKIND
 
 module ol_merging_/**/REALKIND
   use KIND_TYPES, only: intkind2
-  use ol_loop_handling_/**/REALKIND, only: hp_mode,hybrid_zero_mode, &
+  use ol_loop_handling_/**/REALKIND, only: hp_switch,hybrid_zero_mode, &
                                            hybrid_dp_mode,hybrid_qp_mode, &
                                            hybrid_dp_qp_mode,merge_mode
   use ol_parameters_decl_/**/REALKIND, only: hp_automerge
@@ -1179,7 +1179,7 @@ subroutine merge_map(ntry, Gin_0, Gin_1)
     G_aux = Gin_0%j
   end if
 #ifdef PRECISION_dp
-  if (hp_mode .eq. 1 .and. Gin_0%mode .ge. hybrid_qp_mode) then
+  if (hp_switch .eq. 1 .and. Gin_0%mode .ge. hybrid_qp_mode) then
     G_aux_qp = Gin_0%j_qp
   end if
 #endif
@@ -1198,8 +1198,8 @@ subroutine merge_map(ntry, Gin_0, Gin_1)
       end if
     end if
 #ifdef PRECISION_dp
-  if (hp_mode .eq. 1 .and. Gin_1%mode .ge. hybrid_qp_mode) then
-    if (hp_mode .eq. 1 .and. Gin_0%mode .ge. hybrid_qp_mode) then
+  if (hp_switch .eq. 1 .and. Gin_1%mode .ge. hybrid_qp_mode) then
+    if (hp_switch .eq. 1 .and. Gin_0%mode .ge. hybrid_qp_mode) then
       G_aux_qp(:,1:s1,:,k) = G_aux_qp(:,1:s1,:,h1) + Gin_1%j_qp(:,1:s1,:,h2)
     else
       G_aux_qp(:,1:s1,:,k) = Gin_1%j_qp(:,1:s1,:,h2)
@@ -1219,7 +1219,7 @@ subroutine merge_map(ntry, Gin_0, Gin_1)
   end if
 #ifdef PRECISION_dp
   ! only compute the the result if at least one qp channel is used
-  if (hp_mode .eq. 1 .and. ((Gin_0%mode .ge. hybrid_qp_mode) .or. (Gin_1%mode .ge. hybrid_qp_mode))) then
+  if (hp_switch .eq. 1 .and. ((Gin_0%mode .ge. hybrid_qp_mode) .or. (Gin_1%mode .ge. hybrid_qp_mode))) then
     Gin_0%j_qp  = G_aux_qp
   end if
 #endif
@@ -1246,7 +1246,7 @@ subroutine ol_merge_2(ntry,Gin_0, Gin_1)
   HelMatch, hel_mismatch, mct
 #else
   use ol_loop_handling_/**/REALKIND, only: upgrade_qp,req_qp_cmp,         &
-                                           hp_mode,hp_alloc_mode, &
+                                           hp_switch,hp_alloc_mode, &
                                            hol_alloc_hybrid
 #endif
   implicit none
@@ -1299,7 +1299,7 @@ subroutine ol_merge_2(ntry,Gin_0, Gin_1)
 
   if(HelMatch_loc) then
 #ifdef PRECISION_dp
-    if (hp_mode .eq. 1 .and. Gin_1%mode .ge. hybrid_qp_mode) then
+    if (hp_switch .eq. 1 .and. Gin_1%mode .ge. hybrid_qp_mode) then
       if (Gin_0%mode .ge. hybrid_qp_mode) then
         Gin_0%j_qp(:,1:s1,:,:) = Gin_0%j_qp(:,1:s1,:,:) + Gin_1%j_qp(:,1:s1,:,:)
       else
@@ -1329,7 +1329,7 @@ subroutine ol_merge_2(ntry,Gin_0, Gin_1)
 
   if(mct == n_merge_2) mct = 0
 #ifdef PRECISION_dp
-  if (hp_mode .eq. 1 .and. hp_automerge) then
+  if (hp_switch .eq. 1 .and. hp_automerge) then
     if ( (req_qp_cmp(Gin_0)) .and. (Gin_0%mode .ne. hybrid_qp_mode) ) then
       call upgrade_qp(Gin_0)
     end if
@@ -1350,7 +1350,7 @@ subroutine ol_merge_last(Gin_0, Gin_1)
   use ol_data_types_/**/REALKIND, only: hol
 #ifdef PRECISION_dp
   use ol_loop_handling_/**/REALKIND, only: upgrade_qp,req_qp_cmp,         &
-                                           hp_mode,hp_alloc_mode, &
+                                           hp_switch,hp_alloc_mode, &
                                            hol_alloc_hybrid
 #endif
   implicit none
@@ -1387,7 +1387,7 @@ subroutine ol_merge_last(Gin_0, Gin_1)
   end if
 
 #ifdef PRECISION_dp
-  if (hp_mode .eq. 1 .and. Gin_1%mode .ge. hybrid_qp_mode) then
+  if (hp_switch .eq. 1 .and. Gin_1%mode .ge. hybrid_qp_mode) then
     if (Gin_0%mode .ge. hybrid_qp_mode) then
       Gin_0%j_qp(:,1:s1,:,:) = Gin_0%j_qp(:,1:s1,:,:) + Gin_1%j_qp(:,1:s1,:,:)
     else
@@ -1412,7 +1412,7 @@ subroutine ol_merge_last(Gin_0, Gin_1)
   Gin_0%mode = merge_mode(Gin_0%mode,Gin_1%mode)
 
 #ifdef PRECISION_dp
-  if (hp_mode .eq. 1 .and. hp_automerge) then
+  if (hp_switch .eq. 1 .and. hp_automerge) then
     if ( (req_qp_cmp(Gin_0)) .and. (Gin_0%mode .ne. hybrid_qp_mode) ) then
       call upgrade_qp(Gin_0)
     end if
@@ -1456,7 +1456,7 @@ subroutine ol_merge_tensor2(tout,tin)
   use ol_data_types_/**/REALKIND, only: hcl
 #ifdef PRECISION_dp
   use ol_loop_handling_/**/REALKIND, only: upgrade_qp,req_qp_cmp, &
-                                           hp_mode,hp_alloc_mode, &
+                                           hp_switch,hp_alloc_mode, &
                                            hcl_alloc_hybrid, &
                                            hybrid_zero_mode
 #endif
@@ -1493,7 +1493,7 @@ subroutine ol_merge_tensor2(tout,tin)
   end if
 
 #ifdef PRECISION_dp
-  if (hp_mode .eq. 1 .and. tin%mode .ge. hybrid_qp_mode) then
+  if (hp_switch .eq. 1 .and. tin%mode .ge. hybrid_qp_mode) then
     if (tout%mode .ge. hybrid_qp_mode) then
       tout%cmp_qp(1:rein) = tout%cmp_qp(1:rein) + tin%cmp_qp(1:rein)
     else
@@ -1519,7 +1519,7 @@ subroutine ol_merge_tensor2(tout,tin)
   tout%mode = merge_mode(tout%mode,tin%mode)
 
 #ifdef PRECISION_dp
-  if (hp_mode .eq. 1 .and. hp_automerge) then
+  if (hp_switch .eq. 1 .and. hp_automerge) then
     if ( (req_qp_cmp(tout)).AND.(tout%mode.ne.hybrid_qp_mode) ) then
       call upgrade_qp(tout)
     end if

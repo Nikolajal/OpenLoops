@@ -65,7 +65,70 @@ subroutine helbookkeeping_wf(hel, ex, shift)
 
 end subroutine helbookkeeping_wf
 
+! **********************************************************************
+subroutine helicity_flip_ij(tothel, nhel, Hel, hflip, sb, nhflip, helflip)
+! ----------------------------------------------------------------------
+! used to create the mapping table for the helicity flipped amplitude
+! M: g(+) g(+) -> N interfered with M*: g(-) g(-) -> N
+! M: g(-) g(-) -> N interfered with M*: g(+) g(+) -> N
+! summed over the helicities of all the other particles
+! **********************************************************************
+  use KIND_TYPES, only: intkind1, intkind2
+  use ind_bookkeeping_/**/REALKIND, only : ProjHind
+  implicit none
+  integer, intent(in) :: tothel
+  integer(intkind2), intent(in) :: nhel, Hel(tothel), sb, hflip(2,2)
+  integer(intkind2), intent(inout) :: nhflip, helflip(2,tothel)
+  integer :: k, j
+  integer(intkind2) :: lm, lp, lp1, lm1, lp2, lm2, hf1(2), hf2(2)
 
+  hf1 = hflip(:,1)
+  hf2 = hflip(:,2)
+  nhflip = 0_intkind2
+  ! minimum value of hf is selected
+  if(hf1(1) < hf1(2)) then
+    lm1 = hf1(1)
+    lp1 = hf1(2)
+  else
+    lm1 = hf1(2)
+    lp1 = hf1(1)
+  end if
+  if(hf2(1) < hf2(2)) then
+    lm2 = hf2(1)
+    lp2 = hf2(2)
+  else
+    lm2 = hf2(2)
+    lp2 = hf2(1)
+  end if
+
+  lm = lm1 + lm2
+  lp = lp1 + lp2
+
+  do k = 1, nhel
+    if(ProjHind(sb,Hel(k),2_intkind2) == lm) then
+      nhflip = nhflip + 1_intkind2
+      do j = 1, nhel
+        if((Hel(k)-lm) == (Hel(j)-lp)) then
+          helflip(1,nhflip) = k
+          helflip(2,nhflip) = j
+        end if
+      end do
+    end if
+  end do
+
+  do k = 1, nhel
+    if(ProjHind(sb,Hel(k),2_intkind2) == lp) then
+      nhflip = nhflip + 1_intkind2
+      do j = 1, nhel
+        if((Hel(k)-lp) == (Hel(j)-lm)) then
+          helflip(1,nhflip) = k
+          helflip(2,nhflip) = j
+        end if
+      end do
+    end if
+  end do
+
+end subroutine helicity_flip_ij
 
 ! **********************************************************************
 subroutine helbookkeeping_prop(ntry, WF1, WF2, n)
@@ -954,7 +1017,7 @@ subroutine flip_phase(P, pol, MOM, omega)
   call wf_V_Std(P, 0._/**/REALKIND, pol, eps) ! light-cone polarisation vector
   call Std2LC_Rep(MOM, MOM_LC)
 
-  ! Don't use h_contractions::cont_PP(eps,MOM_LC) to avoid cyclic dependencies
+  ! Do not use h_contractions::cont_PP(eps,MOM_LC) to avoid cyclic dependencies
   omega(1) = eps(1)*MOM_LC(2) + eps(2)*MOM_LC(1) - eps(3)*MOM_LC(4) - eps(4)*MOM_LC(3)
   omega(1) = omega(1)/abs(omega(1))
   omega(1) = omega(1)*omega(1)

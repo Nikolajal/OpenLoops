@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #!******************************************************************************!
-#! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+#! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 #!                                                                              !
 #! This file is part of OpenLoops.                                              !
 #!                                                                              !
@@ -36,10 +36,10 @@ import OLBaseConfig
 import OLToolbox
 
 if sys.version_info < (3,0,0):
-    from urllib2 import urlopen, HTTPError
+    from urllib2 import urlopen, URLError
 else:
     from urllib.request import urlopen
-    from urllib.error import HTTPError
+    from urllib.error import URLError
 
 commandline_options = [arg.split('=',1) for arg in sys.argv[1:] if ('=' in arg and not arg.startswith('-'))]
 config = OLBaseConfig.get_config(commandline_options)
@@ -113,7 +113,7 @@ def update_channel_db(repo):
             rfh = open(remote_channel_url, 'r')
         else:
             rfh = urlopen(remote_channel_url)
-    except HTTPError:
+    except URLError:
         print('Warning: Channel database update for repository ' + repo_name +
               ' failed. Skip this repository.')
         return False
@@ -194,7 +194,7 @@ def download(process, dbs):
             rf = open(remote_archive, 'rb')
         else:
             rf = urlopen(remote_archive)
-    except HTTPError:
+    except URLError:
         print('*** DOWNLOAD FAILED ***')
         if args.ignore:
             return

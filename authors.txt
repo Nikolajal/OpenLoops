@@ -1,5 +1,5 @@
 !*****************************************************************************!
-! Copyright (C) 2014-2018 OpenLoops Collaboration.                            !
+! Copyright (C) 2014-2019 OpenLoops Collaboration.                            !
 ! This file is part of OpenLoops.                                             !
 !                                                                             !
 ! OpenLoops is free software: you can redistribute it and/or modify           !
@@ -29,7 +29,7 @@ Max Zoller
 
 Former authors:
 
-Fabio Cascioli 
+Fabio Cascioli
 
 
 

@@ -219,11 +219,11 @@ subroutine wf_V_Std(P, M, POL, J_V, POLSEL)
 
   if (P(0) >= 0) then ! incoming gluon -> EPS(P)
     call wfIN_V(P,M,POL,J_V, POLSEL)
-!    call wf_interface_V(P,M,POL,J_V) ! gauge-fixing of Stefano's algebraic code
+!    call wf_interface_V(P,M,POL,J_V) ! gauge-fixing of Stefanos algebraic code
 !    call wfIN_V_MG(P,M,POL,J_V) ! MadGraph convention
   else if (P(0) < 0) then ! outgoing gluon -> EPS^*(-P)
     call wfIN_V(-P,M,POL,J_AUX, POLSEL)
-!    call wf_interface_V(-P,M,POL,J_AUX) ! gauge-fixing Stefano's algebraic code
+!    call wf_interface_V(-P,M,POL,J_AUX) ! gauge-fixing Stefanos algebraic code
 !    call wfIN_V_MG(P,M,POL,J_AUX) ! MadGraph convention
 
     J_V(1) = conjg(J_AUX(1))
@@ -1975,12 +1975,12 @@ subroutine init_hybrid_exwf(ex)
 ! **********************************************************************
   use KIND_TYPES, only: QREALKIND
   use ol_data_types_/**/REALKIND, only: wfun
-  use ol_loop_handling_/**/REALKIND, only: hp_mode
+  use ol_loop_handling_/**/REALKIND, only: hp_switch
   implicit none
   type(wfun), intent(inout) :: ex(:)
 
 #ifdef PRECISION_dp
-  if (hp_mode .eq. 1) then
+  if (hp_switch .eq. 1) then
     ex(:)%j_qp(1) = cmplx(ex(:)%j(1),kind=qp)
     ex(:)%j_qp(2) = cmplx(ex(:)%j(2),kind=qp)
     ex(:)%j_qp(3) = cmplx(ex(:)%j(3),kind=qp)
@@ -1994,13 +1994,13 @@ subroutine init_hybrid_wf(wf)
 ! **********************************************************************
   use KIND_TYPES, only: QREALKIND
   use ol_data_types_/**/REALKIND, only: wfun
-  use ol_loop_handling_/**/REALKIND, only: hp_mode
+  use ol_loop_handling_/**/REALKIND, only: hp_switch
   implicit none
   type(wfun), intent(inout) :: wf(:,:)
   integer :: swf1,swf2
 
 #ifdef PRECISION_dp
-  if (hp_mode .eq. 1) then
+  if (hp_switch .eq. 1) then
     swf1 = size(wf,1)
     swf2 = size(wf,2)
     wf(:swf1,:swf2)%j_qp(1) = cmplx(wf(:swf1,:swf2)%j(1),kind=qp)

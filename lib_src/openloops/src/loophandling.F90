@@ -20,7 +20,7 @@
 
 module ol_loop_handling_/**/REALKIND
   use ol_data_types_/**/REALKIND, only: hol, hcl
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,          &
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,        &
                                               hybrid_zero_mode, &
                                               hybrid_dp_mode,   &
                                               hybrid_qp_mode,   &
@@ -57,7 +57,7 @@ module ol_loop_handling_/**/REALKIND
     use ol_parameters_decl_/**/REALKIND, only: ZERO
     type(hol), intent(inout) :: ol_coeff
 
-    if (hp_mode .eq. 1) then
+    if (hp_switch .eq. 1) then
       if (hp_alloc_mode .eq. 0) then
         ol_coeff%j_qp(:,:,:,:) = ZERO
       else if (hp_alloc_mode .eq. 2) then
@@ -72,7 +72,7 @@ module ol_loop_handling_/**/REALKIND
     use ol_parameters_decl_/**/REALKIND, only: ZERO
     type(hcl), intent(inout) :: ol_coeff
 
-    if (hp_mode .eq. 1) then
+    if (hp_switch .eq. 1) then
       if (hp_alloc_mode .eq. 0) then
         ol_coeff%cmp_qp(:) = ZERO
       else if (hp_alloc_mode .eq. 2) then
@@ -86,7 +86,7 @@ module ol_loop_handling_/**/REALKIND
     type(hol), intent(in) :: Gin
     logical :: req_qp_cmp_hol
 
-    if (Gin%mode .gt. hybrid_dp_mode .and. (hp_mode .eq. 1)) then
+    if (Gin%mode .gt. hybrid_dp_mode .and. (hp_switch .eq. 1)) then
       req_qp_cmp_hol = .true.
     else
       req_qp_cmp_hol = .false.
@@ -97,7 +97,7 @@ module ol_loop_handling_/**/REALKIND
     type(hcl), intent(in) :: Gin
     logical :: req_qp_cmp_hcl
 
-    if (Gin%mode .gt. hybrid_dp_mode .and. (hp_mode .eq. 1)) then
+    if (Gin%mode .gt. hybrid_dp_mode .and. (hp_switch .eq. 1)) then
       req_qp_cmp_hcl = .true.
     else
       req_qp_cmp_hcl = .false.
@@ -266,7 +266,7 @@ subroutine signflip_OLR(Ginout)
 
   Ginout%j = -Ginout%j
 #ifdef PRECISION_dp
-  if (hp_mode .eq. 1 .and. Ginout%mode .gt. hybrid_dp_mode) then
+  if (hp_switch .eq. 1 .and. Ginout%mode .gt. hybrid_dp_mode) then
     Ginout%j_qp = -Ginout%j_qp
   end if
 #endif

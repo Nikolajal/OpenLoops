@@ -1005,7 +1005,7 @@ subroutine ensure_mp_loop_init()
   if (loop_parameters_status_dp /= loop_parameters_status) &
     & call loop_parameters_init()
 #else
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch
   use ol_parameters_decl_/**/QREALKIND, only: parameters_status
   use ol_parameters_init_/**/QREALKIND, only: &
     parameters_init_qp=>parameters_init, &
@@ -1019,7 +1019,7 @@ subroutine ensure_mp_loop_init()
   ! For now it is mandatory to sync QP in DP mode independent of whether
   ! hybrid mode is activated since QP masses/couplings are
   ! used everywhere)
-  if (hp_mode .eq. 1) then
+  if (hp_switch .eq. 1) then
     if (parameters_status_dp /= parameters_status) &
       & call parameters_init_qp()
     if (loop_parameters_status_dp /= loop_parameters_status) &
@@ -1162,10 +1162,8 @@ subroutine parameters_write(filename)
   write(outid,*) 'check_Ward_loop   =', Ward_loop
   write(outid,*) 'out_symmetry      =', out_symmetry_on
   write(outid,*) 'hp_mode           =', hp_mode
-  if (hp_mode .eq. 1) then
-  write(outid,*) 'hp_preset         =', hp_preset
-  write(outid,*) 'hp_err_thres      =', hp_err_thres
-  write(outid,*) 'hp_gd3_thres      =', hp_gd3_thres
+  if (hp_switch .eq. 1) then
+  write(outid,*) 'hp_loopacc        =', hp_loopacc
   write(outid,*) 'hp_step_thres     =', hp_step_thres
   write(outid,*) 'hp_alloc_mode     =', hp_alloc_mode
   write(outid,*) 'use_qp_invariants =', use_qp_invariants
@@ -1200,7 +1198,7 @@ subroutine init_met(M)
   use KIND_TYPES, only: REALKIND, QREALKIND
   use ol_data_types_/**/REALKIND, only: met
 #ifdef PRECISION_dp
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hp_alloc_mode
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_alloc_mode
 #endif
   type(met), intent(out) :: M
   M%cmp=0._/**/REALKIND
@@ -1211,7 +1209,7 @@ subroutine init_met(M)
   M%nred_qp = 0
   M%ndrs_qp = 0
   M%sicount_qp = 0
-  if (hp_mode .eq. 1) then
+  if (hp_switch .eq. 1) then
     M%cmp_qp=0._/**/QREALKIND
   end if
 #endif
@@ -1220,13 +1218,13 @@ end subroutine init_met
 subroutine add_met(Mout,M)
   use ol_data_types_/**/REALKIND, only: met
 #ifdef PRECISION_dp
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch
 #endif
   type(met), intent(inout) :: Mout
   type(met), intent(in)    :: M
   Mout%cmp = Mout%cmp + M%cmp
 #ifdef PRECISION_dp
-  if (hp_mode .eq. 1) then
+  if (hp_switch .eq. 1) then
     Mout%cmp_qp = Mout%cmp_qp + M%cmp_qp
   end if
 #endif
@@ -1236,14 +1234,14 @@ subroutine met_to_real(Mout,M)
   use KIND_TYPES, only: REALKIND
   use ol_data_types_/**/REALKIND, only: met
 #ifdef PRECISION_dp
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hp_nsi,hp_nsi_qp, &
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_nsi,hp_nsi_qp, &
 hp_ndrs,hp_ndrs_qp,hp_nred,hp_nred_qp
 #endif
   real(REALKIND), intent(out) :: Mout
   type(met),      intent(in)  :: M
   Mout = M%cmp
 #ifdef PRECISION_dp
-  if (hp_mode .eq. 1) then
+  if (hp_switch .eq. 1) then
     Mout = Mout + real(M%cmp_qp,kind=REALKIND)
     ! log
     !write(*,*) "QP/DP% <", M%sicount_qp/real(M%sicount + M%sicount_qp) * 100
@@ -1265,7 +1263,7 @@ subroutine init_hcl(T)
   use KIND_TYPES, only: REALKIND, QREALKIND
   use ol_data_types_/**/REALKIND, only: hcl
 #ifdef PRECISION_dp
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hp_alloc_mode
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_alloc_mode
 #endif
   type(hcl), intent(inout) :: T
   T%cmp=0._/**/REALKIND
@@ -1276,7 +1274,7 @@ subroutine init_hcl(T)
 #ifdef PRECISION_dp
   T%ndrs_qp = 0
   T%nred_qp = 0
-  if (hp_mode .eq. 1 .and. hp_alloc_mode .eq. 0) then
+  if (hp_switch .eq. 1 .and. hp_alloc_mode .eq. 0) then
     T%cmp_qp=0._/**/QREALKIND
   end if
 #endif

@@ -404,20 +404,17 @@ subroutine TI_call_OL(qt_pow, rank, momenta, masses, Gsum_hcl, M2, scboxes, all_
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp, upgrade_qp
   use ol_parameters_decl_/**/DREALKIND, only: a_switch, coli_cache_use
   use ol_data_types_/**/QREALKIND, only: scalarbox_qp=>scalarbox, hcl_qp=>hcl
-  use ol_loop_reduction_/**/QREALKIND, only: TI_reduction_qp=>TI_reduction, &
-                                             scalar_MIs_qp=>scalar_MIs
+  use ol_loop_reduction_/**/QREALKIND, only: TI_reduction_qp=>TI_reduction
   use ol_loop_routines_/**/QREALKIND, only: TI_call_qt2_qp=>TI_call_qt2, &
                                             TI_call_qp=>TI_call
   use ol_data_types_/**/QREALKIND, only: basis_qp=>basis, redset4_qp=>redset4
   use ofred_basis_construction_/**/QREALKIND, only: construct_RedBasis_qp => construct_RedBasis, &
                                                     construct_p3scalars_qp=>construct_p3scalars
   use ol_loop_reduction_/**/QREALKIND, only: compute_scalar_box_qp=>compute_scalar_box
-  use ofred_basis_construction_/**/REALKIND, only: GramDeterminant3
-  use ol_kinematics_/**/REALKIND, only: cont_LC_cntrv, LC2Std_Rep_cmplx
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
 #endif
-  use ol_parameters_decl_/**/REALKIND, only: hybrid_zero_mode,hp_gd3_thres, &
-                                             hp_mode,hybrid_dp_mode,hp_gd3_trig
+  use ol_parameters_decl_/**/REALKIND, only: hybrid_zero_mode,hp_step_thres, &
+                                             hp_err_thres,hp_switch,hybrid_dp_mode
   implicit none
   integer,                   intent(in)    :: qt_pow,rank,momenta(:),masses(:)
   type(met),                 intent(inout) :: M2
@@ -448,7 +445,7 @@ subroutine TI_call_OL(qt_pow, rank, momenta, masses, Gsum_hcl, M2, scboxes, all_
   M2%ndrs = M2%ndrs + Gsum_hcl%ndrs
   M2%nred = M2%nred + Gsum_hcl%nred
 #ifdef PRECISION_dp
-  if (hp_mode .eq. 1) then
+  if (hp_switch .eq. 1) then
     M2add_qp = 0
     M2%ndrs_qp = M2%ndrs_qp + Gsum_hcl%ndrs_qp
     M2%nred_qp = M2%nred_qp + Gsum_hcl%nred_qp
@@ -504,15 +501,13 @@ subroutine TI_call_OL(qt_pow, rank, momenta, masses, Gsum_hcl, M2, scboxes, all_
   !! Single scalar box that has already been computed
   if (present(scboxes) .and. size(scboxes)==1) then
 #ifdef PRECISION_dp
-    if (hp_mode .eq. 1 .and. (.not. req_qp_cmp(Gsum_hcl)) .and. hp_gd3_trig) then
-      if (log10(abs(all_scboxes(scboxes(1))%gd3)) < -hp_gd3_thres) then
-        call upgrade_qp(Gsum_hcl)
-      end if
+    if (hp_switch .eq. 1 .and. (.not. req_qp_cmp(Gsum_hcl))) then
+      if (all_scboxes(scboxes(1))%qp_computed) call upgrade_qp(Gsum_hcl)
     end if
 #endif
 
 #ifdef PRECISION_dp
-  if (iand(Gsum_hcl%mode, hybrid_dp_mode) .ne. 0 .or. coli_cache_use .eq. 1) then
+  if (iand(Gsum_hcl%mode, hybrid_dp_mode) .ne. 0) then
 #endif
     box = all_scboxes(scboxes(1))%poles
     if(a_switch == 1 .or. a_switch == 7) then
@@ -557,7 +552,7 @@ subroutine TI_call_OL(qt_pow, rank, momenta, masses, Gsum_hcl, M2, scboxes, all_
       ! TODO:  <22-08-18, Jean-Nicolas Lang> !
       ! Assumes OLO as SI provider
       M2add_qp = Gsum_hcl%cmp_qp(1)*(box_qp(0) + box_qp(1)*de1_IR + box_qp(2)*de2_i_IR)
-      M2%cmp_qp = M2%cmp_qp + real(M2add_qp,kind=qp)
+      M2%cmp_qp = M2%cmp_qp + real(M2add_qp,kind=QREALKIND)
       M2%sicount_qp = M2%sicount_qp + 1
     end if
 #endif
@@ -566,79 +561,28 @@ subroutine TI_call_OL(qt_pow, rank, momenta, masses, Gsum_hcl, M2, scboxes, all_
 
   !! Integration of N-point integrals with N <= 4 and reduction of N-point with N > 4.
   if(size(masses) .le. 4) then
-
-#ifdef PRECISION_dp
-    if (hp_mode .eq. 1 .and. (.not. req_qp_cmp(Gsum_hcl)) .and. hp_gd3_trig &
-        .and. size(masses) .eq. 4) then
-      GD3_min = 1
-      call GramDeterminant3( &
-                cmplx(p(:,1),kind=REALKIND), &
-                cmplx(p(:,2),kind=REALKIND), &
-                cmplx(p(:,3),kind=REALKIND), &
-                GD3_tmp)
-      if (abs(GD3_tmp) < GD3_min) then
-        GD3_min = abs(GD3_tmp)
-      end if
-      if (log10(GD3_min) < -hp_gd3_thres) then
-        call upgrade_qp(Gsum_hcl)
-      end if
-    end if
-#endif
-
-    if(rank > 0) then
-#ifdef PRECISION_dp
-  if (iand(Gsum_hcl%mode, hybrid_dp_mode) .ne. 0 .or. coli_cache_use .eq. 1) then
-#endif
-      call TI_call(rank, cmplx(p(1:4,1:size(momenta)-1),kind=REALKIND), &
-                   get_mass2(masses), Gsum_hcl%cmp, M2%cmp)
-      M2%sicount = M2%sicount + 1
-#ifdef PRECISION_dp
-  end if
-#endif
-#ifdef PRECISION_dp
-      if (req_qp_cmp(Gsum_hcl)) then
-        call TI_call_qp(rank,p(1:4,1:size(momenta)-1),get_mass2_qp(masses), &
-                        Gsum_hcl%cmp_qp, M2%cmp_qp)
-        M2%sicount_qp = M2%sicount_qp + 1
-      end if
-#endif
-    else
-
-#ifdef PRECISION_dp
-  if (iand(Gsum_hcl%mode, hybrid_dp_mode) .ne. 0 .or. coli_cache_use .eq. 1) then
-#endif
-      call scalar_MIs(momenta,get_mass2(masses),Gsum_hcl%cmp,M2add)
-      M2%cmp = M2%cmp + real(M2add)
-      M2%sicount = M2%sicount + 1
-#ifdef PRECISION_dp
-  end if
-#endif
-
-#ifdef PRECISION_dp
-      if (req_qp_cmp(Gsum_hcl)) then
-        call scalar_MIs_qp(momenta,get_mass2_qp(masses),Gsum_hcl%cmp_qp,M2add_qp)
-        M2%cmp_qp = M2%cmp_qp + real(M2add_qp)
-        M2%sicount_qp = M2%sicount_qp + 1
-      end if
-#endif
-    end if
+      call scalar_MIs(momenta,masses,Gsum_hcl,M2)
+  ! OPP reduction
   else
 
 #ifdef PRECISION_dp
-    if (hp_mode .eq. 1 .and. (.not. req_qp_cmp(Gsum_hcl)) .and. hp_gd3_trig) then
+    if (hp_switch .eq. 1 .and. (.not. req_qp_cmp(Gsum_hcl))) then
       do u = 1, size(scboxes)
-        if (log10(abs(all_scboxes(scboxes(u))%gd3)) < -hp_gd3_thres) then
+        if (all_scboxes(scboxes(u))%error > hp_step_thres .and. &
+          Gsum_hcl%error + all_scboxes(scboxes(u))%error > hp_err_thres) then
           call upgrade_qp(Gsum_hcl)
+          exit
         end if
       end do
     end if
 #endif
 
 #ifdef PRECISION_dp
-  if (iand(Gsum_hcl%mode, hybrid_dp_mode) .ne. 0 .or. coli_cache_use .eq. 1) then
+  if (iand(Gsum_hcl%mode, hybrid_dp_mode) .ne. 0) then
 #endif
     call TI_reduction(rank,cmplx(p,kind=REALKIND), &
                       get_mass2(masses),Gsum_hcl,M2add,scboxes,all_scboxes)
+
     M2%cmp = M2%cmp + real(M2add)
     M2%sicount = M2%sicount + 1
 #ifdef PRECISION_dp
@@ -647,10 +591,6 @@ subroutine TI_call_OL(qt_pow, rank, momenta, masses, Gsum_hcl, M2, scboxes, all_
 
 #ifdef PRECISION_dp
       if (req_qp_cmp(Gsum_hcl)) then
-        if (.not. present(scboxes)) then
-          write(*,*) "Case not handled"
-          stop
-        end if
         allocate(scboxes_qp(size(scboxes)),all_scboxes_qp(size(scboxes)))
         do u = 1, size(scboxes)
           scboxes_qp(u) = u
@@ -692,9 +632,7 @@ subroutine TI_call_OL(qt_pow, rank, momenta, masses, Gsum_hcl, M2, scboxes, all_
       end if
 #endif
 
-
   end if
-
 end subroutine TI_call_OL
 
 

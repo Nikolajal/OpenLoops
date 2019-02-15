@@ -129,211 +129,8 @@ subroutine construct_l1l2_1(mom1,mom2,alpha,gamma,l1,l2,r1,r2)
   alpha(1) = x1/(cone + sqrt_delta)
   alpha(2) = x2/(cone + sqrt_delta)
 
-  l1 = L(1:4,mom1) - alpha(1)*L(1:4,mom2)
-  norm = maxval(abs(l1))
-  sl = 1
-  do i = 1, 4
-    if (abs(L(i,mom1)-alpha(1)*L(i,mom2))/max(abs(L(i,mom1)),abs(alpha(1)*L(i,mom2))) .lt. &
-    accthres) then
-      l1(i) = zero
-      l1acc(i) = cone
-    else if (l1(i) .eq. zero) then
-      l1acc(i) = cone
-    else
-      l1acc(i) = abs(l1(i))/norm
-      if (l1acc(sl) .gt. l1acc(i)) then
-        sl = i
-      end if
-    end if
-  end do
-  if (l1acc(sl) .ne. cone) then
-    select case (sl)
-    case (1)
-      lnew = l1(3)*l1(4)/l1(2)
-      corrdiff = abs(lnew-l1(1))/norm
-      if (corrdiff .gt. 10*l1acc(1)) then
-        if (l12_correction_stop_on_failure) then
-          call ol_error("Mass correction of l1 failed.")
-          write(stderr,*) "case 11(1)"
-          write(stderr,*) "accthres:", accthres
-          write(stderr,*) "l1acc:", l1acc(1)
-          write(stderr,*) "corrdiff:", corrdiff
-          write(stderr,*) "lnew:", lnew
-          write(stderr,*) "l1(1):", l1(1)
-          write(stderr,*) "l1(2):", l1(2)
-          write(stderr,*) "l1(3):", l1(3)
-          write(stderr,*) "l1(4):", l1(4)
-          stop
-        end if
-      else
-        l1(1) = l1(3)*l1(4)/l1(2)
-      end if
-    case (2)
-      lnew = l1(3)*l1(4)/l1(1)
-      corrdiff = abs(lnew-l1(2))/norm
-      if (corrdiff .gt. 10*l1acc(2)) then
-        if (l12_correction_stop_on_failure) then
-          call ol_error("Mass correction of l1 failed.")
-          write(stderr,*) "case 11(2)"
-          write(stderr,*) "accthres:", accthres
-          write(stderr,*) "l1acc:", l1acc(2)
-          write(stderr,*) "corrdiff:", corrdiff
-          write(stderr,*) "lnew:", lnew
-          write(stderr,*) "l1(1):", l1(1)
-          write(stderr,*) "l1(2):", l1(2)
-          write(stderr,*) "l1(3):", l1(3)
-          write(stderr,*) "l1(4):", l1(4)
-          stop
-        end if
-      else
-        l1(2) = l1(3)*l1(4)/l1(1)
-      end if
-    case (3)
-      lnew = l1(1)*l1(2)/l1(4)
-      corrdiff = abs(lnew-l1(3))/norm
-      if (corrdiff .gt. 10*l1acc(3)) then
-        if (l12_correction_stop_on_failure) then
-          call ol_error("Mass correction of l1 failed.")
-          write(stderr,*) "case 11(3)"
-          write(stderr,*) "accthres:", accthres
-          write(stderr,*) "l1acc:", l1acc(3)
-          write(stderr,*) "corrdiff:", corrdiff
-          write(stderr,*) "lnew:", lnew
-          write(stderr,*) "l1(1):", l1(1)
-          write(stderr,*) "l1(2):", l1(2)
-          write(stderr,*) "l1(3):", l1(3)
-          write(stderr,*) "l1(4):", l1(4)
-          stop
-        end if
-      else
-        l1(3) = l1(1)*l1(2)/l1(4)
-      end if
-    case (4)
-      lnew = l1(1)*l1(2)/l1(3)
-      corrdiff = abs(lnew-l1(4))/norm
-      if (corrdiff .gt. 10*l1acc(4)) then
-        if (l12_correction_stop_on_failure) then
-          call ol_error("Mass correction of l1 failed.")
-          write(stderr,*) "case 11(4)"
-          write(stderr,*) "accthres:", accthres
-          write(stderr,*) "l1acc:", l1acc(4)
-          write(stderr,*) "corrdiff:", corrdiff
-          write(*,*) "delta:", delta
-          write(*,*) "x12:", x12
-          write(stderr,*) "lnew:", lnew
-          write(stderr,*) "l1(1):", l1(1)
-          write(stderr,*) "l1(2):", l1(2)
-          write(stderr,*) "l1(3):", l1(3)
-          write(stderr,*) "l1(4):", l1(4)
-          stop
-        end if
-      else
-        l1(4) = l1(1)*l1(2)/l1(3)
-      end if
-    end select
-  end if
-
-  l2 = L(1:4,mom2) - alpha(2)*L(1:4,mom1)
-  norm = maxval(abs(l2))
-  sl = 1
-  do i = 1, 4
-    if (abs(L(i,mom2)-alpha(2)*L(i,mom1))/max(abs(L(i,mom2)),abs(alpha(2)*L(i,mom1))) .lt. &
-    accthres) then
-      l2(i) = zero
-      l2acc(i) = cone
-    else if (l2(i) .eq. zero) then
-      l2acc(i) = cone
-    else
-      l2acc(i) = abs(l2(i))/norm
-      if (l2acc(sl) .gt. l2acc(i)) then
-        sl = i
-      end if
-    end if
-  end do
-  if (l2acc(sl) .ne. cone) then
-    select case (sl)
-    case (1)
-      lnew = l2(3)*l2(4)/l2(2)
-      corrdiff = abs(lnew-l2(1))/norm
-      if (corrdiff .gt. 10*l2acc(1)) then
-        if (l12_correction_stop_on_failure) then
-          call ol_error("Mass correction of li failed.")
-          write(stderr,*) "case 12(1)"
-          write(stderr,*) "accthres:", accthres
-          write(stderr,*) "l2acc:", l2acc(1)
-          write(stderr,*) "corrdiff:", corrdiff
-          write(stderr,*) "lnew:", lnew
-          write(stderr,*) "l2(1):", l2(1)
-          write(stderr,*) "l2(2):", l2(2)
-          write(stderr,*) "l2(3):", l2(3)
-          write(stderr,*) "l2(4):", l2(4)
-          stop
-        end if
-      else
-        l2(1) = l2(3)*l2(4)/l2(2)
-      end if
-    case (2)
-      lnew = l2(3)*l2(4)/l2(1)
-      corrdiff = abs(lnew-l2(2))/norm
-      if (corrdiff .gt. 10*l2acc(2)) then
-        if (l12_correction_stop_on_failure) then
-          call ol_error("Mass correction of l2 failed.")
-          write(stderr,*) "case 12(2)"
-          write(stderr,*) "accthres:", accthres
-          write(stderr,*) "l2acc:", l2acc(2)
-          write(stderr,*) "corrdiff:", corrdiff
-          write(stderr,*) "lnew:", lnew
-          write(stderr,*) "l2(1):", l2(1)
-          write(stderr,*) "l2(2):", l2(2)
-          write(stderr,*) "l2(3):", l2(3)
-          write(stderr,*) "l2(4):", l2(4)
-          stop
-        end if
-      else
-        l2(2) = l2(3)*l2(4)/l2(1)
-      end if
-    case (3)
-      lnew = l2(1)*l2(2)/l2(4)
-      corrdiff = abs(lnew-l2(3))/norm
-      if (corrdiff .gt. 10*l2acc(3)) then
-        if (l12_correction_stop_on_failure) then
-          call ol_error("Mass correction of l2 failed.")
-          write(stderr,*) "case 12(3)"
-          write(stderr,*) "accthres:", accthres
-          write(stderr,*) "l2acc:", l2acc(3)
-          write(stderr,*) "corrdiff:", corrdiff
-          write(stderr,*) "lnew:", lnew
-          write(stderr,*) "l2(1):", l2(1)
-          write(stderr,*) "l2(2):", l2(2)
-          write(stderr,*) "l2(3):", l2(3)
-          write(stderr,*) "l2(4):", l2(4)
-          stop
-        end if
-      else
-        l2(3) = l2(1)*l2(2)/l2(4)
-      end if
-    case (4)
-      lnew = l2(1)*l2(2)/l2(3)
-      corrdiff = abs(lnew-l2(3))/norm
-      if (corrdiff .gt. 10*l2acc(4)) then
-        if (l12_correction_stop_on_failure) then
-          call ol_error("Mass correction of l2 failed.")
-          write(stderr,*) "case 12(4)"
-          write(stderr,*) "accthres:", accthres
-          write(stderr,*) "l2acc:", l2acc(4)
-          write(stderr,*) "corrdiff:", corrdiff
-          write(stderr,*) "lnew:", lnew
-          write(stderr,*) "l2(1):", l2(1)
-          write(stderr,*) "l2(2):", l2(2)
-          write(stderr,*) "l2(3):", l2(3)
-          write(stderr,*) "l2(4):", l2(4)
-          stop
-        end if
-      else
-        l2(4) = l2(1)*l2(2)/l2(3)
-      end if
-    end select
-  end if
+  call squeeze_onshell(L(1:4,mom1),L(1:4,mom2),alpha(1),l1)
+  call squeeze_onshell(L(1:4,mom2),L(1:4,mom1),alpha(2),l2)
 
   if (delta > 0) then
     l1(1) = cmplx(real(l1(1),kind=REALKIND),0._/**/REALKIND,kind=REALKIND)
@@ -346,6 +143,89 @@ subroutine construct_l1l2_1(mom1,mom2,alpha,gamma,l1,l2,r1,r2)
   r2 = (L(1:4,mom2) - x2*L(1:4,mom1))/(cone + sqrt_delta)
 
   gamma = 4*p1p2*(delta/(cone + sqrt_delta))
+
+  contains
+
+  subroutine squeeze_onshell(p1,p2,al,li)
+
+    complex(REALKIND), intent(in)    :: p1(4),p2(4),al
+    complex(REALKIND), intent(inout) :: li(4)
+    complex(REALKIND) :: up,lp,li1li2,li3li4,beta,osdelta
+    real(REALKIND)    :: norm,rp,lierr(4),errestim
+    real(REALKIND), parameter :: prd = precision(up)
+    real(REALKIND), parameter :: accthres = 10._/**/REALKIND**(1-prd)
+    real(REALKIND) :: zero = 0
+
+    li = p1(1:4) - al*p2(1:4)
+    li1li2 = li(1)*li(2)
+    li3li4 = li(3)*li(4)
+
+    norm = max(abs(li1li2),abs(li3li4))
+    osdelta = li1li2 - li3li4
+
+    ! condition for necessity of os correction
+    if (abs(osdelta)/norm .gt. accthres) then
+      norm = maxval(abs(li))
+      do i = 1, 4
+        if (li(i) .eq. zero) then
+          if (al .ne. 1) then
+            !component cannot be an exact zero -> introduce artificial error
+            li(i) = p1(i)*10**(-prd-1)
+            lierr(i) = 10**(-prd-2)
+            select case (i)
+              case (1,2)
+                li1li2 = li(1)*li(2)
+                osdelta = li1li2 - li3li4
+              case default
+                li3li4 = li(3)*li(4)
+                osdelta = li1li2 - li3li4
+            end select
+          else
+            lierr(i) = zero
+          end if
+        end if
+        if (li(i) .eq. zero) then
+          lierr(i) = zero
+        else
+          errestim =abs(li(i))/max(norm, abs(p1(i)), abs(al*p2(i)))
+          lierr(i) = 10**(-precision(up)-2-log10(errestim))
+        end if
+      end do
+      up = (lierr(1)+lierr(2))*li1li2
+      lp = (lierr(3)+lierr(4))*li3li4
+
+      if (abs(lp) .eq. zero) then ! correct upper two cmp
+        beta = -osdelta/(up)
+        li(1) = li(1) + beta*lierr(1)*li(1)
+        li(2) = li(2) + beta*lierr(2)*li(2)
+      else if (abs(up) .eq. zero) then ! correct upper two cmp
+        beta = -osdelta/(-lp)
+        li(3) = li(3) + beta*lierr(3)*li(3)
+        li(4) = li(4) + beta*lierr(4)*li(4)
+      else
+        rp = abs(up)/abs(lp)
+        if (rp .gt. 10) then ! only correct upper two cmp
+          beta = -osdelta/(up)
+          li(1) = li(1) + beta*lierr(1)*li(1)
+          li(2) = li(2) + beta*lierr(2)*li(2)
+        else if (rp .lt. 0.1) then ! only correct upper two cmp
+          beta = -osdelta/(-lp)
+          li(1) = li(1) + beta*lierr(1)*li(1)
+          li(2) = li(2) + beta*lierr(2)*li(2)
+        else ! only correct upper and lower two cmp
+          beta = -osdelta/(up-lp)
+          li(1) = li(1) + beta*lierr(1)*li(1)
+          li(2) = li(2) + beta*lierr(2)*li(2)
+          li(3) = li(3) + beta*lierr(3)*li(3)
+          li(4) = li(4) + beta*lierr(4)*li(4)
+        end if
+      end if
+      li1li2 = li(1)*li(2)
+      li3li4 = li(3)*li(4)
+      osdelta = li1li2 - li3li4
+    end if
+
+  end subroutine squeeze_onshell
 
 end subroutine construct_l1l2_1
 
@@ -936,12 +816,15 @@ subroutine construct_redset4(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,Red
 ! RedSet = output data type containing the chosen reduction basis and the
 !          corresponding set of p_3 scalars.
 !******************************************************************************
-  use KIND_TYPES, only: REALKIND
-  use ol_momenta_decl_/**/REALKIND, only: L
-#ifdef PRECISION_dp
-  use ol_momenta_decl_qp, only: L_QP=>L
-#endif
+  use KIND_TYPES, only: REALKIND,QREALKIND
   use ol_data_types_/**/REALKIND, only: basis, redset4
+  use ol_parameters_decl_/**/REALKIND, only: hp_switch,hp_err_thres
+#ifdef PRECISION_dp
+  use ol_data_types_/**/QREALKIND, only: basis_qp=>basis, redset4_qp=>redset4
+  use ofred_basis_construction_/**/QREALKIND, only: &
+      construct_RedBasis_qp=>construct_RedBasis, &
+      construct_p3scalars_qp=>construct_p3scalars
+#endif
   implicit none
   integer, intent(in)  :: mom1, mom2, mom3
   type(basis), intent(in) :: RedBasis12, RedBasis13, RedBasis23
@@ -950,6 +833,12 @@ subroutine construct_redset4(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,Red
   real(REALKIND) :: gd2,gd3
   logical :: b1, b2, b3
   integer :: perm(3)
+#ifdef PRECISION_dp
+  type(redset4_qp)   :: RedSet_qp
+  type(basis_qp)     :: Redbasis_qp
+  real(QREALKIND)    :: gd2_qp,gd3_qp
+  complex(QREALKIND) :: scalars_qp(0:4)
+#endif
 
   !! Selection criterion
   if(basis_selection_4 == 0) then
@@ -966,16 +855,54 @@ subroutine construct_redset4(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,Red
   if (b3) then
     call construct_p3scalars(mom1,RedBasis23,scalars,gd2,gd3)
     perm = [2,3,1]
-    RedSet = redset4(RedBasis23,scalars,perm,mom1,gd2,gd3)
+    RedSet%redbasis=RedBasis23
+    RedSet%p3scalars=scalars
+    RedSet%perm=perm
+    RedSet%mom3=mom1
+    RedSet%gd2=gd2
+    RedSet%gd3=gd3
+#ifdef PRECISION_dp
+    RedSet%qp_computed=.false.
+#endif
   else if (b2) then
     call construct_p3scalars(mom2,RedBasis13,scalars,gd2,gd3)
     perm = [1,3,2]
-    RedSet = redset4(RedBasis13,scalars,perm,mom2,gd2,gd3)
+    RedSet%redbasis=RedBasis13
+    RedSet%p3scalars=scalars
+    RedSet%perm=perm
+    RedSet%mom3=mom2
+    RedSet%gd2=gd2
+    RedSet%gd3=gd3
+#ifdef PRECISION_dp
+    RedSet%qp_computed=.false.
+#endif
   else if (b1) then
     call construct_p3scalars(mom3,RedBasis12,scalars,gd2,gd3)
     perm = [1,2,3]
-    RedSet = redset4(RedBasis12,scalars,perm,mom3,gd2,gd3)
+    RedSet%redbasis=RedBasis12
+    RedSet%p3scalars=scalars
+    RedSet%perm=perm
+    RedSet%mom3=mom3
+    RedSet%gd2=gd2
+    RedSet%gd3=gd3
+#ifdef PRECISION_dp
+    RedSet%qp_computed=.false.
+#endif
   end if
+
+#ifdef PRECISION_dp
+  if (hp_switch .eq. 1 .and. -log10(sqrt(abs(gd3))) .gt. hp_err_thres) then
+    call construct_RedBasis_qp(RedSet%redbasis%mom1,RedSet%redbasis%mom2,Redbasis_qp)
+    call construct_p3scalars_qp(RedSet%mom3,Redbasis_qp,scalars_qp,gd2_qp,gd3_qp)
+    RedSet_qp = redset4_qp(redbasis=Redbasis_qp, &
+                           p3scalars=scalars_qp, &
+                           perm=RedSet%perm,     &
+                           mom3=RedSet%mom3,     &
+                           gd2=gd2_qp,gd3=gd3_qp)
+    RedSet%qp_computed=.true.
+    RedSet%rsqp=RedSet_qp
+  end if
+#endif
 
 end subroutine construct_redset4
 
@@ -996,8 +923,15 @@ subroutine reconstruct_redset4(RedSet,RedSet_rec)
   integer           :: perm(3)
 
   call construct_p3scalars(RedSet%mom3,RedSet%redbasis,scalars,gd2,gd3)
-  RedSet_rec = redset4(redbasis=RedSet%redbasis,p3scalars=scalars, &
-                       perm=RedSet%perm,mom3=RedSet%mom3,gd2=gd2,gd3=gd3)
+  RedSet_rec%redbasis=RedSet%redbasis
+  RedSet_rec%p3scalars=scalars
+  RedSet_rec%perm=RedSet%perm
+  RedSet_rec%mom3=RedSet%mom3
+  RedSet_rec%gd2=gd2
+  RedSet_rec%gd3=gd3
+#ifdef PRECISION_dp
+  RedSet_rec%qp_computed=.false.
+#endif
 
 end subroutine reconstruct_redset4
 
@@ -1631,7 +1565,7 @@ end module ofred_basis_construction_/**/REALKIND
 module ofred_reduction_/**/REALKIND
   use KIND_TYPES, only: REALKIND
   use ol_debug, only: ol_error
-  use ol_parameters_decl_/**/REALKIND, only: hp_mode,hp_alloc_mode
+  use ol_parameters_decl_/**/REALKIND, only: hp_switch,hp_alloc_mode
   use ofred_basis_construction_/**/REALKIND, only: gdm2_err_estim_OL, &
                                                    gdm2_err_estim_CL
 
@@ -3615,7 +3549,7 @@ function valid_4pt_hol(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_R1)
       Gout_R1%j = 0
     end if
 #ifdef PRECISION_dp
-    if (hp_mode .eq. 1) then
+    if (hp_switch .eq. 1) then
       if (hp_alloc_mode .eq. 0) then
         Gout_A%j_qp = 0
         Gout_A0%j_qp = 0
@@ -3701,7 +3635,7 @@ function valid_4pt_hcl(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_R1)
     end if
 
 #ifdef PRECISION_dp
-    if (hp_mode .eq. 1) then
+    if (hp_switch .eq. 1) then
       if (hp_alloc_mode .eq. 0) then
         Gout_A%cmp_qp = 0
         Gout_A0%cmp_qp = 0
@@ -3802,7 +3736,7 @@ function valid_5pt_hol(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4,Gou
     end if
 
 #ifdef PRECISION_dp
-    if (hp_mode .eq. 1) then
+    if (hp_switch .eq. 1) then
       if (hp_alloc_mode .eq. 0) then
         Gout_A%j_qp = 0
         Gout_A0%j_qp = 0
@@ -3894,7 +3828,7 @@ function valid_5pt_hcl(Gin_A, Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3,Gout_A4,Gou
     end if
 
 #ifdef PRECISION_dp
-    if (hp_mode .eq. 1) then
+    if (hp_switch .eq. 1) then
       if (hp_alloc_mode .eq. 0) then
         Gout_A%cmp_qp = 0
         Gout_A0%cmp_qp = 0
@@ -3926,13 +3860,13 @@ subroutine trigger_upgrade_hol(alfa_max,gamman,Gin)
 
   if (alfa_max > hp_step_thres .and. Gin%error + alfa_max > hp_err_thres) then
 #ifdef PRECISION_dp
-    if (hp_mode .eq. 1) then
+    if (hp_switch .eq. 1) then
       call upgrade_qp(Gin)
     end if
 #endif
   else if (-log10(gamman) > hp_step_thres .and. Gin%error - log10(gamman) > hp_err_thres) then
 #ifdef PRECISION_dp
-    if (hp_mode .eq. 1) then
+    if (hp_switch .eq. 1) then
       call upgrade_qp(Gin)
     end if
 #endif
@@ -3951,13 +3885,13 @@ subroutine trigger_upgrade_hcl(alfa_max,gamman,Gin)
 
   if (alfa_max > hp_step_thres .and. Gin%error + alfa_max > hp_err_thres) then
 #ifdef PRECISION_dp
-    if (hp_mode .eq. 1) then
+    if (hp_switch .eq. 1) then
       call upgrade_qp(Gin)
     end if
 #endif
   else if (-log10(gamman) > hp_step_thres .and. Gin%error -log10(gamman) > hp_err_thres) then
 #ifdef PRECISION_dp
-    if (hp_mode .eq. 1) then
+    if (hp_switch .eq. 1) then
       call upgrade_qp(Gin)
     end if
 #endif
@@ -4785,7 +4719,7 @@ subroutine Hotf_4pt_red(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hol_dealloc_hybrid
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
 #endif
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode, &
                                               hp_alloc_mode
   implicit none
   type(redset4), intent(in)    :: RedSet_4
@@ -4847,7 +4781,7 @@ subroutine Hotf_4pt_red(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
     call downgrade_4pt(RedSet_4,mode_in,Gout_A1,Gout_A2,Gout_A3)
     call hol_dealloc_hybrid(Gin_A)
 
-  else if (hp_mode .eq. 1) then
+  else if (hp_switch .eq. 1) then
     if (hp_alloc_mode .eq. 0) then
       Gout_A%j_qp = 0
       Gout_A0%j_qp = 0
@@ -4879,7 +4813,7 @@ subroutine Hotf_4pt_red_R1(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hol_dealloc_hybrid
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
 #endif
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode, &
                                               hp_alloc_mode
   implicit none
   type(redset4), intent(in)    :: RedSet_4
@@ -4942,7 +4876,7 @@ subroutine Hotf_4pt_red_R1(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
     call downgrade_4pt(RedSet_4,mode_in,Gout_A1,Gout_A2,Gout_A3)
     call hol_dealloc_hybrid(Gin_A)
 
-  else if (hp_mode .eq. 1) then
+  else if (hp_switch .eq. 1) then
     if (hp_alloc_mode .eq. 0) then
       Gout_A%j_qp = 0
       Gout_A0%j_qp = 0
@@ -4977,7 +4911,7 @@ subroutine Hotf_5pt_red(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
 #endif
   use ol_loop_handling_/**/REALKIND, only: hybrid_zero_mode
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode, &
                                               hp_alloc_mode
   implicit none
   type(redset5), intent(in)    :: RedSet_5
@@ -5078,7 +5012,7 @@ subroutine Hotf_5pt_red(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
     call downgrade_5pt(RedSet_5,mode_in,Gout_A1,Gout_A2,Gout_A3,Gout_A4)
     call hol_dealloc_hybrid(Gin_A)
 
-  else if (hp_mode .eq. 1) then
+  else if (hp_switch .eq. 1) then
     if (hp_alloc_mode .eq. 0) then
       Gout_A%j_qp = 0
       Gout_A0%j_qp = 0
@@ -5111,7 +5045,7 @@ subroutine Hotf_5pt_red_R1(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
 #endif
   use ol_loop_handling_/**/REALKIND, only: hybrid_zero_mode
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode, &
                                               hp_alloc_mode
   implicit none
   type(redset5), intent(in)    :: RedSet_5
@@ -5214,7 +5148,7 @@ subroutine Hotf_5pt_red_R1(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
     call downgrade_5pt(RedSet_5,mode_in,Gout_A1,Gout_A2,Gout_A3,Gout_A4)
     call hol_dealloc_hybrid(Gin_A)
 
-  else if (hp_mode .eq. 1) then
+  else if (hp_switch .eq. 1) then
     if (hp_alloc_mode .eq. 0) then
       Gout_A%j_qp = 0
       Gout_A0%j_qp = 0
@@ -5251,7 +5185,7 @@ subroutine Hotf_4pt_red_last(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1, &
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hcl_dealloc_hybrid
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
 #endif
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode, &
                                               hp_alloc_mode
   implicit none
   type(redset4),   intent(in)    :: RedSet_4
@@ -5302,7 +5236,7 @@ subroutine Hotf_4pt_red_last(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1, &
                                    Gout_A3%cmp_qp(:))
     call downgrade_4pt(RedSet_4,mode_in,Gout_A1,Gout_A2,Gout_A3)
     call hcl_dealloc_hybrid(Gin_A)
-  else if (hp_mode .eq. 1) then
+  else if (hp_switch .eq. 1) then
     if (hp_alloc_mode .eq. 0) then
       Gout_A%cmp_qp = 0
       Gout_A0%cmp_qp = 0
@@ -5330,7 +5264,7 @@ subroutine Hotf_4pt_red_last_R1(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1, &
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hcl_dealloc_hybrid
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
 #endif
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode, &
                                               hp_alloc_mode
   implicit none
   type(redset4), intent(in)    :: RedSet_4
@@ -5385,7 +5319,7 @@ subroutine Hotf_4pt_red_last_R1(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1, &
                                    Gout_R1%cmp_qp(1))
     call downgrade_4pt(RedSet_4,mode_in,Gout_A1,Gout_A2,Gout_A3)
     call hcl_dealloc_hybrid(Gin_A)
-  else if (hp_mode .eq. 1) then
+  else if (hp_switch .eq. 1) then
     if (hp_alloc_mode .eq. 0) then
       Gout_A%cmp_qp = 0
       Gout_A0%cmp_qp = 0
@@ -5417,7 +5351,7 @@ subroutine Hotf_5pt_red_last(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
 #endif
   use ol_loop_handling_/**/REALKIND, only: hybrid_zero_mode
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode, &
                                               hp_alloc_mode
   implicit none
   type(redset5), intent(in)    :: RedSet_5
@@ -5511,7 +5445,7 @@ subroutine Hotf_5pt_red_last(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
                         Gout_A4%cmp_qp)
     call downgrade_5pt(RedSet_5,mode_in,Gout_A1,Gout_A2,Gout_A3,Gout_A4)
     call hcl_dealloc_hybrid(Gin_A)
-  else if (hp_mode .eq. 1) then
+  else if (hp_switch .eq. 1) then
     if (hp_alloc_mode .eq. 0) then
       Gout_A%cmp_qp = 0
       Gout_A0%cmp_qp = 0
@@ -5542,7 +5476,7 @@ subroutine Hotf_5pt_red_last_R1(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
 #endif
   use ol_loop_handling_/**/REALKIND, only: hybrid_zero_mode
-  use ol_parameters_decl_/**/DREALKIND, only: hp_mode,hybrid_qp_mode, &
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode, &
                                               hp_alloc_mode
   implicit none
   type(redset5), intent(in)    :: RedSet_5
@@ -5638,7 +5572,7 @@ subroutine Hotf_5pt_red_last_R1(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
                                    Gout_R1%cmp_qp(1))
     call downgrade_5pt(RedSet_5,mode_in,Gout_A1,Gout_A2,Gout_A3,Gout_A4)
     call hcl_dealloc_hybrid(Gin_A)
-  else if (hp_mode .eq. 1) then
+  else if (hp_switch .eq. 1) then
     if (hp_alloc_mode .eq. 0) then
       Gout_A%cmp_qp = 0
       Gout_A0%cmp_qp = 0

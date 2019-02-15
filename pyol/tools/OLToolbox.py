@@ -1,5 +1,5 @@
 #!******************************************************************************!
-#! Copyright (C) 2014-2018 OpenLoops Collaboration. For authors see authors.txt !
+#! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 #!                                                                              !
 #! This file is part of OpenLoops.                                              !
 #!                                                                              !
@@ -65,13 +65,13 @@ def import_list(filename, lines=None, fatal=True,
                     return None
         else:
             if sys.version_info < (3,0,0):
-                from urllib2 import urlopen, HTTPError
+                from urllib2 import urlopen, URLError
             else:
                 from urllib.request import urlopen
-                from urllib.error import HTTPError
+                from urllib.error import URLError
             try:
                 fh = urlopen(filename)
-            except HTTPError:
+            except URLError:
                 if fatal:
                     if '%s' in error_message:
                         print(error_message % (filename,))
