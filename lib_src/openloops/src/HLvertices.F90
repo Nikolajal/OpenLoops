@@ -498,28 +498,11 @@ subroutine G0_hol_initialisation(ntry,G0coeff,ol_coeff,nhel_in,h0t, &
     !ol_coeff%mode = hybrid_zero_mode
   end if
 
-  ! TODO:  <21-11-18, J.-N. Lang> !
-  ! clean this mess
 #ifdef PRECISION_dp
   if (hp_switch .eq. 1) then
-    !if (ol_coeff%npoint .eq. 2) then
-    !  if ((.not. bubble_vertex) .or. (bubble_vertex .and. .not. selfenergy)) then
-    !    if (check_quasios()) then
-    !      ol_coeff%mode = hybrid_qp_mode
-    !      ol_coeff%j_qp(:,:,:,1:nhel_in) = ol_coeff%j(:,:,:,1:nhel_in)
-    !      ol_coeff%j(:,:,:,1:nhel_in) = 0._/**/REALKIND
-    !    end if
-    !  end if
     if (hp_ir_trig .and. ol_coeff%npoint .eq. 3) then
       if (check_collinear_tr() .or. check_soft_tr()) call upgrade_qp(ol_coeff)
     end if
-    !if (ir_hacks .and. ol_coeff%mode .ne. hybrid_qp_mode .and. ol_coeff%npoint .ge. 3) then
-    !  if(check_collinear_leg()) then
-    !    ol_coeff%mode = hybrid_qp_mode
-    !    ol_coeff%j_qp(:,:,:,1:nhel_in) = ol_coeff%j(:,:,:,1:nhel_in)
-    !    ol_coeff%j(:,:,:,1:nhel_in) = 0._/**/REALKIND
-    !  end if
-    !end if
     if (hp_fake_trig) call upgrade_qp(ol_coeff)
   end if
 #endif
@@ -528,7 +511,8 @@ subroutine G0_hol_initialisation(ntry,G0coeff,ol_coeff,nhel_in,h0t, &
 
   function check_collinear_tr()
     use ol_momenta_decl_/**/REALKIND, only: collconf
-    logical :: check_collinear_tr,m1ext,m2ext,m3ext
+    use ol_kinematics_/**/REALKIND, only: get_mass2
+    logical :: check_collinear_tr,m1ext,m2ext,m3ext,zeromass
     integer :: m1, m2, m3
 
     m1 = momids(1)
@@ -537,19 +521,22 @@ subroutine G0_hol_initialisation(ntry,G0coeff,ol_coeff,nhel_in,h0t, &
     m2ext = iand(m2,m2-1) .eq. 0
     m3 = momids(3)
     m3ext = iand(m3,m3-1) .eq. 0
+    zeromass = sum(get_mass2(massids)) .eq. 0
 
     check_collinear_tr = .false.
-    if (m1ext .and. m2ext) then
-      if (iand(m1,collconf) .ne. 0 .and. iand(m2,collconf) .ne. 0 .and. sum(massids) .eq. 0) then
-        check_collinear_tr = .true.
-      end if
-    else if (m1ext .and. m3ext) then
-      if (iand(m1,collconf) .ne. 0 .and. iand(m3,collconf) .ne. 0 .and. sum(massids) .eq. 0) then
-        check_collinear_tr = .true.
-      end if
-    else if (m2ext .and. m3ext) then
-      if (iand(m2,collconf) .ne. 0 .and. iand(m3,collconf) .ne. 0 .and. sum(massids) .eq. 0) then
-        check_collinear_tr = .true.
+    if (zeromass) then
+      if (m1ext .and. m2ext) then
+        if (iand(m1,collconf) .ne. 0 .and. iand(m2,collconf) .ne. 0) then
+          check_collinear_tr = .true.
+        end if
+      else if (m1ext .and. m3ext) then
+        if (iand(m1,collconf) .ne. 0 .and. iand(m3,collconf) .ne. 0) then
+          check_collinear_tr = .true.
+        end if
+      else if (m2ext .and. m3ext) then
+        if (iand(m2,collconf) .ne. 0 .and. iand(m3,collconf) .ne. 0) then
+          check_collinear_tr = .true.
+        end if
       end if
     end if
 

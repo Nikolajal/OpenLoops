@@ -17,7 +17,7 @@
 !       *                                         *
 !       *    by A.Denner, S.Dittmaier, L.Hofer    *
 !       *                                         *
-!       *               version 1.2.2             *
+!       *               version 1.2.3             *
 !       *                                         *    
 !       *******************************************
 ! 
@@ -70,6 +70,6 @@ module COLLIER
 
   use cache, only : &
       SetCacheMode_cll, InitCacheSystem_cll, SwitchOnCacheSystem_cll, SwitchOffCacheSystem_cll, &
-      SwitchOnCache_cll, SwitchOffCache_cll, SetCacheLevel_cll, AddNewCache_cll
+      SwitchOnCache_cll, SwitchOffCache_cll, SetCacheLevel_cll, AddNewCache_cll, SetNopt_cll
 
 end module COLLIER

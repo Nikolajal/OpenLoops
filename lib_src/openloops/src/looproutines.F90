@@ -362,7 +362,7 @@ subroutine TI_call(rank, momenta, masses_2, Gsum, M2)
   if (ti_monitor > 0) then
     outfile = trim(stability_logdir) // "/ti_monitor_" // trim(to_string(a_switch)) // ".log"
     open(unit=outunit, file=outfile, form='formatted', position='append')
-    if (ti_monitor > 1) write(outunit,*) ''
+    if (ti_monitor > 1) write(outunit,*) ' '
     write(outunit,*) 'm2add= ', real(M2add), M2
     if (ti_monitor > 1) then
       write(outunit,*) 'rank= ', rank
@@ -546,7 +546,7 @@ subroutine TI_call_OL(qt_pow, rank, momenta, masses, Gsum_hcl, M2, scboxes, all_
         all_scboxes(scboxes(1))%poles_qp = all_scboxes_qp(1)%poles
         all_scboxes(scboxes(1))%onshell_cuts_qp = all_scboxes_qp(1)%onshell_cuts
         box_qp = all_scboxes_qp(1)%poles
-        deallocate(all_scboxes_qp)
+        if (allocated(all_scboxes_qp)) deallocate(all_scboxes_qp)
       end if
 
       ! TODO:  <22-08-18, Jean-Nicolas Lang> !

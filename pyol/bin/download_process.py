@@ -70,7 +70,7 @@ collections.extend([coll for coll in procs if coll.endswith('.coll')])
 # OpenLoops process API version
 local_api_version = config['process_api_version']
 
-repository_url = (config['remote_process_url'] + 
+repository_url = (config['remote_process_url'] +
                   '/%s/processes/' +  str(local_api_version))
 collection_url = config['remote_process_url'] + '/%s/collections'
 latest_api_version_url = (config['remote_process_url'] +
@@ -113,7 +113,8 @@ def update_channel_db(repo):
             rfh = open(remote_channel_url, 'r')
         else:
             rfh = urlopen(remote_channel_url)
-    except URLError:
+    except URLError, e:
+        print('Warning: ' + str(e))
         print('Warning: Channel database update for repository ' + repo_name +
               ' failed. Skip this repository.')
         return False

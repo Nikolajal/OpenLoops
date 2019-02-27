@@ -297,7 +297,7 @@ contains
 
     if (reset) then
 
-    ! set standard output for infos 
+    ! set standard output for infos
     call WriteIntro_cll(stdout_cll)
     if (infoutlev.ge.1) then
       write(unit=stdout_cll,fmt=*) '                                                          '
@@ -3388,7 +3388,7 @@ contains
       else
         ncpoutcoli_cll = findFreeChannel_cll()
         call Setncpout_coli(ncpoutcoli_cll)
-        open(unit=ncpoutcoli_cll,file=trim(fname_cpoutcoli_cll),form='formatted',access='sequential',position='append',status='old')       
+        open(unit=ncpoutcoli_cll,file=trim(fname_cpoutcoli_cll),form='formatted',access='sequential',position='append',status='old')
       end if
     end if
 

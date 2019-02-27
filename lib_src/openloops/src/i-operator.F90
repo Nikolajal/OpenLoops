@@ -24,7 +24,7 @@ module ol_i_operator_/**/REALKIND
   contains
 
 ! **********************************************************************
-subroutine intdip(mode, M2LO, M2CC, M2CC_EW, extflav, extcharges, Npart, extmass2, sarr, vdip, c_dip)
+subroutine intdip(mode, M2LO, M2CC, M2CC_EW, extflav, extcharges, Npart, extmass2, sarr, vdip, c_dip, olm_in, photonid_in)
 ! **********************************************************************
 ! I-Operator contribution to integrated Dipoles <=> Eqs. (6.66), (6.52), (6.16)
 ! in hep-ph/0201036 (Catani, Dittmaier, Seymour, Trocsanyi)
@@ -64,10 +64,10 @@ subroutine intdip(mode, M2LO, M2CC, M2CC_EW, extflav, extcharges, Npart, extmass
 ! is the default normalisation (norm_swi=0)
 ! **********************************************************************
   use KIND_TYPES, only: REALKIND
-  use ol_parameters_decl_/**/REALKIND
-  use ol_parameters_decl_/**/DREALKIND, only: eps_fs_gamma
+  use ol_parameters_decl_/**/REALKIND, only: alpha_QCD, alpha_QED, pi
+  use ol_parameters_decl_/**/DREALKIND, only: offshell_photon_dimreg
   use ol_loop_parameters_decl_/**/REALKIND
-  use ol_momenta_decl_/**/REALKIND, only: Q
+  use ol_momenta_decl_/**/REALKIND, only: Q, L
   use ol_kinematics_/**/REALKIND
   implicit none
 
@@ -77,12 +77,26 @@ subroutine intdip(mode, M2LO, M2CC, M2CC_EW, extflav, extcharges, Npart, extmass
   real(REALKIND),    intent(in)  :: extcharges(Npart)
   real(REALKIND),    intent(in)  :: M2LO, M2CC(Npart,Npart), M2CC_EW, extmass2(Npart)
   complex(REALKIND), intent(in)  :: sarr(:,:)
+  integer, optional, intent(in)  :: olm_in, photonid_in(:)
   real(REALKIND),    intent(out) :: vdip, c_dip(0:2)
   real(REALKIND) :: Q2_aux, Fjk(0:2), Gj(0:2), norm_qcd, norm_qed, QQ
-  integer        :: i, j, k
+  integer        :: olm, photonid(Npart), i, j, k
 
   Q2_aux = mureg2  ! arbitrary auxiliary scale
   c_dip = 0
+
+  if (present(olm_in)) then
+    olm = olm_in
+  else
+    olm = 0
+  end if
+
+  if (present(photonid_in)) then
+    photonid = photonid_in
+  else
+    photonid = 0
+  end if
+
 
 
   !NLO QCD contribution
@@ -116,28 +130,38 @@ subroutine intdip(mode, M2LO, M2CC, M2CC_EW, extflav, extcharges, Npart, extmass
       end do
     end do
 
-
-    ! gamma -> ff splittings
-    do j = 1, Npart
-      if (extflav(j) /= -1) cycle ! emitter j /= photon
-      Gj=0
-      call intdip_Gj(j,extflav(j),extmass2(j),Q2_aux,Gj)
-      do k = 1, Npart
-        QQ = 0d0
-        if (k == j) cycle
-        if (real(Q(1,2**(j-1))+Q(2,2**(j-1))) .gt. 0 .and. real(Q(1,2**(k-1))+Q(2,2**(k-1))) .gt. 0 ) then ! IS gamma -> IS spectator with Q=-1
-          QQ = -1d0
-        else if (real(Q(1,2**(j-1))+Q(2,2**(j-1))) .lt. 0 .and. real(Q(1,2**(k-1))+Q(2,2**(k-1))) .gt. 0 ) then ! FS gamma -> both IS spectators with Q=-1/2
-          QQ = 0.5d0*eps_fs_gamma
-        else
-          cycle
-        end if
-        Fjk=0
-        c_dip = c_dip - 2*norm_qed*M2CC_EW*QQ*Gj
+    ! photon -> ff splittings
+    if (offshell_photon_dimreg) then
+      do j = 1, Npart
+        if (extflav(j) /= -1) cycle ! emitter j /= photon
+        Gj=0
+        call intdip_Gj(j,extflav(j),extmass2(j),Q2_aux,Gj)
+        do k = 1, Npart
+          QQ = 0d0
+          if (k == j) cycle
+          if (photonid(j) > 0) cycle ! on-shell photon emitter -> cycle
+          if (olm == 0) then
+            if (real(Q(1,2**(j-1))+Q(2,2**(j-1))) .gt. 0 .and. real(Q(1,2**(k-1))+Q(2,2**(k-1))) .gt. 0 ) then ! IS off-shell photon -> IS spectator with Q=-1
+              QQ = -1d0
+            else if (real(Q(1,2**(j-1))+Q(2,2**(j-1))) .lt. 0 .and. real(Q(1,2**(k-1))+Q(2,2**(k-1))) .gt. 0 ) then ! FS off-shell photon -> both IS spectators with Q=-1/2
+              QQ = -0.5d0
+            else
+              cycle
+            end if
+          else
+            if (real(L(1,2**(j-1))+L(2,2**(j-1))) .gt. 0 .and. real(L(1,2**(k-1))+L(2,2**(k-1))) .gt. 0 ) then ! IS off-shell photon -> IS spectator with Q=-1
+              QQ = -1d0
+            else if (real(L(1,2**(j-1))+L(2,2**(j-1))) .lt. 0 .and. real(L(1,2**(k-1))+L(2,2**(k-1))) .gt. 0 ) then ! FS off-shell photon -> both IS spectators with Q=-1/2
+              QQ = -0.5d0
+            else
+              cycle
+            end if
+          end if
+          Fjk=0
+          c_dip = c_dip - 2*norm_qed*M2CC_EW*QQ*Gj
+        end do
       end do
-    end do
-
-
+    end if
 
   end if
 

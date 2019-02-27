@@ -275,7 +275,7 @@ subroutine TI_triangle_red(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1, &
 #ifdef PRECISION_dp
   unstable = .false.
   if (hp_switch .eq. 1 .and. .not. req_qp_cmp(Gin_A)) then
-    if (hp_metri_trig) call tri_check_me
+    if (hp_metri_trig) call tri_check_me(unstable)
     if (hp_irtri_trig .and. .not. unstable) call triangle_check_ir(RedBasis%mom1, RedBasis%mom2, unstable)
   end if
 #endif
@@ -549,12 +549,15 @@ subroutine TI_triangle_red(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1, &
 
   contains
 
-  subroutine tri_check_me
-    integer :: masses(0:2)
-    ! checks for missing expansions
+  ! trigger for missing expansions
+  subroutine tri_check_me(unstable)
+    logical, intent(out) :: unstable
+    integer              :: masses(0:2)
 
-    ! local switcher to activate the expansions in the Gram-Determinant
-    unstable = (sdlt < delta_thres) .AND. DeltaExp .AND. tch_top
+    unstable = .false.
+    if (DeltaExp .and. tch_top) then
+      if (sdlt < delta_thres) unstable = .true.
+    end if
 
     if (unstable) then
       if(perm(1) == 2) then
@@ -2915,7 +2918,7 @@ subroutine collier_scalars_interface(momenta, masses2, Gsum, M2add, loss)
     call C_cll(sc_int, UV_part, collier_invariants(int_mom), masses2, 0, Cerr=sc_err)
   case (4)
     call D_cll(sc_int, UV_part, collier_invariants(int_mom), masses2, 0, Derr=sc_err)
-  end select 
+  end select
   if (present(loss)) loss = max(0.,15.+log10(abs(sc_err(1)/real(sc_int(1)))))
   M2add = Gsum(1)*sc_int(1)
 #else
@@ -3151,7 +3154,7 @@ subroutine compute_scalar_box(mom_ind, masses2in, RedSet, box)
     mom_box(2) = mom_ind(2)-mom_ind(1)
     mom_box(3) = mom_ind(3)-mom_ind(2)
     call avh_olo_box(mom_box,masses2,sc_box)
-    ! OneLoop  doesn't provide error estimator for integrals
+    ! OneLoop  does not provide error estimator for integrals
     errbox = 10**(-17)
   else if (a_switch == 1 .or. a_switch == 7) then
   !!! Collier/DD call for scalar boxes

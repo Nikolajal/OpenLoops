@@ -30,8 +30,8 @@ extern "C" {
   void ol_evaluate_cc2(int id, const double *pp, double *tree, double *m2cc, double *m2ewcc);
   void ol_evaluate_ccmatrix(int id, const double *pp, double *tree, double *m2cc, double *m2ewcc);
   void ol_evaluate_ccmatrix2(int id, const double *pp, double *tree, double *m2cc, double *m2ewcc);
-  void ol_evaluate_loopcc(int id, const double *pp, double *res, double *cc, double *ewcc);
-  void ol_evaluate_loopccmatrix(int id, const double *pp, double *tree, double *ccij, double *ewcc);
+  void ol_evaluate_loopcc(int id, const double *pp, double *tree, double *m2l1, double *cc, double *ewcc);
+  void ol_evaluate_loopccmatrix(int id, const double *pp, double *tree, double *m2l1, double *ccij, double *ewcc);
   void ol_evaluate_scpowheg(int id, const double *pp, int emitter, double *res, double *resmunu);
   void ol_evaluate_scpowheg2(int id, const double *pp, int emitter, double *res, double *resmunu);
   void ol_evaluate_loopscpowheg(int id, const double *pp, int emitter, double *res, double *resmunu);

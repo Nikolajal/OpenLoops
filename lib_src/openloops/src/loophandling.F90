@@ -61,7 +61,7 @@ module ol_loop_handling_/**/REALKIND
       if (hp_alloc_mode .eq. 0) then
         ol_coeff%j_qp(:,:,:,:) = ZERO
       else if (hp_alloc_mode .eq. 2) then
-        deallocate(ol_coeff%j_qp)
+        if (allocated(ol_coeff%j_qp)) deallocate(ol_coeff%j_qp)
       end if
     end if
 
@@ -76,7 +76,7 @@ module ol_loop_handling_/**/REALKIND
       if (hp_alloc_mode .eq. 0) then
         ol_coeff%cmp_qp(:) = ZERO
       else if (hp_alloc_mode .eq. 2) then
-        deallocate(ol_coeff%cmp_qp)
+        if (allocated(ol_coeff%cmp_qp)) deallocate(ol_coeff%cmp_qp)
       end if
     end if
 

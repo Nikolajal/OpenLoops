@@ -30,7 +30,7 @@ subroutine prop_loop_A_Q(rank_in,rank_out,G_A,K,M,Gout_A)
 ! rank_i/o              = length of tensor array up to highest incoming/outgoing rank
 ! K(4)                  = incoming momentum (light-cone rep)
 ! M                     = complex mass
-! Gout_A(alpha,beta,l') = outgoing dressed anti-quark loop current without I/(K^2-M^2) with increased rank
+! Gout_A(alpha,beta,lp) = outgoing dressed anti-quark loop current without I/(K^2-M^2) with increased rank
 ! HR(i,l)               = rank-raising function
 ! Gout_A(alpha,beta,l)  = G_A(alpha,sigma,l) * [-slash(K)+M](sigma,beta) + sum_{i=1}^4 G_A(alpha,sigma,LR(i,l))*[-gamma_i(sigma,beta)]
 ! gamma_i               = Dirac gamma matrix with covariant light-cone components
@@ -85,7 +85,7 @@ subroutine prop_loop_Q_A(rank_in,rank_out,G_Q,K,M,Gout_Q)
 ! rank_i/o              = length of tensor array up to highest incoming/outgoing rank
 ! K(4)                  = incoming momentum (light-cone rep)
 ! M                     = complex mass
-! Gout_Q(alpha,beta,l') = outgoing dressed quark loop current without I/(K^2-M^2) with increased rank
+! Gout_Q(alpha,beta,lp) = outgoing dressed quark loop current without I/(K^2-M^2) with increased rank
 ! HR(i,l)               = rank-raising function
 ! Gout_Q(alpha,beta,l)  = [slash(K)+M](beta,sigma)*G_Q(alpha,sigma,l) + sum_{i=1}^4 [gamma_i(beta,sigma)]*G_Q(alpha,sigma,LR(i,l))
 ! gamma_i               = Dirac gamma matrix with covariant light-cone components

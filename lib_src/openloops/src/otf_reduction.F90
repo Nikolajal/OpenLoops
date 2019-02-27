@@ -107,27 +107,54 @@ subroutine construct_l1l2_1(mom1,mom2,alpha,gamma,l1,l2,r1,r2)
   complex(REALKIND), intent(out) :: gamma, alpha(2)
   complex(REALKIND) :: sqrt_delta
   complex(REALKIND), intent(out) :: l1(4), l2(4), r1(4), r2(4)
-  real(REALKIND) :: p1p2, x1, x2, x12, delta, l1acc(1:4), l2acc(1:4), norm
+  real(REALKIND) :: p1p2, p1xp2, x1, x2, x12, delta, l1acc(1:4), l2acc(1:4), norm
   complex(REALKIND) :: l1l1, l2l2, lnew
   integer :: i, sl
   real(REALKIND) :: accthres = 10._/**/REALKIND**(1-real(precision(x1),REALKIND))
   real(REALKIND) :: corrdiff
+  real(REALKIND) :: signp1p2,signp1xp2
+  logical :: zero_pt
 
   p1p2 = REAL(cont_LC_cntrv(L(1:4,mom1),L(1:4,mom2)))
-
   x1 = REAL(L(5,mom1) + L(6,mom1))/p1p2
   x2 = REAL(L(5,mom2) + L(6,mom2))/p1p2
-  x12 = x1*x2
-  delta = cone - x12
 
-  if (delta > 0) then
-    sqrt_delta = sqrt(delta)
+  zero_pt = L(3,mom1) .eq. 0 .and. L(4,mom1) .eq. 0 .and. &
+            L(3,mom2) .eq. 0 .and. L(4,mom2) .eq. 0
+  if (zero_pt) then
+    p1xp2 = REAL(L(1,mom1)*L(2,mom2) - L(2,mom1)*L(1,mom2))
+    signp1p2 = sign(1._/**/REALKIND,p1p2)
+    signp1xp2 = sign(1._/**/REALKIND,p1xp2)
+
+    if (signp1p2*signp1xp2 .eq. 1) then
+      alpha(1) = L(2,mom1)/L(2,mom2)
+      alpha(2) = L(1,mom2)/L(1,mom1)
+    else
+      alpha(1) = L(1,mom1)/L(1,mom2)
+      alpha(2) = L(2,mom2)/L(2,mom1)
+    end if
+
+    delta = p1xp2**2/p1p2**2/4
+    if (delta > 0) then
+      sqrt_delta = sqrt(delta)
+    else
+      sqrt_delta = - CI*sqrt(-delta)
+    end if
   else
-    sqrt_delta = - CI*sqrt(-delta)
-  end if
+    x1 = REAL(L(5,mom1) + L(6,mom1))/p1p2
+    x2 = REAL(L(5,mom2) + L(6,mom2))/p1p2
+    x12 = x1*x2
+    delta = cone - x12
 
-  alpha(1) = x1/(cone + sqrt_delta)
-  alpha(2) = x2/(cone + sqrt_delta)
+    if (delta > 0) then
+      sqrt_delta = sqrt(delta)
+    else
+      sqrt_delta = - CI*sqrt(-delta)
+    end if
+
+    alpha(1) = x1/(cone + sqrt_delta)
+    alpha(2) = x2/(cone + sqrt_delta)
+  end if
 
   call squeeze_onshell(L(1:4,mom1),L(1:4,mom2),alpha(1),l1)
   call squeeze_onshell(L(1:4,mom2),L(1:4,mom1),alpha(2),l2)
@@ -165,32 +192,29 @@ subroutine construct_l1l2_1(mom1,mom2,alpha,gamma,l1,l2,r1,r2)
 
     ! condition for necessity of os correction
     if (abs(osdelta)/norm .gt. accthres) then
-      norm = maxval(abs(li))
       do i = 1, 4
         if (li(i) .eq. zero) then
-          if (al .ne. 1) then
+          if (.not. zero_pt) then
             !component cannot be an exact zero -> introduce artificial error
             li(i) = p1(i)*10**(-prd-1)
             lierr(i) = 10**(-prd-2)
             select case (i)
               case (1,2)
                 li1li2 = li(1)*li(2)
-                osdelta = li1li2 - li3li4
               case default
                 li3li4 = li(3)*li(4)
-                osdelta = li1li2 - li3li4
             end select
           else
             lierr(i) = zero
           end if
-        end if
-        if (li(i) .eq. zero) then
-          lierr(i) = zero
         else
+          ! error estimation by computing loss of accuracy in p1-al*p2
+          norm = maxval(abs(li))
           errestim =abs(li(i))/max(norm, abs(p1(i)), abs(al*p2(i)))
-          lierr(i) = 10**(-precision(up)-2-log10(errestim))
+          lierr(i) = 10**(-prd-2-log10(errestim))
         end if
       end do
+      osdelta = li1li2 - li3li4
       up = (lierr(1)+lierr(2))*li1li2
       lp = (lierr(3)+lierr(4))*li3li4
 
@@ -198,21 +222,21 @@ subroutine construct_l1l2_1(mom1,mom2,alpha,gamma,l1,l2,r1,r2)
         beta = -osdelta/(up)
         li(1) = li(1) + beta*lierr(1)*li(1)
         li(2) = li(2) + beta*lierr(2)*li(2)
-      else if (abs(up) .eq. zero) then ! correct upper two cmp
+      else if (abs(up) .eq. zero) then ! correct lower two cmp
         beta = -osdelta/(-lp)
         li(3) = li(3) + beta*lierr(3)*li(3)
         li(4) = li(4) + beta*lierr(4)*li(4)
       else
         rp = abs(up)/abs(lp)
-        if (rp .gt. 10) then ! only correct upper two cmp
+        if (rp .gt. 10) then ! correct only upper two cmp
           beta = -osdelta/(up)
           li(1) = li(1) + beta*lierr(1)*li(1)
           li(2) = li(2) + beta*lierr(2)*li(2)
-        else if (rp .lt. 0.1) then ! only correct upper two cmp
+        else if (rp .lt. 0.1) then ! correct only upper two cmp
           beta = -osdelta/(-lp)
           li(1) = li(1) + beta*lierr(1)*li(1)
           li(2) = li(2) + beta*lierr(2)*li(2)
-        else ! only correct upper and lower two cmp
+        else ! correct upper and lower two cmp
           beta = -osdelta/(up-lp)
           li(1) = li(1) + beta*lierr(1)*li(1)
           li(2) = li(2) + beta*lierr(2)*li(2)
@@ -818,7 +842,7 @@ subroutine construct_redset4(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,Red
 !******************************************************************************
   use KIND_TYPES, only: REALKIND,QREALKIND
   use ol_data_types_/**/REALKIND, only: basis, redset4
-  use ol_parameters_decl_/**/REALKIND, only: hp_switch,hp_err_thres
+  use ol_parameters_decl_/**/REALKIND, only: hp_switch,hp_err_thres,hp_redset_gd3_thres
 #ifdef PRECISION_dp
   use ol_data_types_/**/QREALKIND, only: basis_qp=>basis, redset4_qp=>redset4
   use ofred_basis_construction_/**/QREALKIND, only: &
@@ -891,7 +915,7 @@ subroutine construct_redset4(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,Red
   end if
 
 #ifdef PRECISION_dp
-  if (hp_switch .eq. 1 .and. -log10(sqrt(abs(gd3))) .gt. hp_err_thres) then
+  if (hp_switch .eq. 1 .and. -log10(sqrt(abs(gd3))) .gt. hp_redset_gd3_thres) then
     call construct_RedBasis_qp(RedSet%redbasis%mom1,RedSet%redbasis%mom2,Redbasis_qp)
     call construct_p3scalars_qp(RedSet%mom3,Redbasis_qp,scalars_qp,gd2_qp,gd3_qp)
     RedSet_qp = redset4_qp(redbasis=Redbasis_qp, &

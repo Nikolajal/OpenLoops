@@ -496,7 +496,7 @@ end subroutine rand_sphere
 subroutine decay3(E_in, m, psp)
   ! Random phase space point for a 1->2 decay with energy E_in.
   ! Set up the decay in the centre of mass system, then apply a Lorentz boost.
-  ! Note that the points won't be uniformly distributed if E_in /= m(1).
+  ! Note that the points will not be uniformly distributed if E_in /= m(1).
   use ol_parameters_decl_/**/REALKIND, only: psp_tolerance
   use ol_debug, only: ol_error, ol_msg, ol_fatal
   implicit none
@@ -525,10 +525,10 @@ subroutine decay3(E_in, m, psp)
 !   p2a_abs = sqrt((m12**2 + m22**2 + m32**2 - 2*m12*m22 - 2*m12*m32 - 2*m22*m32)/(4*m12))
   p2a_abs = sqrt(E2a**2-m22)
   call rand_sphere(p2a_abs, p2a)
-  ! Lorentz boost (E',p') = L.(E,p) such that L.(m1,0) = (sqrt,p1)
+  ! Lorentz boost (Ep,pp) = L.(E,p) such that L.(m1,0) = (sqrt,p1)
   ! L_00 = gamma, L_0i = L_i0 = -gamma*beta_i, L_ij = delta_ij + (gamma-1)*beta_i*beta_j/beta^2
-  ! E' = gamma*(E-beta.p)
-  ! p' = p + ((gamma-1)*beta.p/beta^2 - E*gamma)*beta
+  ! Ep = gamma*(E-beta.p)
+  ! pp = p + ((gamma-1)*beta.p/beta^2 - E*gamma)*beta
   ! p1 and boost parameters
   if (E1 == m(1)) then
     psp(0,1) = m(1)
@@ -651,7 +651,7 @@ subroutine rambo_decay(sqrt_s, m_ex, p_rambo)
       p_rambo(0,1) =  sqrt_s
       p_rambo(1,1) =  0
       p_rambo(2,1) =  0
-      p_rambo(3,1) =  0
+      p_rambo(3,1) =  sqrt(sqrt_s*sqrt_s-m_ex(1)*m_ex(1))
     end if
     call rambo0(n-1, sqrt_s, m_ex(2:n), p_scatt, wgt)
     p_rambo(  0,2:n) = p_scatt(  4,1:n-1)
@@ -969,9 +969,9 @@ subroutine conv_mom_scatt2in_mexpl(P_scatt, m_ext2, P_in_clean, perm_inv, n)
   use ol_external_decl_/**/DREALKIND, only: n_scatt
   use ol_parameters_decl_/**/REALKIND, only: scalefactor
   use ol_parameters_init_/**/REALKIND, only: init_kin_arrays
-#ifdef PRECISION_dp
-  use ol_parameters_init_qp, only: init_kin_arrays_qq => init_kin_arrays
-#endif
+!#ifdef PRECISION_dp
+!  use ol_parameters_init_qp, only: init_kin_arrays_qq => init_kin_arrays
+!#endif
   integer,           intent(in)  :: n
   real(DREALKIND),   intent(in)  :: P_scatt(0:3,n)
   real(REALKIND),    intent(in)  :: m_ext2(n)
@@ -1008,9 +1008,9 @@ subroutine conv_mom_scatt2in_mids(P_scatt, m_ext2, P_in_clean, perm_inv, n)
   use ol_external_decl_/**/DREALKIND, only: n_scatt
   use ol_parameters_decl_/**/REALKIND, only: scalefactor
   use ol_parameters_init_/**/REALKIND, only: init_kin_arrays
-#ifdef PRECISION_dp
-  use ol_parameters_init_qp, only: init_kin_arrays_qq => init_kin_arrays
-#endif
+!#ifdef PRECISION_dp
+!  use ol_parameters_init_qp, only: init_kin_arrays_qq => init_kin_arrays
+!#endif
   implicit none
   integer,           intent(in)  :: n
   real(DREALKIND),   intent(in)  :: P_scatt(0:3,n)
@@ -1080,7 +1080,7 @@ subroutine write_INmom(P_ex, n, unit)
   contains
   function cont_LL(A, B)
     ! Contraction of (real) Lorentz vectors in standard representation.
-    ! Don't use the contractions module to avoid dependency cycles.
+    ! Do not use the contractions module to avoid dependency cycles.
     use KIND_TYPES, only: REALKIND
     implicit none
     real(REALKIND) :: cont_LL

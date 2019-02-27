@@ -19,7 +19,7 @@
 
 
 ! ol_dilog configuration
-! stop series expansion when the result doesn't change anymore
+! stop series expansion when the result does not change anymore
 #define COMPARE
 ! check expansion depth required to achieve full precision;
 ! store the number of points which required n terms in bin(n)
@@ -361,7 +361,7 @@ module ol_generic
 
   function nth_permutation(arr, n)
     ! return the n-th permutation of arr, defined by the set of canonically
-    ! order permutations of [1,..,size(arr)] (same ordering as Mathematica's Permutation[]).
+    ! order permutations of [1,..,size(arr)] (same ordering as Mathematicas Permutation[]).
     implicit none
     integer, intent(in) :: arr(:), n
     integer :: nth_permutation(size(arr))
@@ -382,7 +382,7 @@ module ol_generic
   function perm_pos(perm)
     ! Unique mapping of a permutation perm(1:n) -> integer in [1..n!].
     ! In a canonically ordered list of all permutations
-    ! (like Mathematica's Permutations[Range[n]]),
+    ! (like Mathematicas Permutations[Range[n]]),
     ! perm is at position perm_pos
     implicit none
     integer :: perm_pos
@@ -694,7 +694,7 @@ module ol_iso_c_utilities
 !     slen = strlen(c_str_ptr)
 !     call c_f_pointer(c_str_ptr, f_str_ptr, shape = [slen])
 !     if (allocated(f_str)) deallocate(f_str)
-!     allocate(character(len=size(f_str_ptr))::f_str) ! len=slen doesn't work
+!     allocate(character(len=size(f_str_ptr))::f_str) ! len=slen does not work
 !     do i = 1, slen
 !       f_str(i:i) = f_str_ptr(i)
 !     end do

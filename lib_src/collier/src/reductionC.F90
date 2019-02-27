@@ -104,7 +104,7 @@ contains
     double complex, intent(out) :: C(0:rmax,0:rmax,0:rmax)
     double precision, intent(out) :: Cerr1(0:rmax),Cerr2(0:rmax)
     double complex, allocatable :: Caux(:,:,:), Cuvaux(:,:,:), fct(:)
-    double precision, allocatable :: Cerr1aux(:),Cerr2aux(:)
+    double precision, allocatable :: Cerr1aux(:),Cerr2aux(:),acc_req_Cexnew(:)
     double complex :: x(6)
     integer :: rank,switch,cnt,n0,n1,n2,r,rb
     logical :: nocalc,wrica
@@ -125,27 +125,25 @@ contains
           rank = rmax
           switch = 0
 
+          if(present(rbasic)) then
+            rb =rbasic
+          else
+            rb = rmax
+          endif
+
           if(rmax.ge.1) then
-            allocate(fct(NCoefsG(rmax,3)+NCoefsG(rmax-1,3)+2*(rmax+2)))
-            call ReadCache(fct,NCoefsG(rmax,3)+NCoefsG(rmax-1,3)+2*(rmax+2),x,6,1,id,3,rank,nocalc,wrica)
+            allocate(fct(NCoefsG(rmax,3)+NCoefsG(rmax-1,3)+2*(rmax+1)))
+            call ReadCache(fct,NCoefsG(rmax,3)+NCoefsG(rmax-1,3)+2*(rmax+1),x,6,1,id,3,rb,nocalc,wrica)
           else 
-            allocate(fct(NCoefsG(rmax,3)+2*(rmax+2)))
-            call ReadCache(fct,NCoefsG(rmax,3)+2*(rmax+2),x,6,1,id,3,rank,nocalc,wrica)
+            allocate(fct(NCoefsG(rmax,3)+2*(rmax+1)))
+            call ReadCache(fct,NCoefsG(rmax,3)+2*(rmax+1),x,6,1,id,3,rb,nocalc,wrica)
           end if
     
+          rank = max(rmax,rb)
+
           if(nocalc)then
 
-            if(present(rbasic)) then
-              rb =rbasic
-            else
-              rb = rmax
-            endif
-            if(int(fct(1)).lt.rb) then
-! if cached results are for smaller rbasic recalculate and write to cache 
-! NOTE: coefficients shifted in cache by one slot
-              wrica = .true.
-            else
-              cnt = 1
+              cnt = 0
               do r=0,rmax
                 do n0=0,r
                   do n1=0,r-n0
@@ -172,25 +170,26 @@ contains
               end do
 
               return
-            endif
+
           end if
 
-          
           if(rank.eq.rmax) then
 
             if(present(rbasic)) then
-              call CalcCred(C,Cuv,p10,p21,p20,m02,m12,m22,rank,id,Cerr1,Cerr2,rbasic+rank-rmax,acc_req_Cextra)
+              if(rb.gt.rbasic) then
+                allocate(acc_req_Cexnew(0:rank))
+                acc_req_Cexnew(0:rb)=acc_req_Cextra(0)
+                acc_req_Cexnew(rb+1:rank)=acc_req_Cextra(rbasic+1:rank-rb+rbasic) 
+                call CalcCred(C,Cuv,p10,p21,p20,m02,m12,m22,rank,id,Cerr1,Cerr2,rb,acc_req_Cexnew)
+              else
+                call CalcCred(C,Cuv,p10,p21,p20,m02,m12,m22,rank,id,Cerr1,Cerr2,rbasic,acc_req_Cextra)
+              end if
             else
               call CalcCred(C,Cuv,p10,p21,p20,m02,m12,m22,rank,id,Cerr1,Cerr2)
             end if
 
             if (wrica) then
-              cnt = 1
-              if(present(rbasic)) then
-                fct(cnt) = rbasic
-              else
-                fct(cnt) = rank
-              end if 
+              cnt = 0
               do r=0,rank
                 do n0=0,r
                   do n1=0,r-n0
@@ -215,9 +214,9 @@ contains
               end do
 
               if(rank.ge.1) then
-                call WriteCache(fct,NCoefsG(rank,3)+NCoefsG(rank-1,3)+2*(rank+2),id,3,rank)
+                call WriteCache(fct,NCoefsG(rank,3)+NCoefsG(rank-1,3)+2*(rank+1),id,3,rb)
               else 
-                call WriteCache(fct,NCoefsG(rank,3)+2*(rank+2),id,3,rank)
+                call WriteCache(fct,NCoefsG(rank,3)+2*(rank+1),id,3,rb)
               end if
 
             end if
@@ -226,30 +225,37 @@ contains
           
           
           else
+
             allocate(Caux(0:rank,0:rank,0:rank))
             allocate(Cuvaux(0:rank,0:rank,0:rank))
             allocate(Cerr1aux(0:rank))
             allocate(Cerr2aux(0:rank))
 
             if(present(rbasic)) then
+              if(rb.gt.rbasic) then
+                allocate(acc_req_Cexnew(0:rank))
+                acc_req_Cexnew(0:rb)=acc_req_Cextra(0)
+                acc_req_Cexnew(rb+1:rank)=acc_req_Cextra(rbasic+1:rank-rb+rbasic) 
+!                acc_req_Cexnew(rb+1:rmax)=acc_req_Cextra(rbasic+1:rmax-rb+rbasic) 
+!                acc_req_Cexnew(rmax+1:rank)=acc_req_Cextra(rmax) 
+                call CalcCred(C,Cuv,p10,p21,p20,m02,m12,m22,rank,id,Cerr1,Cerr2,rb,acc_req_Cexnew)
+              else
+                call CalcCred(C,Cuv,p10,p21,p20,m02,m12,m22,rank,id,Cerr1,Cerr2,rbasic,acc_req_Cextra)
+              end if
+
               call CalcCred(Caux,Cuvaux,p10,p21,p20,m02,m12,m22,rank,id,Cerr1aux,Cerr2aux,rbasic+rank-rmax,acc_req_Cextra)
             else
               call CalcCred(Caux,Cuvaux,p10,p21,p20,m02,m12,m22,rank,id,Cerr1aux,Cerr2aux)
             end if
 
             if (wrica) then
-              cnt = 1
+              cnt = 0
               deallocate(fct)
               if(rank.ge.1) then
-                allocate(fct(NCoefsG(rank,3)+NCoefsG(rank-1,3)+2*(rank+2)))
+                allocate(fct(NCoefsG(rank,3)+NCoefsG(rank-1,3)+2*(rank+1)))
               else 
-                allocate(fct(NCoefsG(rank,3)+2*(rank+2)))
+                allocate(fct(NCoefsG(rank,3)+2*(rank+1)))
               end if
-              if(present(rbasic)) then
-                fct(cnt) = rbasic+rank-rmax
-              else
-                fct(cnt) = rank
-              end if 
               do r=0,rank
                 do n0=0,r
                   do n1=0,r-n0
@@ -274,9 +280,9 @@ contains
               end do
 
               if(rank.ge.1) then
-                call WriteCache(fct,NCoefsG(rank,3)+NCoefsG(rank-1,3)+2*(rank+2),id,3,rank)
+                call WriteCache(fct,NCoefsG(rank,3)+NCoefsG(rank-1,3)+2*(rank+1),id,3,rb)
               else 
-                call WriteCache(fct,NCoefsG(rank,3)+2*(rank+2),id,3,rank)
+                call WriteCache(fct,NCoefsG(rank,3)+2*(rank+1),id,3,rb)
               end if
 
             end if
@@ -290,9 +296,6 @@ contains
             deallocate(Cuvaux)
             deallocate(Cerr1aux)
             deallocate(Cerr2aux)
-
-!           write(*,*) 'Cred Cerr1',Cerr1
-!           write(*,*) 'Cred Cerr2',Cerr2
 
             return
 
@@ -365,6 +368,7 @@ contains
     double precision :: x_gpf,y_gpf,v_gpf,v1_gpf,b_gpf,err_gpf_B(0:rmax),err_gpf_exp
     double precision :: err_B,err_C0,err_C(0:rmax),err_inf,err_req_Cr(0:rmax),acc_req_Cr(0:rmax),acc_C(0:rmax)
     double precision :: checkest,norm,Cscale
+    double precision :: deterr
     logical :: lerr_C0,errorwriteflag
 
     character(len=*),parameter :: fmt1 = "(A7,'dcmplx(',d25.18,' , ',d25.18,' )')"
@@ -439,7 +443,7 @@ contains
           dprec_cll*maxval(abs(Z(1,:)))*maxval(abs(Z(2,:)))
 #endif
 
-! changed 16.08.18
+! changed 16.08.2018
 !      if (adetZ.gt.dprec_cll*maxval(abs(Z))**2) then
       if (adetZ.gt.dprec_cll*maxval(abs(Z(1,:)))*maxval(abs(Z(2,:)))) then
         C(0,0,0) = C0_coli(p10,p21,p20,m02,m12,m22)
@@ -505,10 +509,17 @@ contains
     maxZ = maxval(abs(Z))
 
 ! changed 21.06.2018
-    call chinv(2,Z,Zinv,detZ)
+! deterr added 17.01.2019
+    call chinve(2,Z,Zinv,detZ,deterr)
 !    detZ = chdet(2,Z)
 
-! added 16.08.18
+!    write(*,*) 'reductionC detZ = ',detZ,dprec_cll/deterr
+
+! added 17.01.2019
+    if (deterr.lt.dprec_cll) detZ = 0d0
+
+#ifdef OBSOLETE
+! added 16.08.2018
 !    if (abs(detZ).lt.dprec_cll*maxval(abs(Z(1,:)))*maxval(abs(Z(2,:)))) then
     if (abs(detZ).lt.dprec_cll*max(  &
         abs(Z(1,1)*Z(2,2)),abs(Z(1,2)*Z(2,1))) ) then 
@@ -519,8 +530,9 @@ contains
 #endif
       detZ = 0d0
     end if
+#endif
 
-! changed 16.08.18 more stable for PV, but implies less expansions
+! changed 16.08.2018 more stable for PV, but implies less expansions
 ! and larger Derr1=Derrout in Ds  (local estimates based on err2!)
 !    if (detZ.ne.0d0) then
 !!      call chinv(2,Z,Zinv)
@@ -571,10 +583,17 @@ contains
     mx(1:2,1:2) = Z(1:2,1:2)
 
 ! changed 21.06.2018
-    call chinv(3,mx,mxinv,detX)
+! deterr added 17.01.2019
+    call chinve(3,mx,mxinv,detX,deterr)
 !    detX = chdet(3,mx)
 
-! added 16.08.18
+!    write(*,*) 'reductionC detX = ',detX,dprec_cll/deterr
+
+! added 17.01.2019
+    if (deterr.lt.dprec_cll) detX = 0d0
+
+#ifdef OBSOLETE
+! added 16.08.2018
 !    if (abs(detX).lt.dprec_cll*maxval(abs(mx(0,:)))*maxval(abs(mx(1,:)))*maxval(abs(mx(2,:)))) then
     if (abs(detX).lt.dprec_cll*max(  &
         abs(mx(0,0)*mx(1,1)*mx(2,2)),abs(mx(0,1)*mx(1,2)*mx(2,0)),   &
@@ -590,6 +609,7 @@ contains
 #endif
       detX = 0d0
     end if
+#endif
 
     if (detX.ne.0d0.and.maxZ.ne.0d0) then
 
@@ -641,7 +661,7 @@ contains
     maxZadjfd = max(maxZadjf,adetZ)
 
     aZadjff = abs(Zadjf(1)*f(1) + Zadjf(2)*f(2))
-! changed 16.08.18
+! changed 16.08.2018
 !    adetX = abs(2d0*mm02*detZ - Zadjf(1)*f(1) - Zadjf(2)*f(2))
     adetX = abs(detX)
     maxXadj = max(abs(Xadj(1,1)),abs(Xadj(2,1)),abs(Xadj(2,2)))
@@ -1132,7 +1152,7 @@ contains
 #endif
 
     !  expansion in small momenta and f's
-!  estimates to be confirmed 16.08.17, r dependence may be different
+!  estimates to be confirmed 16.08.2017, r dependence may be different
 !  since C_mni... is needed in contrast to Cgy expansion
     if (abs(m02).gt.m2scale*dprec_cll) then 
       x_gpf = fmax/abs(m02)
@@ -1173,7 +1193,7 @@ contains
 ! no method works
     if(use_C0.or.use_pv.or.use_pv2.or.use_g.or.use_gy.or.use_gp.or.use_gr.or.use_gpf.eqv..false.) then
 
-! added 16.08.18
+! added 16.08.2018
       goto 200   !  try pv with shift
 
       call SetErrFlag_coli(-6)
@@ -1607,7 +1627,7 @@ contains
       maxZshift = maxval(abs(Zshift))
 
       detZshift = chdet(2,Zshift)
-! added 16.08.18
+! added 16.08.2018
     if (abs(detZshift).lt.dprec_cll*maxval(abs(Zshift(1,:)))*maxval(abs(Zshift(2,:)))) then
 #ifdef Credtest
     write(*,*) 'detZshift set to 0  ',abs(detZshift),dprec_cll*maxval(abs(Zshift(1,:)))*maxval(abs(Zshift(2,:)))
@@ -1655,10 +1675,17 @@ contains
       mxshift(1:2,1:2) = Zshift(1:2,1:2)
 
 ! changed 21.06.2018
-      call chinv(3,mxshift,mxinvshift,detXshift)
+! deterr added 17.01.2019
+      call chinve(3,mxshift,mxinvshift,detXshift,deterr)
 !      detXshift = chdet(3,mxshift)
 
-! added 16.08.18
+!    write(*,*) 'reductionC detXshift = ',detXshift,dprec_cll/deterr
+
+! added 17.01.2019
+    if (deterr.lt.dprec_cll) detXshift = 0d0
+
+#ifdef OBSOLETE
+! added 16.08.2018
       if (abs(detXshift).lt.dprec_cll*maxval(abs(mxshift(0,:)))  &
           *maxval(abs(mxshift(1,:)))*maxval(abs(mxshift(2,:)))) then
 #ifdef Credtest
@@ -1667,6 +1694,7 @@ contains
 #endif
         detXshift = 0d0
       end if
+#endif
 
       if (detXshift.ne.0d0.and.maxZshift.ne.0d0) then
 

@@ -103,8 +103,9 @@ contains
     integer :: rank,switch,cnt,n0,n1,n2,n3,r
     logical :: nocalc,wrica
 
-!    write(*,*) 'CalcD in'
-!    write(*,*)  'CalcD in with Derr'
+!    write(*,*)  'CalcD in',p10,p21,p32,p30,p20,p31
+!    write(*,*)  'CalcD in',m02,m12,m22,m32
+!    write(*,*)  'CalcD in',rmax,id
 
     if (use_cache_system) then
       if ((ncache.gt.0).and.(ncache.le.ncache_max)) then
@@ -126,8 +127,8 @@ contains
             allocate(fct(NCoefsG(rmax,4)-NCoefs(rmax-2,4)+NCoefs(rmax-3,4)+2*(rmax+1)))
             call ReadCache(fct,NCoefsG(rmax,4)-NCoefs(rmax-2,4)+NCoefs(rmax-3,4)+2*(rmax+1),x,10,1,id,4,rank,nocalc,wrica)
           else if(rmax.eq.2) then
-            allocate(fct(NCoefsG(rmax,4)-1+2*(rmax+1)))
-            call ReadCache(fct,NCoefsG(rmax,4)-1+2*(rmax+1),x,10,1,id,4,rank,nocalc,wrica)
+            allocate(fct(NCoefsG(rmax,4)+1+2*(rmax+1)))
+            call ReadCache(fct,NCoefsG(rmax,4)+1+2*(rmax+1),x,10,1,id,4,rank,nocalc,wrica)
           else
             allocate(fct(NCoefsG(rmax,4)+2*(rmax+1)))
             call ReadCache(fct,NCoefsG(rmax,4)+2*(rmax+1),x,10,1,id,4,rank,nocalc,wrica)
@@ -170,7 +171,7 @@ contains
               cnt = cnt+1
               Derr2(r) = real(fct(cnt))
             end do
-!            write(*,*) 'Dcache', id, rank, D(0,rank,0,0) 
+
             return
           end if
 
@@ -178,7 +179,6 @@ contains
           if(rank.eq.rmax) then
 
             call CalcDred(D,Duv,p10,p21,p32,p30,p20,p31,m02,m12,m22,m32,rank,id,Derr1,Derr2)
-!            write(*,*) 'Dcalc', id, rank, D(0,rank,0,0) 
 
             if (wrica) then
               cnt = 0
@@ -217,7 +217,7 @@ contains
               if(rank.ge.3) then
                 call WriteCache(fct,NCoefsG(rank,4)-NCoefs(rank-2,4)+NCoefs(rank-3,4)+2*(rank+1),id,4,rank)
               else if(rank.eq.2) then
-                call WriteCache(fct,NCoefsG(rank,4)-1+2*(rank+1),id,4,rank)
+                call WriteCache(fct,NCoefsG(rank,4)+1+2*(rank+1),id,4,rank)
               else
                 call WriteCache(fct,NCoefsG(rank,4)+2*(rank+1),id,4,rank)
               end if            
@@ -241,31 +241,34 @@ contains
               if(rank.ge.3) then 
                 allocate(fct(NCoefsG(rank,4)-NCoefs(rank-2,4)+NCoefs(rank-3,4)+2*(rank+1)))
               else if(rank.eq.2) then 
-                allocate(fct(NCoefsG(rank,4)-1+2*(rank+1)))
+                allocate(fct(NCoefsG(rank,4)+1+2*(rank+1)))
               else
                 allocate(fct(NCoefsG(rank,4)+2*(rank+1)))
               end if
+
               do r=0,rank
-!               do n0=0,r
-                do n0=0,r/2+1
-                  do n1=0,r-n0
-                    do n2=0,r-n0-n1
-                      n3 = r-n0-n1-n2
- 
+                do n1=0,r
+                  do n2=0,r-n1
+                    n3 = r-n1-n2
+                    cnt = cnt+1
+                    fct(cnt) = Daux(0,n1,n2,n3)
+                  end do
+                end do
+                do n0=1,(r+1)/2
+                  do n1=0,r-2*n0+1
+                    do n2=0,r-2*n0-n1+1
+                      n3 = r-2*n0-n1-n2+1
                       cnt = cnt+1
                       fct(cnt) = Daux(n0,n1,n2,n3)
-
                     end do
                   end do
                 end do
-                do n0=2,r/2+1
-                  do n1=0,r-n0
-                    do n2=0,r-n0-n1
-                      n3 = r-n0-n1-n2
- 
+                do n0=2,(r+1)/2
+                  do n1=0,r-2*n0+1
+                    do n2=0,r-2*n0-n1+1
+                      n3 = r-2*n0-n1-n2+1
                       cnt = cnt+1
                       fct(cnt) = Duvaux(n0,n1,n2,n3)
-
                     end do
                   end do
                 end do
@@ -274,11 +277,40 @@ contains
                 cnt = cnt+1
                 fct(cnt) = Derr2aux(r)
               end do
+! changed 25.10.18
+!             do r=0,rank
+!               do n0=0,r/2+1
+!                 do n1=0,r-n0
+!                   do n2=0,r-n0-n1
+!                     n3 = r-n0-n1-n2
+!
+!                     cnt = cnt+1
+!                     fct(cnt) = Daux(n0,n1,n2,n3)
+
+!                   end do
+!                 end do
+!               end do
+!               do n0=2,r/2+1
+!                 do n1=0,r-n0
+!                   do n2=0,r-n0-n1
+!                     n3 = r-n0-n1-n2
+!
+!                     cnt = cnt+1
+!                     fct(cnt) = Duvaux(n0,n1,n2,n3)
+
+!                   end do
+!                 end do
+!               end do
+!               cnt = cnt+1
+!               fct(cnt) = Derr1aux(r)
+!               cnt = cnt+1
+!               fct(cnt) = Derr2aux(r)
+!             end do
 
               if(rank.ge.3) then
                 call WriteCache(fct,NCoefsG(rank,4)-NCoefs(rank-2,4)+NCoefs(rank-3,4)+2*(rank+1),id,4,rank)   
               else if(rank.eq.2) then
-                call WriteCache(fct,NCoefsG(rank,4)-1+2*(rank+1),id,4,rank)
+                call WriteCache(fct,NCoefsG(rank,4)+1+2*(rank+1),id,4,rank)
               else
                 call WriteCache(fct,NCoefsG(rank,4)+2*(rank+1),id,4,rank)
               end if            
@@ -303,7 +335,6 @@ contains
     end if
       
     call CalcDred(D,Duv,p10,p21,p32,p30,p20,p31,m02,m12,m22,m32,rmax,id,Derr1,Derr2)
-
 
   end subroutine CalcD
 
@@ -355,6 +386,7 @@ contains
     double precision :: x_gr,y_gr,y1_gr,a_gr,err_gr_C,err_gr_Cr,err_gr_exp
     double precision :: err_C0,Cerr_i(0:rmax_C,0:3),err_C(0:rmax_C),err_D0,acc_D,errfac(0:3),err_req_D,err_inf,Cerr2_i(0:rmax_C,0:3)
     double precision :: checkest,norm,Dscale2
+    double precision :: deterr
     logical :: lerr_D0,errorwriteflag
 
     character(len=*),parameter :: fmt1 = "(A7,'dcmplx(',d25.18,' , ',d25.18,' )')"
@@ -413,7 +445,7 @@ contains
       
       adetX = abs(chdet(4,mx))
 
-! changed 16.08.18
+! changed 16.08.2018
 !      if (adetX.gt.dprec_cll*Dscale2**2) then
       if (adetX.gt.dprec_cll*maxval(abs(mx(0,:)))*maxval(abs(mx(1,:)))*maxval(abs(mx(2,:)))*maxval(abs(mx(3,:)))) then
         D(0,0,0,0) = D0_coli(p10,p21,p32,p30,p20,p31,m02,m12,m22,m32)
@@ -547,10 +579,15 @@ contains
     maxZ = maxval(abs(Z))
 
 ! changed 21.06.2018
-    call chinv(3,Z,Zinv,detZ)
+! deterr added 17.01.2019
+    call chinve(3,Z,Zinv,detZ,deterr)
 !    detZ = chdet(3,Z)
 
-! added 16.08.18
+! added 17.01.2019
+    if (deterr.lt.dprec_cll) detZ = 0d0
+
+#ifdef OBSOLETE
+! added 16.08.2018
 !    if (abs(detZ).lt.dprec_cll*maxval(abs(Z(1,:)))*maxval(abs(Z(2,:)))*maxval(abs(Z(3,:)))) then
     if (abs(detZ).lt.dprec_cll*max(  &
         abs(Z(1,1)*Z(2,2)*Z(3,3)),abs(Z(1,2)*Z(2,3)*Z(3,1)),   &
@@ -566,6 +603,7 @@ contains
 #endif
       detZ = 0d0
     end if
+#endif
 
     if (detZ.ne.0d0) then
 !      call chinv(3,Z,Zinv)
@@ -636,13 +674,24 @@ contains
     mx(0,2) = mx(2,0)
     mx(0,3) = mx(3,0)
     mx(1:3,1:3) = Z(1:3,1:3)
+!    write(*,*) 'Xn ',mx
 
 ! changed 21.06.2018
-    call chinv(4,mx,mxinv,detX)
+! deterr added 17.01.2019
+    call chinve(4,mx,mxinv,detX,deterr)
 !    detX = chdet(4,mx)
 
-! added 16.08.18   to unprecise!
-!    if (abs(detX).lt.dprec_cll*maxval(abs(mx(0,:)))*maxval(abs(mx(1,:)))*maxval(abs(mx(2,:)))*maxval(abs(mx(3,:)))) then
+#ifdef Dredtest
+    write(*,*) 'reductionD detX = ',((p20-m22-m02)*(p31-m32-m12))**2
+    write(*,*) 'reductionD detX = ',detX,deterr,dprec_cll/deterr
+#endif
+
+! added 17.01.2019
+    if (deterr.lt.dprec_cll) detX = 0d0
+
+! added 16.08.2018   
+! commented out 7.01.2019, IR singular D0 more stable for small finite det
+#ifdef OBSOLETE
     if (abs(detX).lt.dprec_cll*max(  &
         abs(mx(0,0)*mx(1,1)*mx(2,2)*mx(3,3)),abs(mx(0,1)*mx(1,2)*mx(2,3)*mx(3,0)),   &
         abs(mx(0,2)*mx(1,3)*mx(2,0)*mx(3,1)),abs(mx(0,3)*mx(1,0)*mx(2,1)*mx(3,2)))   &    
@@ -651,14 +700,20 @@ contains
       write(*,*) 'detX set to 0  ',abs(detX),     &
           dprec_cll*maxval(abs(mx(0,:)))*maxval(abs(mx(1,:)))    &
           *maxval(abs(mx(2,:))*maxval(abs(mx(3,:)))),  &
-      max(  &
+      dprec_cll*max(  &
+        abs(mx(0,0)*mx(1,1)*mx(2,2)*mx(3,3)),abs(mx(0,1)*mx(1,2)*mx(2,3)*mx(3,0)),   &
+        abs(mx(0,2)*mx(1,3)*mx(2,0)*mx(3,1)),abs(mx(0,3)*mx(1,0)*mx(2,1)*mx(3,2)))&
+      ,dprec_cll,max(  &
         abs(mx(0,0)*mx(1,1)*mx(2,2)*mx(3,3)),abs(mx(0,1)*mx(1,2)*mx(2,3)*mx(3,0)),   &
         abs(mx(0,2)*mx(1,3)*mx(2,0)*mx(3,1)),abs(mx(0,3)*mx(1,0)*mx(2,1)*mx(3,2)))
+      write(*,*) 'detX here ',q20*q20*q31*q31
 #endif
-      detX = 0d0
-    end if
+!      detX = 0d0
+    endif
+#endif
 
-    if (detX.ne.0d0.and.maxZ.ne.0d0) then
+    if (detX.ne.0d0.and.maxZ.ne.0d0) then  ! more stable for small detX!?
+                                           ! for D(3e5,0,0,0,4e6,-4e-3,0,0,0,0)
 !      call chinv(4,mx,mxinv)
       Xadj = mxinv * detX
 
@@ -708,7 +763,7 @@ contains
     maxZadjfd = max(maxZadjf,adetZ)
     Zadjff = Zadjf(1)*f(1)+Zadjf(2)*f(2)+Zadjf(3)*f(3)
     aZadjff = abs(Zadjff)
-! changed 16.08.18
+! changed 16.08.2018
 !    adetX = abs(2d0*mm02*detZ-Zadjf(1)*f(1)-Zadjf(2)*f(2)-Zadjf(3)*f(3))
     adetX = abs(detX)    
 
@@ -1349,7 +1404,7 @@ contains
 #endif
 
     ! expansion in small momenta and f's
-!  estimates to be confirmed 16.08.17, r dependence may be different
+!  estimates to be confirmed 16.08.2017, r dependence may be different
 !  since D_mni... is needed in contrast to Dgy expansion
     if (abs(m02).gt.m2scale*dprec_cll) then 
       x_gpf = fmax/abs(m02)
@@ -2856,7 +2911,7 @@ contains
     Duv(0,0,0,0) = 0d0
 
     ! accuracy estimate for D0 function
-    ! detX=0 implemented 16.08.18
+    ! detX=0 implemented 16.08.2018
     if(adetX.ne.0d0) then
       Derr(0) = acc_def_D0*max( abs(D(0,0,0,0)), 1d0/sqrt(adetX) )
     else
@@ -3248,7 +3303,7 @@ contains
     Duv(0,0,0,0) = 0d0
 
     ! accuracy estimate for D0 function
-    ! detX=0 implemented 16.08.18
+    ! detX=0 implemented 16.08.2018
     if(adetX.ne.0d0) then
       Derr(0) = acc_def_D0*max( abs(D(0,0,0,0)), 1d0/sqrt(adetX) )
     else
@@ -3654,7 +3709,7 @@ contains
     Duv(0,0,0,0) = 0d0
 
     ! accuracy estimate for D0 function
-    ! detX=0 implemented 16.08.18
+    ! detX=0 implemented 16.08.2018
     if(adetX.ne.0d0) then
       Derr(0) = acc_def_D0*max( abs(D(0,0,0,0)), 1d0/sqrt(adetX) )
     else

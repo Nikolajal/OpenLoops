@@ -45,7 +45,7 @@ subroutine helbookkeeping_wf(hel, ex, shift)
 ! attributes additive global labels (0, 1,..., n_k-1)*shift_k
 ! to helicity states (1,2,...,n_k) of kth external particle, where
 ! shift_1 = 1 and shift_k+1 = n_k*shift_k
-! shift = shift_k + 1 is returned as output to fix next particle's labels
+! shift = shift_k + 1 is returned as output to fix next particles labels
 ! **********************************************************************
   use ol_data_types_/**/REALKIND, only: wfun
   implicit none

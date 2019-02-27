@@ -44,7 +44,7 @@ subroutine helbookkeeping_wf(hel, ex, shift)
 ! attributes additive global labels (0, 1,..., n_k-1)*shift_k
 ! to helicity states (1,2,...,n_k) of kth external particle, where
 ! shift_1 = 1 and shift_k+1 = n_k*shift_k
-! shift = shift_k + 1 is returned as output to fix next particle's labels
+! shift = shift_k + 1 is returned as output to fix next particles labels
 ! **********************************************************************
   use ol_data_types_/**/REALKIND, only: wfun
   implicit none
@@ -1158,7 +1158,7 @@ subroutine flip_phase(P, pol, MOM, omega)
   call wf_V_Std(P, 0._/**/REALKIND, pol, eps) ! light-cone polarisation vector
   call Std2LC_Rep(MOM, MOM_LC)
 
-  ! Don't use h_contractions::cont_PP(eps,MOM_LC) to avoid cyclic dependencies
+  ! Do not use h_contractions::cont_PP(eps,MOM_LC) to avoid cyclic dependencies
   omega(1) = eps(1)*MOM_LC(2) + eps(2)*MOM_LC(1) - eps(3)*MOM_LC(4) - eps(4)*MOM_LC(3)
   omega(1) = omega(1)/abs(omega(1))
   omega(1) = omega(1)*omega(1)

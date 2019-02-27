@@ -331,8 +331,8 @@ subroutine parameters_init()
   E2_QED = 4*pi*alpha_QED
   eQED   = sqrt(E2_QED)
 
-  ! (1) Right-handed Z-fermion couplings = gf^+ = gZRH*Qf in Denner's FRs
-  ! (2) Left-handed  Z-fermion couplings = gf^- = gZLH*(I3f-sw2*Qf) in Denner's FRs
+  ! (1) Right-handed Z-fermion couplings = gf^+ = gZRH*Qf in Denners FRs
+  ! (2) Left-handed  Z-fermion couplings = gf^- = gZLH*(I3f-sw2*Qf) in Denners FRs
   gZRH = -sw/cw
   gZLH = 1/(sw*cw)
   gZn  = [    ZERO   , gZLH*( 0.5_/**/REALKIND            ) ] ! neutrino

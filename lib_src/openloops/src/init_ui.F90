@@ -430,6 +430,22 @@ module ol_init
         else
           call set_if_modified(ew_renorm_scheme, val)
         end if
+      case ("onshell_photon_lsz", "onshell_photon_a0")
+        if (val == 1) then
+          call set_if_modified(onshell_photon_lsz, .true.)
+        else if (val == 0) then
+          call set_if_modified(onshell_photon_lsz, .false.)
+        else
+          call ol_error(1,"unrecognised " // trim(param) // "=" // to_string(val))
+        end if
+      case ("offshell_photon_dimreg")
+        if (val == 1) then
+          call set_if_modified(offshell_photon_dimreg, .true.)
+        else if (val == 0) then
+          call set_if_modified(offshell_photon_dimreg, .false.)
+        else
+          call ol_error(1,"unrecognised " // trim(param) // "=" // to_string(val))
+        end if
       case ("complex_mass_scheme", "use_cms")
         call set_if_modified(cms_on, val)
       case ("cll_tenred")
@@ -473,6 +489,12 @@ module ol_init
         else
           nosplash = .true.
         end if
+      case ("apicheck")
+        if (val == 0) then
+          apicheck = .false.
+        else
+          apicheck = .true.
+        end if
       case ("splash")
         if (val == 0) then
           nosplash = .true.
@@ -496,8 +518,10 @@ module ol_init
       case ("expert_mode")
          if (val == 1) then
           expert_mode = .true.
+          apicheck = .false.
         elseif (val == 0) then
           expert_mode = .false.
+          apicheck = .true.
         else
           call ol_error("expert_mode not available:" // trim(to_string(val)))
         end if
@@ -727,7 +751,7 @@ module ol_init
   subroutine setparameter_double(param, val, err)
     ! Set an OpenLoops double precision parameter.
     ! Must be flushed by parameters_flush() to take effect.
-    ! Calls are passed to ol_setparameter_int() if param doesn't match and val==int(val)
+    ! Calls are passed to ol_setparameter_int() if param does not match and val==int(val)
     ! [in]  param: parameter name
     ! [in]  val: double precision value
     ! sets error flag: 0=ok, 1=ignored, 2=error(unused)
@@ -1391,7 +1415,7 @@ module ol_init
 
   subroutine setparameter_string(param, val, err)
     ! Set an OpenLoops string parameter.
-    ! Calls are passed to set_parameter_double() if param doesn't match and val represents a number
+    ! Calls are passed to set_parameter_double() if param does not match and val represents a number
     ! In this case, must be flushed by parameters_flush() to take effect.
     ! [in]  param: parameter name
     ! [in]  val: string value
@@ -1412,8 +1436,8 @@ module ol_init
 
     if (len(val) > max_parameter_length - 80) then
       call ol_fatal("ol_setparameter_string: " // trim(param) // " value must not exceed " // &
-             & trim(to_string(max_parameter_length)) // " characters. If necessary, increase &
-             &the limit by setting max_string_length in your openloops.cfg and recompile.")
+             & trim(to_string(max_parameter_length)) // " characters. If necessary, increase " // &
+             & "the limit by setting max_string_length in your openloops.cfg and recompile.")
       return
     end if
 

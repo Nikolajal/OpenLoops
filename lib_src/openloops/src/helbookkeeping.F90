@@ -988,21 +988,11 @@ end module hel_bookkeeping_/**/REALKIND
 
 
 module ol_merging_/**/REALKIND
-  use KIND_TYPES, only: intkind2
   use ol_loop_handling_/**/REALKIND, only: hp_switch,hybrid_zero_mode, &
                                            hybrid_dp_mode,hybrid_qp_mode, &
                                            hybrid_dp_qp_mode,merge_mode
   use ol_parameters_decl_/**/REALKIND, only: hp_automerge
   implicit none
-
-#ifdef PRECISION_dp
-  integer :: mct = 0
-  logical, save :: HelMatch = .TRUE., merge_tab_on = .FALSE.
-  integer, save :: n_merge_2, n_hels
-  logical, save, allocatable :: hel_mismatch(:)
-  integer(intkind2), save, allocatable :: merge_tabs(:,:,:), mhel(:)
-#endif
-
   contains
 
 function valid_merge(Ginout, Gin)
@@ -1021,7 +1011,7 @@ end function valid_merge
 
 #ifdef PRECISION_dp
 !************************************************************************
-subroutine helicity_matching_check(hf0, hf1)
+subroutine helicity_matching_check(mergestep, merge_mism, hf0, hf1)
 ! ----------------------------------------------------------------------
 ! Check if the Helicity configurations of two OpenLoops are equal.
 ! Done only for the first phase space point
@@ -1029,48 +1019,27 @@ subroutine helicity_matching_check(hf0, hf1)
 ! - hf0 helicities of the absorber open-loop
 ! - hf1 helicities of the absorbed open-loop
 ! **********************************************************************
-  use KIND_TYPES, only: intkind1, intkind2
+  use KIND_TYPES, only: intkind2
   implicit none
-  integer(intkind2), intent(in) :: hf0(:), hf1(:)
+  integer(intkind2), intent(in)    :: hf0(:), hf1(:)
+  integer, intent(inout) :: mergestep
+  integer(intkind2), intent(inout) :: merge_mism(:)
   integer :: i
-  logical :: eq
 
-  do i=1, size(hf0)
-    eq = hf0(i) == hf1(i)
-    if(.not. eq) exit
+  do i = 1, size(hf0)
+    if(hf0(i) /= hf1(i)) then
+      merge_mism(1) = merge_mism(1) + 1_intkind2
+      merge_mism(mergestep) = merge_mism(1)
+      exit
+    end if
   end do
-
-  HelMatch = HelMatch .AND. eq
-
-  if((.not. HelMatch) .and. (.not. merge_tab_on)) then
-    merge_tab_on = .true.
-    allocate(merge_tabs(n_hels,2,n_merge_2))
-    allocate(hel_mismatch(n_merge_2))
-    allocate(mhel(n_merge_2))
-    hel_mismatch = .false.
-    merge_tabs = -1_intkind2
-  end if
-
-  if(.not. HelMatch) then
-    hel_mismatch(mct) = .true.
-  end if
 
 end subroutine helicity_matching_check
 
-!************************************************************************
-subroutine deallocate_merging_tables()
-! **********************************************************************
-  implicit none
-
-  if(merge_tab_on .and. allocated(merge_tabs)) then
-    deallocate(merge_tabs, mhel, hel_mismatch)
-  end if
-
-end subroutine deallocate_merging_tables
 #endif
 
 !************************************************************************
-subroutine merge_map(ntry, Gin_0, Gin_1)
+subroutine merge_map(ntry, nth_mism, merge_tabs, merge_hels, Gin_0, Gin_1)
 ! ----------------------------------------------------------------------
 ! Merging of two OpenLoops coefficients, mapping the helicities
 ! accordingly
@@ -1081,13 +1050,13 @@ subroutine merge_map(ntry, Gin_0, Gin_1)
 ! **********************************************************************
   use KIND_TYPES, only: REALKIND, QREALKIND, intkind1, intkind2
   use ol_data_types_/**/REALKIND, only: hol
-#ifdef PRECISION_qp
-  use ol_merging_/**/DREALKIND, only: merge_tabs, mhel, mct
-#else
+#ifdef PRECISION_dp
   use ol_parameters_decl_/**/QREALKIND, only: zero
 #endif
   implicit none
   integer(intkind1), intent(in)  :: ntry
+  integer(intkind2), intent(in)  :: nth_mism
+  integer(intkind2), intent(inout)  :: merge_tabs(:,:,:), merge_hels(:)
   type(hol), intent(inout) :: Gin_0
   type(hol), intent(in)    :: Gin_1
   complex(REALKIND) :: G_aux(size(Gin_0%j,1),size(Gin_0%j,2),size(Gin_0%j,3),size(Gin_0%j,4))
@@ -1095,7 +1064,8 @@ subroutine merge_map(ntry, Gin_0, Gin_1)
   complex(QREALKIND) :: G_aux_qp(size(Gin_0%j,1),size(Gin_0%j,2),size(Gin_0%j,3),size(Gin_0%j,4))
 #endif
   integer :: s0,s1,i1,i2,htot,nhel_1,nhel_2,h,k,h1,h2
-  integer(intkind2) :: hf_aux(size(Gin_0%hf))
+  integer(intkind2) :: hf_aux(size(Gin_0%hf)), mhel_loc
+  integer(intkind2) ::  merge_tabs_loc(size(merge_tabs,1),2)
   logical :: eq, assgn
 
   s0 = size(Gin_0%j,2)
@@ -1146,14 +1116,14 @@ subroutine merge_map(ntry, Gin_0, Gin_1)
       assgn = .false.
       do i1 = 1, nhel_1
         if(hf_aux(k) == Gin_0%hf(i1)) then
-          merge_tabs(k,1,mct) = i1
+          merge_tabs_loc(k,1) = i1
           assgn = .true.
           exit
         end if
       end do
       if(.not. assgn) then
         h = h + 1
-        merge_tabs(k,1,mct) = nhel_1 + h
+        merge_tabs_loc(k,1) = nhel_1 + h
       end if
     end do
 
@@ -1162,17 +1132,17 @@ subroutine merge_map(ntry, Gin_0, Gin_1)
       assgn = .false.
       do i2 = 1, nhel_2
         if(hf_aux(k) == Gin_1%hf(i2)) then
-          merge_tabs(k,2,mct) = i2
+          merge_tabs_loc(k,2) = i2
           assgn = .true.
           exit
         end if
       end do
       if(.not. assgn) then
         h = h + 1
-        merge_tabs(k,2,mct) = nhel_2 + h
+        merge_tabs_loc(k,2) = nhel_2 + h
       end if
     end do
-    mhel(mct) = htot
+    mhel_loc = htot
   end if
 
   if (Gin_0%mode .eq. hybrid_dp_mode .or. Gin_0%mode .eq. hybrid_dp_qp_mode) then
@@ -1184,9 +1154,14 @@ subroutine merge_map(ntry, Gin_0, Gin_1)
   end if
 #endif
 
-  do k = 1, mhel(mct)
-    h1 = merge_tabs(k,1,mct)
-    h2 = merge_tabs(k,2,mct)
+  if(ntry == 1) then
+    merge_tabs(:,:,nth_mism) = merge_tabs_loc
+    merge_hels(nth_mism) = mhel_loc
+  end if
+
+  do k = 1, merge_hels(nth_mism)
+    h1 = merge_tabs(k,1,nth_mism)
+    h2 = merge_tabs(k,2,nth_mism)
     if (Gin_1%mode .eq. hybrid_dp_mode .or. Gin_1%mode .eq. hybrid_dp_qp_mode) then
       if (Gin_0%mode .eq. hybrid_dp_mode .or. Gin_0%mode .eq. hybrid_dp_qp_mode) then
         G_aux(:,1:s1,:,k) = G_aux(:,1:s1,:,h1) + Gin_1%j(:,1:s1,:,h2)
@@ -1227,7 +1202,7 @@ subroutine merge_map(ntry, Gin_0, Gin_1)
 end subroutine merge_map
 
 !************************************************************************
-subroutine ol_merge_2(ntry,Gin_0, Gin_1)
+subroutine ol_merge_2(ntry, mergestep, merge_mism, merge_tables, merge_hels, Gin_0, Gin_1)
 ! ----------------------------------------------------------------------
 ! Merging of two OpenLoops coefficients.
 ! In the first phase space point it is checked that the helicity
@@ -1239,11 +1214,10 @@ subroutine ol_merge_2(ntry,Gin_0, Gin_1)
 ! - Gin_0 absorber open-loop
 ! - Gin_1 absorbed open-loop
 ! **********************************************************************
-  use KIND_TYPES, only: intkind1
+  use KIND_TYPES, only: intkind1, intkind2
   use ol_data_types_/**/REALKIND, only: hol
 #ifdef PRECISION_qp
-  use ol_merging_/**/DREALKIND, only: helicity_matching_check, n_merge_2, &
-  HelMatch, hel_mismatch, mct
+  use ol_merging_/**/DREALKIND, only: helicity_matching_check
 #else
   use ol_loop_handling_/**/REALKIND, only: upgrade_qp,req_qp_cmp,         &
                                            hp_switch,hp_alloc_mode, &
@@ -1251,6 +1225,8 @@ subroutine ol_merge_2(ntry,Gin_0, Gin_1)
 #endif
   implicit none
   integer(intkind1), intent(in)  :: ntry
+  integer,           intent(inout) :: mergestep
+  integer(intkind2), intent(inout) :: merge_mism(:), merge_tables(:,:,:), merge_hels(:)
   type(hol), intent(inout) :: Gin_0
   type(hol), intent(in)    :: Gin_1
   integer :: s0, s1, i
@@ -1258,18 +1234,17 @@ subroutine ol_merge_2(ntry,Gin_0, Gin_1)
 
   s0 = size(Gin_0%j,2)
   s1 = size(Gin_1%j,2)
-  mct = mct + 1
 
   if(ntry == 1) then
-    call helicity_matching_check(Gin_0%hf,Gin_1%hf)
+    call helicity_matching_check(mergestep, merge_mism, Gin_0%hf, Gin_1%hf)
   end if
 
   if (ntry .ne. 1_intkind1 .and. (.not. valid_merge(Gin_0, Gin_1))) return
 
-  if (HelMatch .eqv. .true.) then
+  if (merge_mism(1) == 0_intkind2) then ! no helicity mismatch
     HelMatch_loc =  .true.
   else
-    HelMatch_loc = .not. hel_mismatch(mct)
+    HelMatch_loc = (merge_mism(mergestep) == 0_intkind2)
   end if
 
   Gin_0%error = max( abs(Gin_0%error), abs(Gin_1%error) )
@@ -1323,11 +1298,10 @@ subroutine ol_merge_2(ntry,Gin_0, Gin_1)
     end if
     Gin_0%mode = merge_mode(Gin_0%mode,Gin_1%mode)
   else
-    call merge_map(ntry,Gin_0,Gin_1)
+    call merge_map(ntry,merge_mism(mergestep),merge_tables,merge_hels,Gin_0,Gin_1)
     Gin_0%mode = merge_mode(Gin_0%mode,Gin_1%mode)
   end if
 
-  if(mct == n_merge_2) mct = 0
 #ifdef PRECISION_dp
   if (hp_switch .eq. 1 .and. hp_automerge) then
     if ( (req_qp_cmp(Gin_0)) .and. (Gin_0%mode .ne. hybrid_qp_mode) ) then
@@ -1349,7 +1323,7 @@ subroutine ol_merge_last(Gin_0, Gin_1)
   use KIND_TYPES, only: intkind1
   use ol_data_types_/**/REALKIND, only: hol
 #ifdef PRECISION_dp
-  use ol_loop_handling_/**/REALKIND, only: upgrade_qp,req_qp_cmp,         &
+  use ol_loop_handling_/**/REALKIND, only: upgrade_qp,req_qp_cmp,   &
                                            hp_switch,hp_alloc_mode, &
                                            hol_alloc_hybrid
 #endif
@@ -1422,24 +1396,26 @@ subroutine ol_merge_last(Gin_0, Gin_1)
 end subroutine ol_merge_last
 
 !************************************************************************
-subroutine ol_merge(ntry, Gout, Gins)
+subroutine ol_merge(ntry, mergestep, merge_mism, merge_tables, merge_hels, Gout, Gins)
 ! Merging of an arbitrary number of OpenLoops coefficients.
 ! ----------------------------------------------------------------------
 ! - ntry = number of phase space point
-! - Gin_0 absorber open-loop
-! - Gin_i absorbed open-loop, i > 0
+! - Gout   absorber open-loop
+! - Gins_i absorbed open-loops, i > 0
 ! **********************************************************************
-  use KIND_TYPES, only: intkind1
+  use KIND_TYPES, only: intkind1, intkind2
   use ol_data_types_/**/REALKIND, only: hol
   implicit none
   integer(intkind1),       intent(in)    :: ntry
+  integer,                 intent(inout) :: mergestep
+  integer(intkind2),       intent(inout) :: merge_mism(:), merge_tables(:,:,:), merge_hels(:)
   type(hol),               intent(inout) :: Gout
   type(hol), dimension(:), intent(in)    :: Gins
 
   integer :: i
-
   do i = 1, size(Gins)
-    call ol_merge_2(ntry, Gout, Gins(i))
+    mergestep = mergestep + 1
+    call ol_merge_2(ntry, mergestep, merge_mism, merge_tables, merge_hels, Gout, Gins(i))
   end do
 
 end subroutine ol_merge
@@ -1451,7 +1427,6 @@ subroutine ol_merge_tensor2(tout,tin)
 ! - tout absorber tensor
 ! - tin incoming tensor
 ! **********************************************************************
-
   use KIND_TYPES, only: REALKIND, QREALKIND
   use ol_data_types_/**/REALKIND, only: hcl
 #ifdef PRECISION_dp
