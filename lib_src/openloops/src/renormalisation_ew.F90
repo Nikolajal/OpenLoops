@@ -39,14 +39,10 @@ subroutine ew_renormalisation
   use ol_parameters_decl_/**/DREALKIND, only: LeadingColour, ew_renorm_scheme, cms_on, model
 #endif
   use ol_loop_parameters_decl_/**/REALKIND
+  use ol_self_energy_integrals_/**/REALKIND
 #ifndef PRECISION_dp
   use ol_loop_parameters_decl_/**/DREALKIND, only: &
-    & nc, nf, N_lf, N_lu, N_ld, N_ll, nq_nondecoupl, CT_is_on, R2_is_on, TP_is_on, SwF, SwB, &
-    & a_switch, ew_renorm_switch, coli_cache_use
-#endif
-#ifdef USE_COLLIER
-  use collier, only: setmode_cll
-  use cache, only: SwitchOffCacheSystem_cll, SwitchOnCacheSystem_cll
+    & nc, nf, N_lf, N_lu, N_ld, N_ll, nq_nondecoupl, CT_is_on, R2_is_on, TP_is_on, SwF, SwB
 #endif
   implicit none
 
@@ -54,13 +50,9 @@ subroutine ew_renormalisation
   real(REALKIND) :: eps=1.e-17
   logical :: zeromasses(6)  ! maximal allowed number of quarks
   integer :: debug_ew_renorm = 0
-#ifndef PRECISION_dp
-  integer, parameter :: dp = selected_real_kind(15)
-#endif
 
 !for debugging with ABC
   real(REALKIND), save         :: debug_norm = 1._/**/REALKIND
-
 
 ! self energies
   complex(REALKIND), save      ::   Tadpole   = 0
@@ -338,16 +330,6 @@ subroutine ew_renormalisation
     call masspowers(rMH, 0._/**/REALKIND, MH, MH2, rMH2)
   end if
 
-  if ((ew_renorm_switch == 1 .or. ew_renorm_switch == 7 .or. ew_renorm_switch == 99) &
-      .and. coli_cache_use == 1) then
-    call SwitchOffCacheSystem_cll
-  end if
-  if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
-    call setmode_cll(1)
-  end if
-  if (ew_renorm_switch == 7 .or. ew_renorm_switch == 99) then
-    call setmode_cll(2)
-  end if
 
   ! calculate one- and two-point functions
   A0W = calcA0(MW2)
@@ -470,17 +452,6 @@ subroutine ew_renormalisation
   dB000L  = calcdB0(ZERO,ZERO,ML2)
   B0ZLL   = calcB0(MZ2,ML2,ML2)
   dB0ZLL  = calcdB0(MZ2,ML2,ML2)
-
-  if ((ew_renorm_switch == 1 .or. ew_renorm_switch == 99) .and. a_switch == 7) then
-    call setmode_cll(2)
-  end if
-  if ((ew_renorm_switch == 7 .or. ew_renorm_switch == 99) .and. a_switch == 1) then
-    call setmode_cll(1)
-  end if
-  if ((ew_renorm_switch == 1 .or. ew_renorm_switch == 7 .or. ew_renorm_switch == 99) &
-      .and. coli_cache_use == 1) then
-    call SwitchOnCacheSystem_cll
-  end if
 
 
   ! calculate renormalisation constants
@@ -1889,287 +1860,7 @@ subroutine ew_renormalisation
   end if
 
 
-!interfaces for scalar one-point & two-point functions
-  contains
-
-  function calcA0(m2_in)
-    implicit none
-    complex(REALKIND) calcA0
-    complex(REALKIND), intent(in) :: m2_in
-
-    if (abs(m2_in) > eps) then
-      calcA0 = m2_in*(de1_UV+log(mureg2/m2_in)+1)
-    else
-      calcA0 = 0
-    endif
-
-    return
-  end function calcA0
-
-
-  function calcB0(p2_in,m12_in,m22_in)
-#ifdef USE_COLLIER
-    use collier_coefs, only: B0_cll
-#endif
-#ifdef USE_ONELOOP
-    use avh_olo_/**/REALKIND
-#endif
-    implicit none
-    complex(REALKIND) calcB0
-    complex(REALKIND), intent(in) :: p2_in
-    complex(REALKIND), intent(in) :: m12_in
-    complex(REALKIND), intent(in) :: m22_in
-    real(REALKIND) p2q
-    complex(DREALKIND) p2
-    complex(DREALKIND) m12
-    complex(DREALKIND) m22
-    complex(DREALKIND) B0_coli
-#ifdef USE_ONELOOP
-    complex(REALKIND) :: rslt(0:2)
-#endif
-
-    calcB0 = 0
-
-    p2  = p2_in
-    m12 = m12_in
-    m22 = m22_in
-
-#ifdef USE_COLLIER
-    if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
-      p2 = real(p2)
-      call B0_cll(B0_coli,p2,m12,m22)
-      calcB0 = B0_coli
-      if (ew_renorm_switch == 99) then
-        print*, "B0 CO:  ", B0_coli
-      end if
-    end if
-    if (ew_renorm_switch == 7 .or. ew_renorm_switch == 99) then
-      p2 = real(p2)
-      call B0_cll(B0_coli,p2,m12,m22)
-      calcB0 = B0_coli
-      if (ew_renorm_switch == 99) then
-        print*, "B0 DD:  ", B0_coli
-      end if
-    end if
-#endif
-
-#ifdef USE_ONELOOP
-    if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
-      p2q = real(p2_in)
-      call olo_b0(rslt,p2q,m12_in,m22_in)
-      if (p2q .eq. 0 .and. m12_in .eq. 0 .and. m22_in .eq. 0) then
-        calcB0 = de1_UV - de1_IR
-      else
-        calcB0 = rslt(0) + rslt(1)*de1_UV
-      end if
-      if (ew_renorm_switch == 99) then
-        print*, "B0 OLO: ", calcB0
-      end if
-    end if
-#endif
-
-      return
-  end function calcB0
-
-
-  function calcdB0(p2_in,m12_in,m22_in)
-#ifdef USE_COLLIER
-    use collier_coefs, only: DB0_cll
-#endif
-#ifdef USE_ONELOOP
-    use avh_olo_/**/REALKIND
-#endif
-    implicit none
-    complex(REALKIND) calcdB0
-    complex(REALKIND), intent(in) :: p2_in
-    complex(REALKIND), intent(in) :: m12_in
-    complex(REALKIND), intent(in) :: m22_in
-    real(REALKIND) :: p2q
-    complex(DREALKIND) :: p2
-    complex(DREALKIND) :: m12
-    complex(DREALKIND) :: m22
-    complex(DREALKIND) DB0_coli
-#ifdef USE_ONELOOP
-    complex(REALKIND) :: rslt(0:2)
-#endif
-
-    calcdB0 = 0
-
-    p2  = p2_in
-    m12 = m12_in
-    m22 = m22_in
-
-#ifdef USE_COLLIER
-    if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
-      p2 = real(p2)
-      call DB0_cll(DB0_coli,p2,m12,m22)
-      calcdB0 = DB0_coli
-      if (ew_renorm_switch == 99) then
-        print*, "dB0 CO:  ", DB0_coli
-      end if
-    end if
-    if (ew_renorm_switch == 7 .or. ew_renorm_switch == 99) then
-      p2 = real(p2)
-      call DB0_cll(DB0_coli,p2,m12,m22)
-      calcdB0 = DB0_coli
-      if (ew_renorm_switch == 99) then
-        print*, "dB0 DD:  ", DB0_coli
-      end if
-    end if
-#endif
-
-#ifdef USE_ONELOOP
-    if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
-      p2q = real(p2_in)
-      if (p2q == 0. .and. m12 == 0. .and. m22 == 0. ) then
-        calcdB0 = 0.
-      else
-        call olo_db0(rslt,p2q,m12_in,m22_in)
-        calcdB0 = rslt(0) + rslt(1)*de1_IR
-      end if
-      if (ew_renorm_switch == 99) then
-        print*, "dB0 OLO: ", calcdB0
-      end if
-    end if
-#endif
-
-    return
-  end function calcdB0
-
-
-  function calcB1(p2_in,m12_in,m22_in)
-#ifdef USE_COLLIER
-    use collier_coefs, only: B_cll
-#endif
-#ifdef USE_ONELOOP
-    use avh_olo_/**/REALKIND
-#endif
-    implicit none
-    complex(REALKIND) calcB1
-    complex(REALKIND), intent(in) :: p2_in
-    complex(REALKIND), intent(in) :: m12_in
-    complex(REALKIND), intent(in) :: m22_in
-    complex(DREALKIND) :: p2
-    complex(DREALKIND) :: m12
-    complex(DREALKIND) :: m22
-    complex(DREALKIND) B1_coli
-#ifdef USE_COLLIER
-    complex(DREALKIND) B(0:1,0:1), Buv(0:1,0:1)
-#endif
-#ifdef USE_ONELOOP
-    complex(REALKIND) :: rslt_b11(0:2), rslt_b00(0:2), rslt_b1(0:2), rslt_b0(0:2)
-#endif
-
-    calcB1 = 0
-
-    p2  = p2_in
-    m12 = m12_in
-    m22 = m22_in
-
-#ifdef USE_COLLIER
-    if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
-      p2 = real(p2)
-      call B_cll(B,Buv,p2,m12,m22,1)
-      calcB1 = B(1,0)
-      if (ew_renorm_switch == 99) then
-        print*, "B1 CO:  ", calcB1
-      end if
-    end if
-    if (ew_renorm_switch == 7 .or. ew_renorm_switch == 99) then
-      p2 = real(p2)
-      call B_cll(B,Buv,p2,m12,m22,1)
-      calcB1 = B(1,0)
-      if (ew_renorm_switch == 99) then
-        print*, "B1 DD:  ", calcB1
-      end if
-    end if
-#endif
-
-#ifdef USE_ONELOOP
-    if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
-      call olo_b11(rslt_b11,rslt_b00,rslt_b1,rslt_b0,real(p2_in),m12_in,m22_in)
-      if (p2 .eq. 0 .and. m12_in .eq. 0 .and. m22_in .eq. 0) then
-        calcB1 = rslt_b1(0) + (de1_IR - de1_UV)/2
-      else
-        calcB1 = rslt_b1(0) + rslt_b1(1)*de1_UV
-      end if
-      if (ew_renorm_switch == 99) then
-        print*, "B1 OLO: ", calcB1
-      end if
-    end if
-#endif
-
-    return
-  end function calcB1
-
-  function calcdB1(p2_in,m12_in,m22_in)
-#ifdef USE_COLLIER
-    use collier_coefs, only: DB1_cll
-#endif
-    implicit none
-    complex(REALKIND) calcdB1
-    complex(REALKIND), intent(in) :: p2_in
-    complex(REALKIND), intent(in) :: m12_in
-    complex(REALKIND), intent(in) :: m22_in
-    real(REALKIND) :: p2q
-    complex(DREALKIND) :: p2, m12, m22
-    complex(DREALKIND) DB1_coli
-
-    calcdB1 = 0
-
-    p2  = p2_in
-    m12 = m12_in
-    m22 = m22_in
-
-#ifdef USE_COLLIER
-    if (ew_renorm_switch == 1 .or. ew_renorm_switch == 99) then
-      p2 = real(p2)
-      call DB1_cll(DB1_coli,p2,m12,m22)
-      calcdB1 = DB1_coli
-      if (ew_renorm_switch == 99) then
-        print*, "dB1 CO:  ", calcdB1
-      end if
-    end if
-    if (ew_renorm_switch == 7 .or. ew_renorm_switch == 99) then
-      p2 = real(p2)
-      call DB1_cll(DB1_coli,p2,m12,m22)
-      calcdB1 = DB1_coli
-      if (ew_renorm_switch == 99) then
-        print*, "dB1 DD:  ", calcdB1
-      end if
-    end if
-#endif
-
-#ifdef USE_ONELOOP
-    if (ew_renorm_switch == 3 .or. ew_renorm_switch == 99) then
-      p2q = real(p2_in)
-      if (abs(p2q) > eps) then
-        calcdB1 = - (m22_in-m12_in)/2/p2q**2*(calcB0(p2_in,m12_in,m22_in)-calcB0(ZERO,m12_in,m22_in)) &
-       &          + (m22_in-m12_in-p2q)/2/p2q*calcdB0(p2_in,m12_in,m22_in)
-      else
-        if (abs(m12_in) < eps .and. abs(m22_in) < eps) then
-          calcdB1 = 0
-        else if (abs(m12_in) < eps .and. abs(m22_in) > eps) then
-          calcdB1 = -1/m22_in/6
-        else if (abs(m12_in) > eps .and. abs(m22_in) < eps) then
-          calcdB1 = -1/m12_in/6
-        else if (m12_in == m22_in) then
-          calcdB1 = -1/m12_in/12
-        else
-          calcdB1 = -(2.*m12_in**3+3.*m12_in**2*m22_in-6.*m12_in*m22_in**2+m22_in**3 &
-       &              +6.*m12_in**2*m22_in*log(m22_in/m12_in))/6./(m12_in-m22_in)**4
-        end if
-      end if
-      if (ew_renorm_switch == 99) then
-        print*, "dB1 OLO: ", calcdB1
-      end if
-    end if
-#endif
-
-    return
-  end function calcdB1
-
-
+   contains
 
   subroutine masspowers(rM, Ga, M, M2, rM2)
     use KIND_TYPES, only: REALKIND

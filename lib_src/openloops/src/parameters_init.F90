@@ -1133,40 +1133,40 @@ subroutine parameters_write(filename)
 
   write(outid,*)
     write(outid,*) '==Technical Parameters=='
-  write(outid,*) 'muren             =', muren
-  write(outid,*) 'mureg             =', mureg
-  write(outid,*) 'pole1_UV          =', de1_UV
-  write(outid,*) 'pole1_IR          =', de1_IR
-  write(outid,*) 'pole2_IR          =', de2_i_IR
-  write(outid,*) 'fact_UV           =', x_UV
-  write(outid,*) 'fact_IR           =', x_IR
-  write(outid,*) 'ew_renorm_scheme  =', ew_renorm_scheme
+  write(outid,*) 'muren              =', muren
+  write(outid,*) 'mureg              =', mureg
+  write(outid,*) 'pole1_UV           =', de1_UV
+  write(outid,*) 'pole1_IR           =', de1_IR
+  write(outid,*) 'pole2_IR           =', de2_i_IR
+  write(outid,*) 'fact_UV            =', x_UV
+  write(outid,*) 'fact_IR            =', x_IR
+  write(outid,*) 'ew_renorm_scheme   =', ew_renorm_scheme
 #ifdef PRECISION_dp
-  write(outid,*) 'N_quarks          =', nf
-  write(outid,*) 'light quarks      =', N_lf
-  write(outid,*) 'nq_nondecoupled   =', nq_nondecoupl
-  write(outid,*) 'fermion_loops     =', SwF
-  write(outid,*) 'nonfermion_loops  =', SwB
-  write(outid,*) 'CT_on             =', CT_is_on
-  write(outid,*) 'R2_on             =', R2_is_on
-  write(outid,*) 'IR_on             =', IR_is_on
-  write(outid,*) 'polecheck         =', polecheck_is
-  write(outid,*) 'polenorm_swi      =', norm_swi
-  write(outid,*) 'i-operator mode   =', ioperator_mode
-  write(outid,*) 'last_switch       =', l_switch
-  write(outid,*) 'ew_renorm_switch  =', ew_renorm_switch
-  write(outid,*) 'use_coli_cache    =', coli_cache_use
-  write(outid,*) 'use_me_cache      =', use_me_cache
-  write(outid,*) 'use_bubble_vertex =', use_bubble_vertex
-  write(outid,*) 'check_Ward_tree   =', Ward_tree
-  write(outid,*) 'check_Ward_loop   =', Ward_loop
-  write(outid,*) 'out_symmetry      =', out_symmetry_on
-  write(outid,*) 'hp_mode           =', hp_mode
+  write(outid,*) 'N_quarks           =', nf
+  write(outid,*) 'light quarks       =', N_lf
+  write(outid,*) 'nq_nondecoupled    =', nq_nondecoupl
+  write(outid,*) 'fermion_loops      =', SwF
+  write(outid,*) 'nonfermion_loops   =', SwB
+  write(outid,*) 'CT_on              =', CT_is_on
+  write(outid,*) 'R2_on              =', R2_is_on
+  write(outid,*) 'IR_on              =', IR_is_on
+  write(outid,*) 'polecheck          =', polecheck_is
+  write(outid,*) 'polenorm_swi       =', norm_swi
+  write(outid,*) 'i-operator mode    =', ioperator_mode
+  write(outid,*) 'last_switch        =', l_switch
+  write(outid,*) 'se_integral_switch =', se_integral_switch
+  write(outid,*) 'use_coli_cache     =', coli_cache_use
+  write(outid,*) 'use_me_cache       =', use_me_cache
+  write(outid,*) 'use_bubble_vertex  =', use_bubble_vertex
+  write(outid,*) 'check_Ward_tree    =', Ward_tree
+  write(outid,*) 'check_Ward_loop    =', Ward_loop
+  write(outid,*) 'out_symmetry       =', out_symmetry_on
+  write(outid,*) 'hp_mode            =', hp_mode
   if (hp_switch .eq. 1) then
-  write(outid,*) 'hp_loopacc        =', hp_loopacc
-  write(outid,*) 'hp_step_thres     =', hp_step_thres
-  write(outid,*) 'hp_alloc_mode     =', hp_alloc_mode
-  write(outid,*) 'use_qp_invariants =', use_qp_invariants
+  write(outid,*) 'hp_loopacc         =', hp_loopacc
+  write(outid,*) 'hp_step_thres      =', hp_step_thres
+  write(outid,*) 'hp_alloc_mode      =', hp_alloc_mode
+  write(outid,*) 'use_qp_invariants  =', use_qp_invariants
   end if
   write(outid,*) 'stability_mode         =', stability_mode
   write(outid,*) 'deviation_mode         =', deviation_mode

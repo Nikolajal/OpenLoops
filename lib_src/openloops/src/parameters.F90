@@ -456,9 +456,9 @@ module ol_parameters_decl_/**/REALKIND
   integer :: loop_order_ew = -1
   integer :: loop_order_qcd = -1
   integer :: CKMORDER = 0
-  ! select tensor library for EW renormalization: 0 = none, 1 = Coli, 3=OneLOop, 7 = DD
+  ! select scalar integral library for self energies: 0 = none, 1 = Coli, 3=OneLOop, 7 = DD
   ! automatically set according to redlib (redlib=1->1,7->7,other->3)
-  integer, save :: ew_renorm_switch = 1
+  integer, save :: se_integral_switch = 1
   integer, save :: do_ew_renorm = 0
   integer, save :: do_qcd_renorm = 1
   integer, save :: cms_on = 1
@@ -468,7 +468,7 @@ module ol_parameters_decl_/**/REALKIND
   integer :: add_associated_ew = 0
   ! library loader: check online collection: yes/no
   logical :: check_collection = .true.
-  ! OLMode: 0=OL1, 1=OL1+OFR helicity summation, 2=full OFR, -1=auto=2,1,0
+  ! OLMode: 0=OL1, 1=OL1+OFR helicity summation, 2=full OFR, 3=full OFR + hp, -1=auto=3,2,1,0
   integer, save :: OLmode = -1
   ! Auto-preset: preset=2 for OLmode=1,2 and preset=5 for OLmode=2, preset=3 for loop-induced
   logical, save :: auto_preset = .true.

@@ -210,8 +210,8 @@ openloops_mp_src = [
     'contractions.F90', 'converter.F90', 'counterterms.F90', 'helicity.F90',
     'i-operator.F90', 'kinematics.F90', 'laststep.F90', 'loopmom_tensor.F90',
     'looproutines.F90', 'Lpropagators.F90', 'Lvertices.F90', 'parameters.F90',
-    'parameters_init.F90', 'renormalisation_ew.F90', 'renormalisation_qcd.F90',
-    'propagators.F90', 'vertices.F90', 'wavefunctions.F90',
+    'parameters_init.F90', 'scalarintegrals.F90', 'renormalisation_ew.F90',
+    'renormalisation_qcd.F90', 'propagators.F90', 'vertices.F90', 'wavefunctions.F90',
     'helbookkeeping.F90','Hhelicity.F90','Hcontractions.F90', 'Hcounterterms.F90',
     'Hpropagators.F90', 'Hvertices.F90', 'Hlaststep.F90', 'HLvertices.F90',
     'HLpropagators.F90',
@@ -650,6 +650,14 @@ if download_process_true:
     if proc_ls or config['process_update']:
         revoke_processes()
         download_processes(proc_ls)
+        # Libraries may have been mapped to libraries with different names.
+        # Read the library name mappings written by the downloader and
+        # update proc_ls so that the build system knows what to compile.
+        downloaded = OLToolbox.import_dictionary(
+            os.path.join(config['process_src_dir'], 'downloaded.dat'))
+        process_list = [(loops, downloaded.get(proc, proc))
+                        for loops, proc in process_list]
+        os.remove(os.path.join(config['process_src_dir'], 'downloaded.dat'))
 
 process_list = map(get_auto_loops, process_list)
 

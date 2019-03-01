@@ -139,7 +139,7 @@ subroutine intdip(mode, M2LO, M2CC, M2CC_EW, extflav, extcharges, Npart, extmass
         do k = 1, Npart
           QQ = 0d0
           if (k == j) cycle
-          if (photonid(j) > 0) cycle ! on-shell photon emitter -> cycle
+          if (photonid(j) >= 0) cycle ! on-shell photon emitter -> cycle
           if (olm == 0) then
             if (real(Q(1,2**(j-1))+Q(2,2**(j-1))) .gt. 0 .and. real(Q(1,2**(k-1))+Q(2,2**(k-1))) .gt. 0 ) then ! IS off-shell photon -> IS spectator with Q=-1
               QQ = -1d0

@@ -198,9 +198,9 @@ module ol_init
         if (expert_mode) then
           call set_if_modified(a_switch, val)
           if (val == 1 .or. val == 7) then
-            call set_if_modified(ew_renorm_switch, val)
+            call set_if_modified(se_integral_switch, val)
           else
-            call set_if_modified(ew_renorm_switch, 3)
+            call set_if_modified(se_integral_switch, 3)
           end if
           auto_preset = .false.
         else
@@ -227,9 +227,9 @@ module ol_init
           call set_if_modified(a_switch_rescue, val)
           call set_if_modified(redlib_qp, val)
           if (val == 1 .or. val == 7) then
-            call set_if_modified(ew_renorm_switch, val)
+            call set_if_modified(se_integral_switch, val)
           else
-            call set_if_modified(ew_renorm_switch, 3)
+            call set_if_modified(se_integral_switch, 3)
           end if
           auto_preset = .false.
         else
@@ -415,8 +415,8 @@ module ol_init
         end if
       case ("qcd_renorm")
         call set_if_modified(do_qcd_renorm, val)
-      case ("ew_renorm_switch")
-        call set_if_modified(ew_renorm_switch, val)
+      case ("se_integral_switch")
+        call set_if_modified(se_integral_switch, val)
       case ("ew_scheme")
         if (val /= 0 .and. val /= 1 .and. val /= 2) then
           call ol_error(1,"unrecognised ew_scheme:" // to_string(val))
@@ -687,8 +687,8 @@ module ol_init
         val = use_me_cache
       case ("ew_renorm")
         val = do_ew_renorm
-      case ("ew_renorm_switch")
-        val = ew_renorm_switch
+      case ("se_integral_switch")
+        val = se_integral_switch
       case ("ew_scheme")
         val = ew_scheme
       case ("ew_renorm_scheme")

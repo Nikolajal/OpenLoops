@@ -183,71 +183,75 @@ subroutine construct_l1l2_1(mom1,mom2,alpha,gamma,l1,l2,r1,r2)
     real(REALKIND), parameter :: accthres = 10._/**/REALKIND**(1-prd)
     real(REALKIND) :: zero = 0
 
+    logical :: correct_li = .false.
+
     li = p1(1:4) - al*p2(1:4)
-!     li1li2 = li(1)*li(2)
-!     li3li4 = li(3)*li(4)
-! 
-!     norm = max(abs(li1li2),abs(li3li4))
-!     osdelta = li1li2 - li3li4
-! 
-!     ! condition for necessity of os correction
-!     if (abs(osdelta)/norm .gt. accthres) then
-!       do i = 1, 4
-!         if (li(i) .eq. zero) then
-!           if (.not. zero_pt) then
-!             !component cannot be an exact zero -> introduce artificial error
-!             li(i) = p1(i)*10**(-prd-1)
-!             lierr(i) = 10**(-prd-2)
-!             select case (i)
-!               case (1,2)
-!                 li1li2 = li(1)*li(2)
-!               case default
-!                 li3li4 = li(3)*li(4)
-!             end select
-!           else
-!             lierr(i) = zero
-!           end if
-!         else
-!           ! error estimation by computing loss of accuracy in p1-al*p2
-!           norm = maxval(abs(li))
-!           errestim =abs(li(i))/max(norm, abs(p1(i)), abs(al*p2(i)))
-!           lierr(i) = 10**(-prd-2-log10(errestim))
-!         end if
-!       end do
-!       osdelta = li1li2 - li3li4
-!       up = (lierr(1)+lierr(2))*li1li2
-!       lp = (lierr(3)+lierr(4))*li3li4
-!
-!       if (abs(lp) .eq. zero) then ! correct upper two cmp
-!         beta = -osdelta/(up)
-!         li(1) = li(1) + beta*lierr(1)*li(1)
-!         li(2) = li(2) + beta*lierr(2)*li(2)
-!       else if (abs(up) .eq. zero) then ! correct lower two cmp
-!         beta = -osdelta/(-lp)
-!         li(3) = li(3) + beta*lierr(3)*li(3)
-!         li(4) = li(4) + beta*lierr(4)*li(4)
-!       else
-!         rp = abs(up)/abs(lp)
-!         if (rp .gt. 10) then ! correct only upper two cmp
-!           beta = -osdelta/(up)
-!           li(1) = li(1) + beta*lierr(1)*li(1)
-!           li(2) = li(2) + beta*lierr(2)*li(2)
-!         else if (rp .lt. 0.1) then ! correct only upper two cmp
-!           beta = -osdelta/(-lp)
-!           li(1) = li(1) + beta*lierr(1)*li(1)
-!           li(2) = li(2) + beta*lierr(2)*li(2)
-!         else ! correct upper and lower two cmp
-!           beta = -osdelta/(up-lp)
-!           li(1) = li(1) + beta*lierr(1)*li(1)
-!           li(2) = li(2) + beta*lierr(2)*li(2)
-!           li(3) = li(3) + beta*lierr(3)*li(3)
-!           li(4) = li(4) + beta*lierr(4)*li(4)
-!         end if
-!       end if
-!       li1li2 = li(1)*li(2)
-!       li3li4 = li(3)*li(4)
-!       osdelta = li1li2 - li3li4
-!     end if
+    if (.not. correct_li) return
+
+    li1li2 = li(1)*li(2)
+    li3li4 = li(3)*li(4)
+    norm = max(abs(li1li2),abs(li3li4))
+    osdelta = li1li2 - li3li4
+
+    ! condition for necessity of os correction
+    if (abs(osdelta)/norm .gt. accthres) then
+      do i = 1, 4
+        if (li(i) .eq. zero .and. .not. zero_pt) then
+          li(i) = p1(i)*10**(-prd-1)
+          lierr(i) = 10**(-prd-2)
+          select case (i)
+            case (1,2)
+              li1li2 = li(1)*li(2)
+            case default
+              li3li4 = li(3)*li(4)
+          end select
+        else if (li(i) .eq. zero) then
+          lierr(i) = zero
+        else
+          norm = maxval(abs(li))
+          errestim =abs(li(i))/max(norm, abs(p1(i)), abs(al*p2(i)))
+          lierr(i) = 10**(-prd-2-log10(errestim))
+        end if
+      end do
+      osdelta = li1li2 - li3li4
+      if (abs(li1li2) .gt. abs(li3li4)) then
+        up = (lierr(1)+lierr(2))*li1li2
+        lp = (lierr(3)+lierr(4))*li1li2
+      else
+        up = (lierr(1)+lierr(2))*li3li4
+        lp = (lierr(3)+lierr(4))*li3li4
+      end if
+
+      if (abs(lp) .eq. zero) then ! correct upper two cmp
+        beta = -osdelta/(up)
+        li(1) = li(1) + beta*lierr(1)*li(1)
+        li(2) = li(2) + beta*lierr(2)*li(2)
+      else if (abs(up) .eq. zero) then ! correct lower two cmp
+        beta = -osdelta/(-lp)
+        li(3) = li(3) + beta*lierr(3)*li(3)
+        li(4) = li(4) + beta*lierr(4)*li(4)
+      else
+        rp = abs(up)/abs(lp)
+        if (rp .gt. 10) then ! correct only upper two cmp
+          beta = -osdelta/(up)
+          li(1) = li(1) + beta*lierr(1)*li(1)
+          li(2) = li(2) + beta*lierr(2)*li(2)
+        else if (rp .lt. 0.1) then ! correct only upper two cmp
+          beta = -osdelta/(-lp)
+          li(1) = li(1) + beta*lierr(1)*li(1)
+          li(2) = li(2) + beta*lierr(2)*li(2)
+        else ! correct upper and lower two cmp
+          beta = -osdelta/(up-lp)
+          li(1) = li(1) + beta*lierr(1)*li(1)
+          li(2) = li(2) + beta*lierr(2)*li(2)
+          li(3) = li(3) + beta*lierr(3)*li(3)
+          li(4) = li(4) + beta*lierr(4)*li(4)
+        end if
+      end if
+      li1li2 = li(1)*li(2)
+      li3li4 = li(3)*li(4)
+      osdelta = li1li2 - li3li4
+    end if
 
   end subroutine squeeze_onshell
 

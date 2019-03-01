@@ -77,6 +77,7 @@ latest_api_version_url = (config['remote_process_url'] +
                           '/%s/processes/latest_version')
 version_db_url = repository_url + '/versions.db'
 channel_db_url = repository_url + '/channels.db'
+libmappins_url = repository_url + '/librarymappings.db'
 channel_db_file = os.path.join(config['process_lib_dir'], 'channels_%s.rinfo')
 
 
@@ -114,9 +115,8 @@ def update_channel_db(repo):
         else:
             rfh = urlopen(remote_channel_url)
     except URLError, e:
-        print('Warning: ' + str(e))
         print('Warning: Channel database update for repository ' + repo_name +
-              ' failed. Skip this repository.')
+              ' failed (' + str(e) + '). Skip this repository.')
         return False
     hash_line = rfh.readline()
     if local_hash != hash_line.split()[0]:
@@ -141,7 +141,7 @@ def update_channel_db(repo):
     return True
 
 
-def download(process, dbs):
+def download(process, dbs, libmaps):
     # download process if one of the following conditions is met:
     # - the process API of the installed OpenLoops version
     #   differs from the one of the installed process;
@@ -150,7 +150,34 @@ def download(process, dbs):
     # - download is forced by '--force' option;
     print('- process:', process, '...', end=' ')
     sys.stdout.flush()
-    local_process_dir = os.path.join(config['process_src_dir'], process)
+    available = []
+    for repo, cont in dbs.items():
+        mapped_process = process
+        if libmaps[repo] and process in libmaps[repo]:
+            mapped_process = libmaps[repo][process]
+            if mapped_process in downloaded.values():
+                downloaded[process] = mapped_process
+                print('mapped to', mapped_process, '(already downloaded)')
+                return
+            print('does not exist; downloading', mapped_process,
+                  'instead ...', end=' ')
+            sys.stdout.flush()
+        if mapped_process in cont.content:
+            # (process, date, hash, repo)
+            available.append((mapped_process, cont.content[mapped_process][0],
+                              cont.content[mapped_process][1], repo))
+        elif mapped_process != process:
+            print('\nOops! There seems to be something wrong with the ' +
+                  'library mapping table. Please contact the authors.')
+    # Order processes by date: latest last (to be used)
+    available = sorted(
+        available,
+        key=lambda src: time.strptime(src[1], OLToolbox.timeformat))
+    mapped_process = process
+    if available:
+        mapped_process = available[-1][0]
+        downloaded[process] = mapped_process
+    local_process_dir = os.path.join(config['process_src_dir'], mapped_process)
     version_installed = OLToolbox.import_dictionary(
         os.path.join(local_process_dir, 'version.info'), fatal = False)
     if version_installed is None:
@@ -161,8 +188,6 @@ def download(process, dbs):
         api_installed = None
     hash_installed = version_installed.get('hash', None)
     date_installed = version_installed.get('date', None)
-    available = [(cont.content[process][0], cont.content[process][1], repo)
-                 for repo, cont in dbs.items() if process in cont.content]
     if not available:
         if args.ignore:
             print('IGNORED: not available (installed: %s)' % version_installed)
@@ -173,22 +198,18 @@ def download(process, dbs):
     # Only download, if the hash of the process to download differs
     # from the hash of the installed process, unless --force used.
     if not args.force:
-        available = [src for src in available if src[1] != hash_installed]
+        available = [src for src in available if src[2] != hash_installed]
     if not available:
         # the process is already available locally and is up-to-date.
         print('skipped: is up-to-date')
         return
-    # In particular when --force is used,
-    # select the process which was uploaded last.
-    available = sorted(
-        available,
-        key=lambda src: time.strptime(src[0], OLToolbox.timeformat))[-1]
-    remote_archive = ((repository_url % available[2]) +
-                      '/' + process + '.tar.gz')
+    # Select the process which was uploaded last.
+    available = available[-1]
+    remote_archive = ((repository_url % available[3]) +
+                      '/' + available[0] + '.tar.gz')
     local_archive = os.path.join(local_process_dir + '.tar.gz')
-
     # download the process
-    print('download from repository: '+ available[2] +'...',end=' ')
+    print('download from repository: '+ available[3] +'...',end=' ')
     sys.stdout.flush()
     try:
         if remote_archive.startswith('/'):
@@ -220,14 +241,15 @@ def download(process, dbs):
     process_version_file = os.path.join(local_process_dir, 'version.info')
     process_version = OLToolbox.import_dictionary(
         process_version_file, fatal=True)
-    process_version['date'] = available[0]
-    process_version['hash'] = available[1]
+    process_version['date'] = available[1]
+    process_version['hash'] = available[2]
     OLToolbox.export_dictionary(process_version_file, process_version,
                                 form = '%-25s %s')
     print('done')
 
 
 process_dbs = {}
+libname_maps = {}
 max_latest_api_version = 0
 
 if not os.path.isdir(config['process_lib_dir']):
@@ -248,6 +270,8 @@ for repo in config['process_repositories']:
     # This fails if the repository does not contain processes
     # with the API of the installed OpenLoops version.
     process_dbs[repo] = OLToolbox.ProcessDB(db=(version_db_url % repo))
+    libname_maps[repo] = OLToolbox.import_dictionary(libmappins_url % repo,
+                                                     fatal=False)
     # scan all repositories for collections to download
     # Note that when the downloader is invoked by the build script,
     # the collections will already be resolved.
@@ -290,7 +314,12 @@ elif local_api_version < max_latest_api_version:
 if not os.path.exists(config['process_src_dir']):
     os.mkdir(config['process_src_dir'])
 
+downloaded = {}
+
 for process in process_list:
-    download(process, process_dbs)
+    download(process, process_dbs, libname_maps)
+
+OLToolbox.export_dictionary(
+    os.path.join(config['process_src_dir'], 'downloaded.dat'), downloaded)
 
 print('done\n')
