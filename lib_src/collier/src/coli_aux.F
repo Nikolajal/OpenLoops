@@ -1412,7 +1412,7 @@ c check of decomposition
           cs = rs* (ca(j,j)/aabs)
 #ifdef ERREST
 !          csaccloss = caaccloss(j)
-!  propagation of error of ca(j,j)     
+!  propagation of error of ca(j,j)
           if (imag(ca(j,j))*real(ca(j,j)).ne.0d0) then
             csaccloss = min(1d0, caaccloss(j)*sigma/aabs**2,
      &          caaccloss(j)*aabs**2/abs(imag(ca(j,j))*real(ca(j,j))))
@@ -1445,11 +1445,20 @@ c check of decomposition
           do 500 i=j,n
             canew = ca(i,k) - ca(i,j) * csum
 #ifdef ERREST
-!  estimate error of ca(k,k)      
-            if (i.eq.k .and. ca(i,k).ne.0d0 .and. 
-     &                       ca(i,j)*csum.ne.0d0) then
-              caaccloss(i) = caaccloss(i)
-     &                 * abs(canew/max(abs(ca(i,k)),abs(ca(i,j)*csum)))
+!  estimate error of ca(k,k)
+            if (i.eq.k) then
+              if(ca(i,k).ne.0d0) then
+                if(ca(i,j)*csum.ne.0d0) then
+                  caaccloss(i) = min(1d0,
+     &                caaccloss(i)* abs(canew/abs(ca(i,k))),
+     &                abs(canew/abs(ca(i,j)*csum)))
+                else
+                  caaccloss(i) = min(1d0,
+     &                caaccloss(i)* abs(canew/abs(ca(i,k))))
+                endif
+              else
+                caaccloss(i) = 1d0
+              endif
             end if
 #endif
             ca(i,k) = canew

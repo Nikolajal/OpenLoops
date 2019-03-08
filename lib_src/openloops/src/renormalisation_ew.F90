@@ -36,7 +36,7 @@ subroutine ew_renormalisation
   use ol_generic, only: to_string
   use ol_parameters_decl_/**/REALKIND
 #ifndef PRECISION_dp
-  use ol_parameters_decl_/**/DREALKIND, only: LeadingColour, ew_renorm_scheme, cms_on, model
+  use ol_parameters_decl_/**/DREALKIND, only: LeadingColour, ew_renorm_scheme, cms_on, model, delta_alphamz_dimreg
 #endif
   use ol_loop_parameters_decl_/**/REALKIND
   use ol_self_energy_integrals_/**/REALKIND
@@ -470,9 +470,7 @@ subroutine ew_renormalisation
 
     dSiAA0 = dSiAA0-3*B00WW-4*MW2*dB00WW
 
-    if (ew_renorm_scheme == 2) then
-      dSiAAZ=dSiAAZ-3*B0ZWW-(4*MW2+3*rMZ2)*dB0ZWW
-    end if
+    dSiAAZ=dSiAAZ-3*B0ZWW-(4*MW2+3*rMZ2)*dB0ZWW
 
     SiAZ0=SiAZ0+(2*MW2*B00WW)/(cw*sw)
 
@@ -507,12 +505,10 @@ subroutine ew_renormalisation
         - ((1 + 8*cw2)*(MW2 - MZ2)**2*dB0WWZ)/rMW2 + ((54 - 10/cw2 + 16*cw2)*MW2 &
         + (-1 + 40*cw2)*rMW2)*dB0WWZ)/(12.*sw2)
 
-    if (ew_renorm_scheme == 1) then
-      SiW0=SiW0+(-8*(2*MW2*B00W0 - 2*MW2*B00WW - MW2**2*dB00W0) &
+    SiW0=SiW0+(-8*(2*MW2*B00W0 - 2*MW2*B00WW - MW2**2*dB00W0) &
           - (-2*MH2*B00HH + (2*MH2 - 10*MW2)*B00WH - 2*MW2*B00WW - (MH2 - MW2)**2*dB00WH)/sw2 &
           - ((54 - 10/cw2 + 16*cw2)*MW2*B00WZ - 2*(1 + 8*cw2)*(MW2*B00WW + MZ2*B00ZZ) &
           - (1 + 8*cw2)*(MW2 - MZ2)**2*dB00WZ)/sw2)/12.
-    end if
 
     SiH=SiH+((3*MH2*(A0H + 3*MH2*B0HHH))/MW2 &
         + (2*(-12*MW2**2 + (MH2 + 6*MW2)*A0W  &
@@ -668,14 +664,12 @@ subroutine ew_renormalisation
     ! contributions from heavy fermions = top-quark
     dSiAAheavy0=dSiAAheavy0-(16*nc*(1-3*B00TT-6*MT2*dB00TT))/81.
 
-    if (ew_renorm_scheme == 2) then
-      dSiAAZ=dSiAAZ &
+    dSiAAZ=dSiAAZ &
          - 2.*4.*(1._/**/REALKIND/3.-B0Z00-rMZ2*dB0Z00)/3. &               ! light-leptons
          -        4.*(1._/**/REALKIND/3.-B0ZLL-(2.*ML2+rMZ2)*dB0ZLL)/3. &  ! tau-lepton
          - 2.*20.*nc*(1._/**/REALKIND/3.-B0Z00-rMZ2*dB0Z00)/27. &          ! light-quarks
          -     4.*nc*(1._/**/REALKIND/3.-B0ZBB-(2.*MB2+rMZ2)*dB0ZBB)/27. & ! b-quark
          -    16.*nc*(1._/**/REALKIND/3.-B0ZTT-(2.*MT2+rMZ2)*dB0ZTT)/27.   ! t-quark
-    end if
 
     ! contribution from heavy + light fermions (in dimreg)
 
@@ -737,12 +731,10 @@ subroutine ew_renormalisation
                   +  ((MB2 - MT2)**2*dB0WTB)/rMW2 + (MB2 + MT2 - 2*rMW2)*dB0WTB) &
           )/(3.*sw2)
 
-    if (ew_renorm_scheme == 1) then
-      SiW0=SiW0 &
+    SiW0=SiW0 &
         - 1/(3.*sw2)*(ML2*B00LL + ML2*B000L/2. + ML2**2*dB000L/2.) &
         - nc/(3.*sw2)*(MB2*B00BB + ((MB2 + MT2)*B00TB)/2. +  &
           MT2*B00TT +  ((MB2 - MT2)**2*dB00TB)/2.)
-    end if
 
     SiH=SiH &
        -   (ML2*(2*A0L + (4*ML2 - rMH2)*B0HLL))/(2.*MW2*sw2) &  ! tau
@@ -762,8 +754,13 @@ subroutine ew_renormalisation
 !gauge bosons
   dAlphaQED_MZ=4*pi/alpha_QED*(1-alpha_QED_0/alpha_QED_MZ)  ! running of alpha from 0 to MZ
 
-  dZAAEW  = -(dSiAAheavy0 + PiAAlightZ/rMZ2 + dAlphaQED_MZ)
-  dZAAEWdimreg = -dSiAA0
+  dZAAEWnreg = -(dSiAAheavy0 + PiAAlightZ/rMZ2 + dAlphaQED_MZ)
+  dZAAEWdreg = -dSiAA0
+  if (delta_alphamz_dimreg) then
+    dZAAEW = dZAAEWdreg
+  else
+    dZAAEW = dZAAEWnreg
+  end if
 
   if (imag(MW2) == 0) then
     dZWEW   = -real(dSiW)
@@ -926,16 +923,28 @@ subroutine ew_renormalisation
   dswEW     =  -1.*cw/sw*dcwEW
 
 ! charge renormalization
-  dZe0QEDEW = -0.5*dZAAEW - sw/cw*SiAZ0/MZ2
+  ! a(0)
+  dZe0QEDEWnreg = -0.5*dZAAEWnreg - sw/cw*SiAZ0/MZ2
+  dZe0QEDEWdreg = -0.5*dZAAEWdreg - sw/cw*SiAZ0/MZ2
+
+  ! Gmu
+  dZeGmuQEDEW = dswEW/sw - 1./sw/cw*SiAZ0/MZ2
+  dZeGmuQEDEW = dZeGmuQEDEW - 0.5/sw2*(6.+(7.-4.*sw2)/(2.*sw2)*log(cw2))
+  dZeGmuQEDEW = dZeGmuQEDEW +  0.5*(dZMW2EW-SiW0)/MW2
+
+  ! a(MZ)
+  dZeZQEDEW = -0.5*(dZAAEWnreg+dAlphaQED_MZ) - sw/cw*SiAZ0/MZ2   !NB: dAlphaQED_MZ drops out -> reg independent
 
   if (ew_renorm_scheme == 0 ) then ! on-shell scheme = alpha(0) scheme
-    dZeQEDEW = dZe0QEDEW
+    if (delta_alphamz_dimreg) then
+      dZeQEDEW = dZe0QEDEWdreg
+    else
+      dZeQEDEW = dZe0QEDEWnreg
+    end if
   else if (ew_renorm_scheme == 1) then ! Gmu scheme
-    dZeQEDEW = dswEW/sw - 1./sw/cw*SiAZ0/MZ2
-    dZeQEDEW = dZeQEDEW - 0.5/sw2*(6.+(7.-4.*sw2)/(2.*sw2)*log(cw2))
-    dZeQEDEW = dZeQEDEW +  0.5*(dZMW2EW-SiW0)/MW2
+    dZeQEDEW = dZeGmuQEDEW
   else if (ew_renorm_scheme == 2) then ! alpha(mZ) scheme
-    dZeQEDEW = -0.5*(dZAAEW+dAlphaQED_MZ) - sw/cw*SiAZ0/MZ2   !NB: dAlphaQED_MZ drops out
+    dZeQEDEW = dZeZQEDEW
   else
     call ol_error(2, 'in ew_renormalisation: ew_renorm_scheme= ' // to_string(ew_renorm_scheme) // ' not supported!')
     call ol_fatal()
@@ -944,12 +953,18 @@ subroutine ew_renormalisation
 
   if (cms_on == 2) then !CMS-II
     dZAAEW = dZAAEW
-    dZAAEWdimreg = dZAAEWdimreg
+    dZAAEWdreg = dZAAEWdreg
     dZeQEDEW = dZeQEDEW
+    dZe0QEDEWnreg = dZe0QEDEWnreg
+    dZeGmuQEDEW =dZeGmuQEDEW
+    dZeZQEDEW = dZeZQEDEW
   else
     dZAAEW = real(dZAAEW)
-    dZAAEWdimreg = real(dZAAEWdimreg)
+    dZAAEWdreg = real(dZAAEWdreg)
     dZeQEDEW = real(dZeQEDEW)
+    dZe0QEDEWnreg = real(dZe0QEDEWnreg)
+    dZeGmuQEDEW = real(dZeGmuQEDEW)
+    dZeZQEDEW = real(dZeZQEDEW)
   end if
 
 
@@ -1885,35 +1900,55 @@ subroutine photon_factors(photonid, ew_renorm, bornfactor, loopfactor)
 !               + dZAA(epsilon)-dZAA(DeltaAlpha) for each initial-state off-shell photon
 ! ****************************************************************************************
   use ol_parameters_decl_/**/DREALKIND, only: ew_scheme, ew_renorm_scheme, &
-                                           &  onshell_photon_lsz, offshell_photon_dimreg
-  use ol_parameters_decl_/**/REALKIND, only: alpha_QED_0, alpha_QED, pi
-  use ol_loop_parameters_decl_/**/REALKIND, only: countertermnorm, dZeQEDEW, dZe0QEDEW, &
-                                              & dZAAEWdimreg, dZAAEW
+                     &  onshell_photons_lsz, offshell_photons_lsz, delta_alphamz_dimreg
+  use ol_parameters_decl_/**/REALKIND, only: alpha_QED, alpha_QED_0, alpha_QED_Gmu, pi
+  use ol_loop_parameters_decl_/**/REALKIND, only: countertermnorm, &
+                                              & dZeQEDEW, dZe0QEDEWnreg, dZe0QEDEWdreg, dZeGmuQEDEW, &
+                                              & dZAAEW, dZAAEWdreg, dZAAEWnreg
   implicit none
   integer, intent(in) :: photonid(:)
   integer, intent(in) :: ew_renorm
   real(REALKIND),  intent(out) :: bornfactor
   real(REALKIND),  intent(out), optional :: loopfactor
-  integer :: n_onshell = 0
+  integer :: n_gamma=0, n_onshell_gamma=0, n_offshell_gamma=0
 
-  if (onshell_photon_lsz .and. (ew_scheme > 0)) then
-    bornfactor=(alpha_QED_0/alpha_QED)**sum(photonid/photonid,photonid.gt.0)
-  else
-    bornfactor=1.
+  n_gamma=sum(photonid/photonid,photonid.ne.0)
+  n_onshell_gamma=sum(photonid/photonid,photonid.gt.0)
+  n_offshell_gamma=sum(photonid/photonid,photonid.lt.0)
+
+  bornfactor=1.
+  if (onshell_photons_lsz .and. (ew_scheme > 0)) then
+    bornfactor=(alpha_QED_0/alpha_QED)**n_onshell_gamma
   end if
 
-  if (present(loopfactor)) then
-    loopfactor=0.
-    if (ew_renorm > 0) then
-      if (onshell_photon_lsz .and. (ew_renorm_scheme > 0)) then
-        loopfactor=(dZe0QEDEW-dZeQEDEW)*alpha_QED*countertermnorm*4.*pi &
-                            &  *sum(photonid/photonid,photonid.gt.0)  ! #on-shell photons: dZe(Gmu/MZ) -> dZe(0)
+  if (ew_scheme == 0) then
+      if (delta_alphamz_dimreg) then
+          bornfactor=(alpha_QED_Gmu/alpha_QED_0)**n_gamma
+      else if (offshell_photons_lsz) then
+          bornfactor=(alpha_QED_Gmu/alpha_QED_0)**n_offshell_gamma
       end if
-      if (offshell_photon_dimreg) then
-        loopfactor=loopfactor+(dZAAEWdimreg-dZAAEW)*alpha_QED*countertermnorm*2*pi &
-                              &  *sum(photonid/photonid,photonid.lt.0)  ! #off-shell photons: dZAA(Delta) -> dZAA(dimreg)
+  end if
+
+
+  if (present(loopfactor) .and. ew_renorm > 0) then
+    loopfactor=0.
+
+    ! on-shell photons: dZe(Gmu/MZ) -> dZe(0)
+    if (onshell_photons_lsz .and. (ew_renorm_scheme > 0)) then
+      loopfactor=(dZe0QEDEWnreg-dZeQEDEW)*alpha_QED*countertermnorm*4.*pi*n_onshell_gamma  ! #on-shell photons: dZe(Gmu/MZ) -> dZe(0)
+    end if
+
+    if (delta_alphamz_dimreg) then
+      if (ew_renorm_scheme == 0) then
+        loopfactor=loopfactor+(dZeGmuQEDEW-dZeQEDEW)*alpha_QED*countertermnorm*4.*pi*n_gamma  ! #all photons: dZe(0,dimreg) -> dZe(Gmu)
+      end if
+    else if (offshell_photons_lsz) then
+      loopfactor=loopfactor+(dZAAEWdreg-dZAAEW)*alpha_QED*countertermnorm*2*pi*n_offshell_gamma  ! #off-shell photons: dZAA(n-reg) -> dZAA(dimreg)
+      if (ew_renorm_scheme == 0) then
+        loopfactor=loopfactor+(dZeGmuQEDEW-dZeQEDEW)*alpha_QED*countertermnorm*4.*pi*n_offshell_gamma ! #off-photons: dZe(0,n-reg) -> dZe(Gmu)
       end if
     end if
+
   end if
 end subroutine photon_factors
 

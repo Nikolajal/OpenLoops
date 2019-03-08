@@ -430,19 +430,27 @@ module ol_init
         else
           call set_if_modified(ew_renorm_scheme, val)
         end if
-      case ("onshell_photon_lsz", "onshell_photon_a0")
+      case ("onshell_photons_lsz", "onshell_photon_lsz")
         if (val == 1) then
-          call set_if_modified(onshell_photon_lsz, .true.)
+          call set_if_modified(onshell_photons_lsz, .true.)
         else if (val == 0) then
-          call set_if_modified(onshell_photon_lsz, .false.)
+          call set_if_modified(onshell_photons_lsz, .false.)
         else
           call ol_error(1,"unrecognised " // trim(param) // "=" // to_string(val))
         end if
-      case ("offshell_photon_dimreg")
+      case ("offshell_photons_dimreg", "offshell_photon_dimreg", "offshell_photons_lsz", "offshell_photon_lsz")
         if (val == 1) then
-          call set_if_modified(offshell_photon_dimreg, .true.)
+          call set_if_modified(offshell_photons_lsz, .true.)
         else if (val == 0) then
-          call set_if_modified(offshell_photon_dimreg, .false.)
+          call set_if_modified(offshell_photons_lsz, .false.)
+        else
+          call ol_error(1,"unrecognised " // trim(param) // "=" // to_string(val))
+        end if
+      case ("all_photons_dimreg", "all_photon_dimreg", "delta_alphamz_dimreg")
+        if (val == 1) then
+          call set_if_modified(delta_alphamz_dimreg, .true.)
+        else if (val == 0) then
+          call set_if_modified(delta_alphamz_dimreg, .false.)
         else
           call ol_error(1,"unrecognised " // trim(param) // "=" // to_string(val))
         end if

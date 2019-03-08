@@ -136,6 +136,7 @@ subroutine parameters_init()
     & model, parameters_verbose, cms_on => cms_on, ew_scheme => ew_scheme, &
     & parameters_status_dp => parameters_status,  alpha_QCD_dp => alpha_QCD, &
     & alpha_QED_0_dp => alpha_QED_0, alpha_QED_MZ_dp => alpha_QED_MZ, &
+    & alpha_QED_Gmu_dp => alpha_QED_Gmu, &
     & thdmTB_dp => thdmTB, thdmSBA_dp => thdmSBA, thdmL5_dp => thdmL5
   use ol_parameters_decl_/**/DREALKIND, only: &
     rME_unscaled_dp => rME_unscaled, &
@@ -250,9 +251,10 @@ subroutine parameters_init()
 
   Gmu  = Gmu_unscaled_dp / scalefactor**2
 
-  alpha_QED_0  = alpha_QED_0_dp
-  alpha_QED_MZ = alpha_QED_MZ_dp
-  alpha_QCD    = alpha_QCD_dp
+  alpha_QED_0   = alpha_QED_0_dp
+  alpha_QED_MZ  = alpha_QED_MZ_dp
+  alpha_QED_Gmu = alpha_QED_Gmu_dp
+  alpha_QCD     = alpha_QCD_dp
 
   thdmTB = thdmTB_dp
   thdmSBA = thdmSBA_dp
@@ -314,16 +316,18 @@ subroutine parameters_init()
   sw4    = sw2**2
   sw6    = sw2**3
 
+  if (cms_on == 1 ) then
+    alpha_QED_Gmu = sqrt2/pi*Gmu*abs(MW2*sw2)
+  else if (cms_on == 2) then
+    alpha_QED_Gmu = sqrt2/pi*Gmu*rMW2*(1.-rMW2/rMZ2)
+  else
+    alpha_QED_Gmu = sqrt2/pi*Gmu*rMW2*sw2
+  end if
+
   if (ew_scheme == 0) then ! alpha(0) OS scheme
     alpha_QED = alpha_QED_0
   else if (ew_scheme == 1) then ! Gmu scheme
-    if (cms_on == 1 ) then
-      alpha_QED = sqrt2/pi*Gmu*abs(MW2*sw2)
-    else if (cms_on == 2) then
-      alpha_QED = sqrt2/pi*Gmu*rMW2*(1.-rMW2/rMZ2)
-    else
-      alpha_QED = sqrt2/pi*Gmu*rMW2*sw2
-    end if
+    alpha_QED = alpha_QED_Gmu
   else if (ew_scheme == 2) then ! alpha(MZ) scheme
     alpha_QED = alpha_QED_MZ
   end if
@@ -1071,10 +1075,11 @@ subroutine parameters_write(filename)
   write(outid,*) 'alpha_s      =', alpha_QCD
   write(outid,*) 'alpha_qed    =', alpha_QED,    '  1/alpha_qed    =', 1/alpha_QED
   write(outid,*)
-  write(outid,*) 'ew_scheme    =', ew_scheme
-  write(outid,*) 'alpha_qed_0  =', alpha_QED_0,  '  1/alpha_qed_0  =', 1/alpha_QED_0
-  write(outid,*) 'alpha_qed_MZ =', alpha_QED_MZ, '  1/alpha_qed_MZ =', 1/alpha_QED_MZ
-  write(outid,*) 'Gmu          =', Gmu
+  write(outid,*) 'ew_scheme     =', ew_scheme
+  write(outid,*) 'alpha_qed_0   =', alpha_QED_0,  '  1/alpha_qed_0   =', 1/alpha_QED_0
+  write(outid,*) 'alpha_qed_MZ  =', alpha_QED_MZ, '  1/alpha_qed_MZ  =', 1/alpha_QED_MZ
+  write(outid,*) 'alpha_qed_Gmu =', alpha_QED_Gmu, '  1/alpha_qed_Gmu =', 1/alpha_QED_Gmu
+  write(outid,*) 'Gmu           =', Gmu
   write(outid,*)
   write(outid,*) 'derived couplings'
   write(outid,*) 'sw           =', sw,           '  sw2            =', sw2

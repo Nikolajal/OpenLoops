@@ -4060,14 +4060,14 @@ module openloops
 
   subroutine evaluate_r2(id, psp, m2l0, m2ct)
     use ol_parameters_decl_/**/DREALKIND, only: add_associated_ew
-    use ol_loop_parameters_decl_/**/DREALKIND, only: CT_is_on, R2_is_on, TP_is_on, do_ew_renorm
+    use ol_loop_parameters_decl_/**/DREALKIND, only: CT_is_on, R2_is_on, TP_is_on, do_ew_renorm, use_bubble_vertex
     use ol_init, only: set_if_modified, parameters_flush
     use ol_stability
     use ol_generic, only: to_string
     implicit none
     integer, intent(in)  :: id
     real(DREALKIND), intent(in)  :: psp(:,:)
-    integer :: CT_on_bak, R2_on_bak, TP_on_bak
+    integer :: CT_on_bak, R2_on_bak, TP_on_bak, use_bubble_vertex_bak
     real(DREALKIND), intent(out) :: m2l0, m2ct
     real(DREALKIND) :: m2l0ew, m2ctew
     type(process_handle)  :: subprocess, subprocessew
@@ -4083,9 +4083,11 @@ module openloops
     CT_on_bak = CT_is_on
     R2_on_bak = R2_is_on
     TP_on_bak = TP_is_on
+    use_bubble_vertex_bak = use_bubble_vertex
     call set_if_modified(CT_is_on, -1)
     call set_if_modified(R2_is_on, 1)
     call set_if_modified(TP_is_on, 0)
+    call set_if_modified(use_bubble_vertex, 0)
     ! call parameters_flush() is done in ctamp2base,
     ! because only there we know if ew renormalisation needs to be activated.
     n_scatt = subprocess%n_in
@@ -4096,6 +4098,7 @@ module openloops
     call set_if_modified(CT_is_on, CT_on_bak)
     call set_if_modified(R2_is_on, R2_on_bak)
     call set_if_modified(TP_is_on, TP_on_bak)
+    call set_if_modified(use_bubble_vertex, use_bubble_vertex_bak)
     call parameters_flush()
   end subroutine evaluate_r2
 

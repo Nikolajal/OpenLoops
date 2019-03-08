@@ -98,30 +98,23 @@ subroutine construct_l1l2_1(mom1,mom2,alpha,gamma,l1,l2,r1,r2)
 !************************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_kinematics_/**/REALKIND, only: cont_LC_cntrv
-  use ol_parameters_decl_/**/REALKIND, only: CI,cone,zero
-  use ol_momenta_decl_/**/REALKIND, only: L, Q
-  use ol_debug, only: ol_error
-  use, intrinsic :: iso_fortran_env, only : stderr=>error_unit
+  use ol_parameters_decl_/**/REALKIND, only: CI,cone
+  use ol_momenta_decl_/**/REALKIND, only: L
   implicit none
   integer, intent(in) :: mom1, mom2
   complex(REALKIND), intent(out) :: gamma, alpha(2)
-  complex(REALKIND) :: sqrt_delta
+  complex(REALKIND) :: sqrt_delta, one_sqrt_delta
   complex(REALKIND), intent(out) :: l1(4), l2(4), r1(4), r2(4)
-  real(REALKIND) :: p1p2, p1xp2, x1, x2, x12, delta, l1acc(1:4), l2acc(1:4), norm
-  complex(REALKIND) :: l1l1, l2l2, lnew
-  integer :: i, sl
-  real(REALKIND) :: accthres = 10._/**/REALKIND**(1-real(precision(x1),REALKIND))
-  real(REALKIND) :: corrdiff
-  real(REALKIND) :: signp1p2,signp1xp2
-  logical :: zero_pt
+  real(REALKIND) :: p1p2, p1xp2, x1, x2, delta
+  real(REALKIND) :: signp1p2, signp1xp2
 
   p1p2 = REAL(cont_LC_cntrv(L(1:4,mom1),L(1:4,mom2)))
   x1 = REAL(L(5,mom1) + L(6,mom1))/p1p2
   x2 = REAL(L(5,mom2) + L(6,mom2))/p1p2
 
-  zero_pt = L(3,mom1) .eq. 0 .and. L(4,mom1) .eq. 0 .and. &
-            L(3,mom2) .eq. 0 .and. L(4,mom2) .eq. 0
-  if (zero_pt) then
+  ! Construct l1/l2/delta/... for special cases
+  ! Case p_{1/2,T} = 0
+  if (L(3,mom1) .eq. 0 .and. L(3,mom2) .eq. 0) then
     p1xp2 = REAL(L(1,mom1)*L(2,mom2) - L(2,mom1)*L(1,mom2))
     signp1p2 = sign(1._/**/REALKIND,p1p2)
     signp1xp2 = sign(1._/**/REALKIND,p1xp2)
@@ -140,120 +133,59 @@ subroutine construct_l1l2_1(mom1,mom2,alpha,gamma,l1,l2,r1,r2)
     else
       sqrt_delta = - CI*sqrt(-delta)
     end if
+
+    one_sqrt_delta = cone + sqrt_delta
+
+    l1 = L(1:4,mom1) - alpha(1)*L(1:4,mom2)
+    l2 = L(1:4,mom2) - alpha(2)*L(1:4,mom1)
+
+  ! Case (p_1-p_2)^2 = 0
+  else if ((L(5,mom2-mom1) + L(6,mom2-mom1)) .eq. 0) then
+
+    delta = cone - x1*x2
+
+    p1xp2 = REAL(cont_LC_cntrv(L(1:4,mom1),L(1:4,mom2-mom1)))
+    signp1p2 = sign(1._/**/REALKIND,p1p2)
+    signp1xp2 = sign(1._/**/REALKIND,p1xp2)
+
+    if (signp1p2*signp1xp2 .eq. 1) then
+      alpha(1) = x1/x2
+      alpha(2) = 1
+      one_sqrt_delta = x2
+      l1 = L(1:4,mom1) - alpha(1)*L(1:4,mom2)
+      l2 = L(1:4,mom2-mom1)
+    else
+      alpha(1) = 1
+      alpha(2) = x2/x1
+      one_sqrt_delta = x1
+      l1 = -L(1:4,mom2-mom1)
+      l2 = L(1:4,mom2) - alpha(2)*L(1:4,mom1)
+    end if
+
+  ! General case
   else
-    x1 = REAL(L(5,mom1) + L(6,mom1))/p1p2
-    x2 = REAL(L(5,mom2) + L(6,mom2))/p1p2
-    x12 = x1*x2
-    delta = cone - x12
+
+    delta = cone - x1*x2
 
     if (delta > 0) then
       sqrt_delta = sqrt(delta)
     else
       sqrt_delta = - CI*sqrt(-delta)
     end if
+    one_sqrt_delta = cone + sqrt_delta
 
-    alpha(1) = x1/(cone + sqrt_delta)
-    alpha(2) = x2/(cone + sqrt_delta)
+    alpha(1) = x1/one_sqrt_delta
+    alpha(2) = x2/one_sqrt_delta
+
+    l1 = L(1:4,mom1) - alpha(1)*L(1:4,mom2)
+    l2 = L(1:4,mom2) - alpha(2)*L(1:4,mom1)
+
   end if
 
-  call squeeze_onshell(L(1:4,mom1),L(1:4,mom2),alpha(1),l1)
-  call squeeze_onshell(L(1:4,mom2),L(1:4,mom1),alpha(2),l2)
+  r1 = (L(1:4,mom1) - x1*L(1:4,mom2))/one_sqrt_delta
+  r2 = (L(1:4,mom2) - x2*L(1:4,mom1))/one_sqrt_delta
 
-  if (delta > 0) then
-    l1(1) = cmplx(real(l1(1),kind=REALKIND),0._/**/REALKIND,kind=REALKIND)
-    l1(2) = cmplx(real(l1(2),kind=REALKIND),0._/**/REALKIND,kind=REALKIND)
-    l2(1) = cmplx(real(l2(1),kind=REALKIND),0._/**/REALKIND,kind=REALKIND)
-    l2(2) = cmplx(real(l2(2),kind=REALKIND),0._/**/REALKIND,kind=REALKIND)
-  end if
-
-  r1 = (L(1:4,mom1) - x1*L(1:4,mom2))/(cone + sqrt_delta)
-  r2 = (L(1:4,mom2) - x2*L(1:4,mom1))/(cone + sqrt_delta)
-
-  gamma = 4*p1p2*(delta/(cone + sqrt_delta))
-
-  contains
-
-  subroutine squeeze_onshell(p1,p2,al,li)
-
-    complex(REALKIND), intent(in)    :: p1(4),p2(4),al
-    complex(REALKIND), intent(inout) :: li(4)
-    complex(REALKIND) :: up,lp,li1li2,li3li4,beta,osdelta
-    real(REALKIND)    :: norm,rp,lierr(4),errestim
-    real(REALKIND), parameter :: prd = precision(up)
-    real(REALKIND), parameter :: accthres = 10._/**/REALKIND**(1-prd)
-    real(REALKIND) :: zero = 0
-
-    logical :: correct_li = .false.
-
-    li = p1(1:4) - al*p2(1:4)
-    if (.not. correct_li) return
-
-    li1li2 = li(1)*li(2)
-    li3li4 = li(3)*li(4)
-    norm = max(abs(li1li2),abs(li3li4))
-    osdelta = li1li2 - li3li4
-
-    ! condition for necessity of os correction
-    if (abs(osdelta)/norm .gt. accthres) then
-      do i = 1, 4
-        if (li(i) .eq. zero .and. .not. zero_pt) then
-          li(i) = p1(i)*10**(-prd-1)
-          lierr(i) = 10**(-prd-2)
-          select case (i)
-            case (1,2)
-              li1li2 = li(1)*li(2)
-            case default
-              li3li4 = li(3)*li(4)
-          end select
-        else if (li(i) .eq. zero) then
-          lierr(i) = zero
-        else
-          norm = maxval(abs(li))
-          errestim =abs(li(i))/max(norm, abs(p1(i)), abs(al*p2(i)))
-          lierr(i) = 10**(-prd-2-log10(errestim))
-        end if
-      end do
-      osdelta = li1li2 - li3li4
-      if (abs(li1li2) .gt. abs(li3li4)) then
-        up = (lierr(1)+lierr(2))*li1li2
-        lp = (lierr(3)+lierr(4))*li1li2
-      else
-        up = (lierr(1)+lierr(2))*li3li4
-        lp = (lierr(3)+lierr(4))*li3li4
-      end if
-
-      if (abs(lp) .eq. zero) then ! correct upper two cmp
-        beta = -osdelta/(up)
-        li(1) = li(1) + beta*lierr(1)*li(1)
-        li(2) = li(2) + beta*lierr(2)*li(2)
-      else if (abs(up) .eq. zero) then ! correct lower two cmp
-        beta = -osdelta/(-lp)
-        li(3) = li(3) + beta*lierr(3)*li(3)
-        li(4) = li(4) + beta*lierr(4)*li(4)
-      else
-        rp = abs(up)/abs(lp)
-        if (rp .gt. 10) then ! correct only upper two cmp
-          beta = -osdelta/(up)
-          li(1) = li(1) + beta*lierr(1)*li(1)
-          li(2) = li(2) + beta*lierr(2)*li(2)
-        else if (rp .lt. 0.1) then ! correct only upper two cmp
-          beta = -osdelta/(-lp)
-          li(1) = li(1) + beta*lierr(1)*li(1)
-          li(2) = li(2) + beta*lierr(2)*li(2)
-        else ! correct upper and lower two cmp
-          beta = -osdelta/(up-lp)
-          li(1) = li(1) + beta*lierr(1)*li(1)
-          li(2) = li(2) + beta*lierr(2)*li(2)
-          li(3) = li(3) + beta*lierr(3)*li(3)
-          li(4) = li(4) + beta*lierr(4)*li(4)
-        end if
-      end if
-      li1li2 = li(1)*li(2)
-      li3li4 = li(3)*li(4)
-      osdelta = li1li2 - li3li4
-    end if
-
-  end subroutine squeeze_onshell
+  gamma = 4*p1p2*delta/one_sqrt_delta
 
 end subroutine construct_l1l2_1
 

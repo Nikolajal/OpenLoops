@@ -12,8 +12,8 @@
 !  ***************************
 !  *  module collier_global  *
 !  *      by Lars Hofer      *
-!  *************************** 
-! 
+!  ***************************
+!
 !  contains the global parameters of COLLIER
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -22,11 +22,11 @@
 
 module collier_global
 
-  character(len=5) :: version_cll="1.2.3"
+  character(len=5) :: version_cll="1.2.4"
 !  character(len=5) :: version_cll=" 1.2 "
   integer :: mode_cll, nminf_cll
   double precision :: muUV2_cll,muIR2_cll,DeltaUV_cll,DeltaIR1_cll,DeltaIR2_cll
-  double complex, allocatable :: minf2_cll(:) 
+  double complex, allocatable :: minf2_cll(:)
   double precision :: dprec_cll, reqacc_cll, critacc_cll, checkacc_cll, sreqacc_cll
   integer :: nmax_DD,rmax_DD,rmax2_DD,rmax3_DD,rmax4_DD,rmax5_DD,rmax6_DD
   character(len=250) :: filename_errout_cll
@@ -81,7 +81,7 @@ module collier_global
   integer :: PointsCntA2_cll,PointsCntB2_cll,PointsCntC2_cll,  &
       PointsCntD2_cll,PointsCntE2_cll,PointsCntF2_cll,PointsCntG2_cll,PointsCntDB2_cll
   integer, allocatable :: PointsCntTN2_cll(:),CritPointsCntTN2_cll(:),AccPointsCntTN2_cll(:),sAccPointsCntTN2_cll(:)
-  
+
   integer :: PointsCntA_coli,PointsCntB_coli,PointsCntDB_coli,PointsCntC_coli,  &
       PointsCntD_coli,PointsCntE_coli,PointsCntF_coli,PointsCntG_coli
   integer, allocatable :: PointsCntTN_coli(:)
@@ -106,22 +106,22 @@ module collier_global
   integer, allocatable :: noutCritPointsMax_cll(:)
   integer :: noutCritPointsMaxDB_cll
 
-  
-  integer :: nerrout_cll,nerroutcoli_cll,nerroutdd_cll 
-  integer :: ninfout_cll,ninfoutcoli_cll,ncheckout_cll 
+
+  integer :: nerrout_cll,nerroutcoli_cll,nerroutdd_cll
+  integer :: ninfout_cll,ninfoutcoli_cll,ncheckout_cll
   integer :: ncpoutcoli_cll,nstatsoutcoli_cll,ncpout_cll,ncpout2_cll
   character(len=250) :: fname_errout_cll,fname_erroutcoli_cll
   character(len=250) :: fname_erroutdd_cll,fname_cpoutcoli_cll
   character(len=250) :: fname_cpout_cll,fname_cpout2_cll
   character(len=250) :: fname_checkout_cll,fname_infout_cll
   character(len=250) :: fname_infoutcoli_cll,fname_statsoutcoli_cll
-  integer :: nerrout_cp_cll,nerroutcoli_cp_cll,nerroutdd_cp_cll 
-  integer :: ninfout_cp_cll,ninfoutcoli_cp_cll,ncheckout_cp_cll 
+  integer :: nerrout_cp_cll,nerroutcoli_cp_cll,nerroutdd_cp_cll
+  integer :: ninfout_cp_cll,ninfoutcoli_cp_cll,ncheckout_cp_cll
   integer :: ncpoutcoli_cp_cll,nstatsoutcoli_cp_cll,ncpout_cp_cll,ncpout2_cp_cll
   character(len=250) :: fname_errout_cp_cll,fname_erroutcoli_cp_cll
   character(len=250) :: fname_erroutdd_cp_cll,fname_cpoutcoli_cp_cll
   character(len=250) :: fname_cpout_cp_cll,fname_cpout2_cp_cll
   character(len=250) :: fname_checkout_cp_cll,fname_infout_cp_cll
   character(len=250) :: fname_infoutcoli_cp_cll,fname_statsoutcoli_cp_cll
-  
+
 end module collier_global

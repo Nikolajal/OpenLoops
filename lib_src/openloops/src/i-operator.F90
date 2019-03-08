@@ -65,7 +65,8 @@ subroutine intdip(mode, M2LO, M2CC, M2CC_EW, extflav, extcharges, Npart, extmass
 ! **********************************************************************
   use KIND_TYPES, only: REALKIND
   use ol_parameters_decl_/**/REALKIND, only: alpha_QCD, alpha_QED, pi
-  use ol_parameters_decl_/**/DREALKIND, only: offshell_photon_dimreg
+  use ol_parameters_decl_/**/DREALKIND, only: &
+       & offshell_photons_lsz, delta_alphamz_dimreg
   use ol_loop_parameters_decl_/**/REALKIND
   use ol_momenta_decl_/**/REALKIND, only: Q, L
   use ol_kinematics_/**/REALKIND
@@ -131,7 +132,7 @@ subroutine intdip(mode, M2LO, M2CC, M2CC_EW, extflav, extcharges, Npart, extmass
     end do
 
     ! photon -> ff splittings
-    if (offshell_photon_dimreg) then
+    if (offshell_photons_lsz .or. delta_alphamz_dimreg) then
       do j = 1, Npart
         if (extflav(j) /= -1) cycle ! emitter j /= photon
         Gj=0
@@ -139,7 +140,9 @@ subroutine intdip(mode, M2LO, M2CC, M2CC_EW, extflav, extcharges, Npart, extmass
         do k = 1, Npart
           QQ = 0d0
           if (k == j) cycle
-          if (photonid(j) >= 0) cycle ! on-shell photon emitter -> cycle
+          if (.not. delta_alphamz_dimreg) then
+            if (photonid(j) >= 0) cycle ! on-shell photon emitter -> cycle
+          end if
           if (olm == 0) then
             if (real(Q(1,2**(j-1))+Q(2,2**(j-1))) .gt. 0 .and. real(Q(1,2**(k-1))+Q(2,2**(k-1))) .gt. 0 ) then ! IS off-shell photon -> IS spectator with Q=-1
               QQ = -1d0
@@ -157,8 +160,8 @@ subroutine intdip(mode, M2LO, M2CC, M2CC_EW, extflav, extcharges, Npart, extmass
               cycle
             end if
           end if
-          Fjk=0
-          c_dip = c_dip - 2*norm_qed*M2CC_EW*QQ*Gj
+          call intdip_Fjk(j,k,real(sarr(j,k)),extflav(j),extmass2(j),extmass2(k),Q2_aux,Fjk)
+          c_dip = c_dip - 2*norm_qed*M2CC_EW*QQ*(Fjk + Gj)
         end do
       end do
     end if
@@ -220,8 +223,8 @@ subroutine intdip_Gj(j,flavj,M2j,Q2_aux,Gj)
     Gj(1) = Gaj
     Gj(0) = 0
   else if (flavj == -1) then ! emitter j = photon
-    ! Gaj = [1/1] - 2/3*sum(Ncf*Qf2)
-    ! Kaj = [1/1] - 10/9*sum(Ncf*Qf2) = [1/1] + 5/3*Gaj
+    ! Gaj = [1/1] (- 2/3*sum(Ncf*Qf2))
+    ! Kaj = [1/1] (- 10/9*sum(Ncf*Qf2))
     ! Gamma_j = Gaj/ep
     Gaj = 0
     Kaj = 0
@@ -260,7 +263,12 @@ subroutine intdip_Gj(j,flavj,M2j,Q2_aux,Gj)
 
   ! Gj = Tj^2*([V_jk] - pi^2/3) + Gamma_j + Gaj + Kaj
   ! V_jk --> Fjk; Tj2 = cf for quark, ca for gluon
-  Gj(0) = Gj(0) + Gaj + Kaj - 2*pi2_6
+  if (flavj == -1) then ! emitter j = photon
+    Gj(0) = Gj(0) + Gaj + Kaj
+  else
+    Gj(0) = Gj(0) + Gaj + Kaj - 2*pi2_6
+  end if
+
   Gj(2) = 0
 
 end subroutine intdip_Gj
@@ -397,6 +405,8 @@ subroutine intdip_Fjk(j,k,Tjk,flavj,M2j,M2k,Q2_aux,Fjk)
 
   ! non-singular part of nu_j function for photons
   else if (flavj == -1) then ! EMITTER j=PHOTON
+    ! singular-part vanishing for photons
+    Fjk = 0
     ! Gaj = [1/1] - 2/3*sum(Ncf*Qf2)
     Gaj = 0
     if (SwF /= 0) Gaj = Gaj - 2./3.*Qf2sum

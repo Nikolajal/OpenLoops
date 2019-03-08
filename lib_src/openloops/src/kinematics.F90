@@ -1099,8 +1099,8 @@ subroutine internal_momenta_std(P, Npart)
 ! **********************************************************************
 ! P(0:3,Npart) = external real-valued four-momenta (standard representation)
 ! Npart        = total (in & out) external particle number
-! Q(1:5,1:Npart^2-2) = internal four-momenta in light-cone representation;
-!                      the fifth component is the C-valued squared momentum.
+! Q(1:5,1:2^Npart-1) = internal four-momenta in light-cone representation;
+!                      the fifth component is the complex-valued squared momentum.
 ! Numbering of internal momenta:
 !   Sum_i s(i)*P(i) => Q(Sum_i s(i)*2^(i-1)), s(i) = 0, 1
 !   so that Q(J1) + Q(J2) = Q(J1+J2)
@@ -1165,8 +1165,8 @@ subroutine internal_momenta_six(P, Npart, ext_masses, init_qp_kinematics)
 ! P(0:3,Npart)       = external real-valued four-momenta
 !                      (standard-representation)
 ! Npart              = number of external particle (in & out)
-! L(1:6,1:Npart^2-2) = internal four-momenta in light-cone representation;
-!                      the fifth component is the R-valued sum of external
+! L(1:6,1:2^Npart-1) = internal four-momenta in light-cone representation;
+!                      the fifth component is the real-valued sum of external
 !                      masses while the
 !                      the sixth component is the sum of the scalar-products
 ! Numbering of internal momenta:

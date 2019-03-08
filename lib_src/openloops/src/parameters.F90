@@ -444,10 +444,12 @@ module ol_parameters_decl_/**/REALKIND
   integer, save :: ew_scheme = 1
   ! select alpha_QED renormalization scheme: 0 = on-shell = alpha(0), 1 = G_mu, 2 = alpha(MZ)
   integer, save :: ew_renorm_scheme = 1
-  ! select off-shell gamma scheme: 0: off, 1: gamma -> FF splittings in dimreg
-  logical, save :: offshell_photon_dimreg = .true.
-  ! select on-shell gamma scheme: 0: off, 1: a(0)/a(Gmu/MZ) + dZe LSZ shift
-  logical, save :: onshell_photon_lsz = .true.
+  ! select reg. scheme for off-shell external photons: 0: off, 1: gamma -> FF splittings in dimreg
+  logical, save :: offshell_photons_lsz = .true.
+  ! select reg. scheme for all external photons: 0: off, 1: gamma -> FF splittings in dimreg
+  logical, save :: delta_alphamz_dimreg = .false.
+  ! select renorm scheme for on-shell external photons: 0: off, 1: a(0)/a(Gmu/MZ) + dZe LSZ shift
+  logical, save :: onshell_photons_lsz = .true.
   ! coupling order
   integer :: coupling_qcd(0:1) = -1
   integer :: coupling_ew(0:1) = -1
@@ -534,6 +536,7 @@ module ol_parameters_decl_/**/REALKIND
   real(REALKIND), save :: alpha_QED_MZ = 1/128._/**/REALKIND          ! alpha(MZ) derived from PDG 2014
   real(REALKIND), save :: alpha_QED_0  = 1/137.035999074_/**/REALKIND  ! alpha(0) from PDG 2014
   real(REALKIND), save :: alpha_QED
+  real(REALKIND), save :: alpha_QED_Gmu
 #ifdef PRECISION_dp
   real(REALKIND), save :: Gmu_unscaled = 0.0000116637_/**/REALKIND    ! G_mu
 #endif
@@ -975,12 +978,17 @@ module ol_loop_parameters_decl_/**/REALKIND
   complex(REALKIND), save :: dZAZEW     = 0 ! AZ field RC                : idem
   complex(REALKIND), save :: dZZAEW     = 0 ! AZ field RC                : idem
   complex(REALKIND), save :: dZAAEW     = 0 ! AA field RC                : idem
-  complex(REALKIND), save :: dZAAEWdimreg = 0 ! AA field RC dim-reg      : Photon field renormalization constant with ligh fermion contributions in dim-reg
+  complex(REALKIND), save :: dZAAEWdreg = 0 ! AA field RC dim-reg      : Photon field renormalization constant with ligh fermion contributions in dim-reg
+  complex(REALKIND), save :: dZAAEWnreg = 0 ! AA field RC dim-reg      : Photon field renormalization constant with ligh fermion contributions in n-reg
   complex(REALKIND), save :: dZHEW      = 0 ! H field RC                 : idem
 
   complex(REALKIND), save :: dtEW       = 0 ! tadpole-RC                 :
   complex(REALKIND), save :: dZeQEDEW   = 0 ! EW coupling RC         : e_bare  = (1+dZeEW)*e_ren
   complex(REALKIND), save :: dZe0QEDEW  = 0 ! EW coupling RC         : e_bare  = (1+dZeEW)*e_ren in on-shell/a(0) scheme
+  complex(REALKIND), save :: dZe0QEDEWdreg = 0 ! EW coupling RC   : e_bare  = (1+dZeEW)*e_ren in on-shell/a(0) scheme with light fermuion controbutions in dim-reg
+  complex(REALKIND), save :: dZe0QEDEWnreg = 0 ! EW coupling RC   : e_bare  = (1+dZeEW)*e_ren in on-shell/a(0) scheme with light fermuion controbutions in n-reg
+  complex(REALKIND), save :: dZeGmuQEDEW   = 0 ! EW coupling RC   : e_bare  = (1+dZeEW)*e_ren in Gmu-scheme
+  complex(REALKIND), save :: dZeZQEDEW     = 0 ! EW coupling RC   : e_bare  = (1+dZeEW)*e_ren in a(MZ)-scheme
 
   ! Counter terms for EW corrections
   ! VV Vector propagators
