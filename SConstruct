@@ -123,7 +123,7 @@ else:
     force_download_flag = []
 
 if config['release']:
-    release_version = 'version ' +config['release']
+    release_version = config['release']
 else:
     release_version = ''
 

@@ -23,7 +23,7 @@ module openloops
   use, intrinsic :: iso_c_binding, only: c_ptr, c_null_ptr, c_char, c_int, c_double, c_null_char
   use ol_init, only: set_init_error_fatal, set_parameter, get_parameter, parameters_flush, &
       & tree_parameters_flush, cleanup, set_if_modified
-  use ol_version, only: welcome
+  use ol_version, only: welcome, openloops_version_string
   use ol_parameters_decl_/**/DREALKIND,  only: procname_length, max_parameter_length
   use ol_external_decl_/**/DREALKIND, only: n_scatt
   use ol_debug, only: get_error, ol_msg, ol_error, ol_fatal, error
@@ -34,7 +34,7 @@ module openloops
   public :: set_init_error_fatal, get_error
   public :: set_parameter, get_parameter, parameters_flush, tree_parameters_flush
   ! from module use ol_version
-  public :: welcome
+  public :: welcome, openloops_version_string
   ! process interface
   public :: n_external, amplitudetype, phase_space_point, start, finish
   public :: tree_colbasis_dim, tree_colbasis, tree_colourflow

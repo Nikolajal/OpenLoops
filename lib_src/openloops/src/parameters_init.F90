@@ -134,6 +134,7 @@ subroutine parameters_init()
   use ol_parameters_decl_/**/REALKIND
   use ol_parameters_decl_/**/DREALKIND, only: &
     & model, parameters_verbose, cms_on => cms_on, ew_scheme => ew_scheme, &
+    & gmu_scheme_use_alpha_input => gmu_scheme_use_alpha_input, &
     & parameters_status_dp => parameters_status,  alpha_QCD_dp => alpha_QCD, &
     & alpha_QED_0_dp => alpha_QED_0, alpha_QED_MZ_dp => alpha_QED_MZ, &
     & alpha_QED_Gmu_dp => alpha_QED_Gmu, &
@@ -316,12 +317,16 @@ subroutine parameters_init()
   sw4    = sw2**2
   sw6    = sw2**3
 
-  if (cms_on == 1 ) then
-    alpha_QED_Gmu = sqrt2/pi*Gmu*abs(MW2*sw2)
-  else if (cms_on == 2) then
-    alpha_QED_Gmu = sqrt2/pi*Gmu*rMW2*(1.-rMW2/rMZ2)
-  else
-    alpha_QED_Gmu = sqrt2/pi*Gmu*rMW2*sw2
+  if (.not. gmu_scheme_use_alpha_input) then
+    ! if gmu_scheme_use_alpha_input is true,
+    ! alpha_qed_gmu has been set manually --> use it.
+    if (cms_on == 1 ) then
+      alpha_QED_Gmu = sqrt2/pi*Gmu*abs(MW2*sw2)
+    else if (cms_on == 2) then
+      alpha_QED_Gmu = sqrt2/pi*Gmu*rMW2*(1.-rMW2/rMZ2)
+    else
+      alpha_QED_Gmu = sqrt2/pi*Gmu*rMW2*sw2
+    end if
   end if
 
   if (ew_scheme == 0) then ! alpha(0) OS scheme

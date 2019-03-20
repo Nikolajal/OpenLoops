@@ -442,6 +442,7 @@ module ol_parameters_decl_/**/REALKIND
   logical, save :: no_collier_stop = .false.
   ! select alpha_QED input scheme: 0 = on-shell = alpha(0), 1 = G_mu, 2 = alpha(MZ)
   integer, save :: ew_scheme = 1
+  logical, save :: gmu_scheme_use_alpha_input = .false.
   ! select alpha_QED renormalization scheme: 0 = on-shell = alpha(0), 1 = G_mu, 2 = alpha(MZ)
   integer, save :: ew_renorm_scheme = 1
   ! select reg. scheme for off-shell external photons: 0: off, 1: gamma -> FF splittings in dimreg

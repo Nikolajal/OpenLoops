@@ -1801,8 +1801,8 @@ subroutine ew_renormalisation
                            -1/cw2 - 11*nc/(9*cw2) - 3/(sw4) - 5*(1+nc)/(4*cw2*sw4) &
                            + 3/sw2 + 5*(1+nc)/(2*cw2*sw2)]
 
-        EWctWWWW=EWctWWWW+[19/(6.*sw4) + (3*nc)/(2.*sw4), &
-                          -17/(2.*sw4) - (5*nc)/(2.*sw4)]
+        EWctWWWW=EWctWWWW+[-17/(2.*sw4) - (5*nc)/(2.*sw4), &
+                            19/(6.*sw4) + (3*nc)/(2.*sw4)]
 
   end if
 

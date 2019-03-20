@@ -41,6 +41,7 @@ extern "C" {
   void ol_evaluate_pt(int id, const double *pp, double *m2l0, double *m2pt, double *m2l1);
 
   void ol_welcome(char *str);
+  void ol_version_string(char *str);
   void ol_set_init_error_fatal(int flag);
   int  ol_get_error();
   int ol_n_external(int id);
