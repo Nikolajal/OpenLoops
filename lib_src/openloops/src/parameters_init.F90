@@ -134,7 +134,6 @@ subroutine parameters_init()
   use ol_parameters_decl_/**/REALKIND
   use ol_parameters_decl_/**/DREALKIND, only: &
     & model, parameters_verbose, cms_on => cms_on, ew_scheme => ew_scheme, &
-    & gmu_scheme_use_alpha_input => gmu_scheme_use_alpha_input, &
     & parameters_status_dp => parameters_status,  alpha_QCD_dp => alpha_QCD, &
     & alpha_QED_0_dp => alpha_QED_0, alpha_QED_MZ_dp => alpha_QED_MZ, &
     & alpha_QED_Gmu_dp => alpha_QED_Gmu, &
@@ -317,25 +316,39 @@ subroutine parameters_init()
   sw4    = sw2**2
   sw6    = sw2**3
 
-  if (.not. gmu_scheme_use_alpha_input) then
-    ! if gmu_scheme_use_alpha_input is true,
-    ! alpha_qed_gmu has been set manually --> use it.
-    if (cms_on == 1 ) then
-      alpha_QED_Gmu = sqrt2/pi*Gmu*abs(MW2*sw2)
-    else if (cms_on == 2) then
-      alpha_QED_Gmu = sqrt2/pi*Gmu*rMW2*(1.-rMW2/rMZ2)
-    else
-      alpha_QED_Gmu = sqrt2/pi*Gmu*rMW2*sw2
-    end if
+  if (cms_on == 1 ) then
+    alpha_QED_Gmu = sqrt2/pi*Gmu*abs(MW2*sw2)
+  else if (cms_on == 2) then
+    alpha_QED_Gmu = sqrt2/pi*Gmu*rMW2*(1.-rMW2/rMZ2)
+  else
+    alpha_QED_Gmu = sqrt2/pi*Gmu*rMW2*sw2
   end if
 
   if (ew_scheme == 0) then ! alpha(0) OS scheme
-    alpha_QED = alpha_QED_0
+    if (alpha_QED_input /= 0) then
+      alpha_QED = alpha_QED_input
+      alpha_QED_0 = alpha_QED_input
+    else
+     alpha_QED = alpha_QED_0
+    end if
   else if (ew_scheme == 1) then ! Gmu scheme
-    alpha_QED = alpha_QED_Gmu
+    alpha_qed = alpha_qed_gmu
   else if (ew_scheme == 2) then ! alpha(MZ) scheme
-    alpha_QED = alpha_QED_MZ
+    if (alpha_QED_input /= 0) then
+      alpha_QED = alpha_QED_input
+      alpha_QED_MZ = alpha_QED_input
+    else
+     alpha_QED = alpha_QED_MZ
+    end if
+  else if (ew_scheme == -1) then ! Gmu scheme with alpha(Gmu) as input
+    if (alpha_QED_input /= 0) then
+      alpha_QED = alpha_QED_input
+      alpha_QED_Gmu = alpha_QED_input
+    else
+     alpha_QED = alpha_QED_Gmu
+    end if
   end if
+
 
   E2_QED = 4*pi*alpha_QED
   eQED   = sqrt(E2_QED)
@@ -582,7 +595,7 @@ end subroutine channel_off
 
 subroutine init_kin_arrays(Npart)
   use ol_momenta_decl_/**/REALKIND, only: Q, L, QInvariantsMatrix
-  use ol_external_decl_/**/REALKIND, only: P_ex, binom2, crossing, inverse_crossing, gf_array, Ward_array
+  use ol_external_decl_/**/REALKIND, only: P_ex, M_ex, binom2, crossing, inverse_crossing, gf_array, Ward_array
   use ol_external_decl_/**/REALKIND, only: allocatedNpart
   implicit none
   integer, intent(in) :: Npart
@@ -602,6 +615,7 @@ subroutine init_kin_arrays(Npart)
     binom2 = [((n_*(n_-1))/2, n_=1, size(binom2))]
 
     allocate(P_ex(0:3,Npart))  ! uncleaned external 2->n-2 momenta, set by conv_mom_scatt2in
+    allocate(M_ex(Npart))  ! external 2->n-2 mass ids, set by conv_mom_scatt2in
     allocate(crossing(Npart))
     crossing = 0        ! only used if a reduction error occurs
     allocate(inverse_crossing(Npart))
@@ -658,7 +672,7 @@ end subroutine init_kin_arrays_quad
 subroutine clean_kin_arrays
   use ol_external_decl_/**/REALKIND, only: allocatedNpart
   use ol_momenta_decl_/**/REALKIND, only: Q, L, QInvariantsMatrix, Q_qp, QInvariantsMatrix_qp, L_qp
-  use ol_external_decl_/**/REALKIND, only: P_ex, binom2, crossing, inverse_crossing, gf_array, Ward_array
+  use ol_external_decl_/**/REALKIND, only: P_ex, M_ex, binom2, crossing, inverse_crossing, gf_array, Ward_array
   implicit none
   if (allocated(Q)) deallocate(Q)
   if (allocated(L)) deallocate(L)
@@ -668,6 +682,7 @@ subroutine clean_kin_arrays
   if (allocated(QInvariantsMatrix_qp)) deallocate(QInvariantsMatrix_qp)
   if (allocated(binom2)) deallocate(binom2)
   if (allocated(P_ex)) deallocate(P_ex)
+  if (allocated(M_ex)) deallocate(M_ex)
   if (allocated(crossing)) deallocate(crossing)
   if (allocated(inverse_crossing)) deallocate(inverse_crossing)
   if (allocated(gf_array)) deallocate(gf_array)
@@ -1176,7 +1191,7 @@ subroutine parameters_write(filename)
   write(outid,*) 'hp_loopacc         =', hp_loopacc
   write(outid,*) 'hp_step_thres      =', hp_step_thres
   write(outid,*) 'hp_alloc_mode      =', hp_alloc_mode
-  write(outid,*) 'use_qp_invariants  =', use_qp_invariants
+  write(outid,*) 'sync_qp_kinematics =', sync_qp_kinematics
   end if
   write(outid,*) 'stability_mode         =', stability_mode
   write(outid,*) 'deviation_mode         =', deviation_mode

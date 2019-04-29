@@ -66,8 +66,8 @@ subroutine TI_bubble_red(Gin_A,momid,msq,Gout_A,M2R1,A0_0,A0_1)
   use ol_kinematics_/**/REALKIND, only: get_mass2,get_LC_5
 #ifdef PRECISION_dp
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hcl_alloc_hybrid
-  use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2, &
-                                         get_LC_5_qp=>get_LC_5
+  use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+  use ol_kinematics_/**/DREALKIND, only: get_LC_5_qp
 #endif
   type(hcl),           intent(in)    :: Gin_A
   integer,             intent(in)    :: momid
@@ -3106,7 +3106,8 @@ subroutine compute_scalar_box(mom_ind, masses2in, RedSet, box)
   use ol_parameters_decl_/**/DREALKIND, only: a_switch
 #ifdef PRECISION_dp
   use ol_loop_reduction_/**/QREALKIND, only: box_onshell_cut_qp=>box_onshell_cut
-  use ol_kinematics_/**/QREALKIND, only: get_LC_5_qp=>get_LC_5,get_mass2_qp=>get_mass2
+  use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+  use ol_kinematics_/**/DREALKIND, only: get_LC_5_qp
 #endif
   implicit none
   integer,         intent(in)    :: mom_ind(3)
@@ -3189,13 +3190,15 @@ subroutine compute_scalar_box(mom_ind, masses2in, RedSet, box)
 #ifdef PRECISION_dp
 contains
   subroutine check_box()
-  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_check_box,hp_err_thres
+  use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_check_box,hp_err_thres,hp_qp_kinematics_init_mode
   use ofred_basis_construction_/**/QREALKIND, only: &
       construct_RedBasis_qp=>construct_RedBasis, &
       construct_p3scalars_qp=>construct_p3scalars
   use ol_data_types_/**/QREALKIND, only: basis_qp=>basis, redset4_qp=>redset4
   use ol_data_types_/**/QREALKIND, only: scalarbox_qp=>scalarbox
   use ol_loop_reduction_/**/QREALKIND, only: compute_scalar_box_qp=>compute_scalar_box
+  use ol_external_decl_/**/DREALKIND, only: init_qp
+  use ol_kinematics_/**/DREALKIND, only: init_qp_kinematics
   complex(QREALKIND) :: scalars(0:4),cttmp(0:4)
   type(basis_qp)     :: Redbasis_qp
   real(QREALKIND)    :: gd2,gd3
@@ -3204,6 +3207,7 @@ contains
   if (hp_check_box .eq. 1 .and. hp_switch .eq. 1 &
       .and. errbox .gt. 10**(-real(15-hp_err_thres,kind=REALKIND))) then
     if (.not. redset%qp_computed) then
+      if (hp_qp_kinematics_init_mode .gt. 0 .and. .not. init_qp) call init_qp_kinematics
       call construct_RedBasis_qp(box%mom1,box%mom2,Redbasis_qp)
       call construct_p3scalars_qp(box%mom3,Redbasis_qp,scalars,gd2,gd3)
       redset%qp_computed = .true.
@@ -3399,12 +3403,18 @@ subroutine TI_reduction_1(rank, momenta, masses2, Gtensor, M2add, scboxes, all_s
   type(scalarbox), intent(in), optional :: all_scboxes(:)
   real(REALKIND) :: error_box, error_OPP
 
-  if(size(masses2) == 7) then
-    call reduction_7points(rank, momenta, masses2, Gtensor%cmp, M2add, scboxes, all_scboxes, error_box)
+  if(size(masses2) == 5) then
+    call reduction_5points(rank, momenta, masses2, Gtensor%cmp, M2add, scboxes, all_scboxes, error_box)
   else if(size(masses2) == 6) then
     call reduction_6points(rank, momenta, masses2, Gtensor%cmp, M2add, scboxes, all_scboxes, error_box)
-  else if(size(masses2) == 5) then
-    call reduction_5points(rank, momenta, masses2, Gtensor%cmp, M2add, scboxes, all_scboxes, error_box)
+  else if(size(masses2) == 7) then
+    call reduction_7points(rank, momenta, masses2, Gtensor%cmp, M2add, scboxes, all_scboxes, error_box)
+  else if(size(masses2) == 8) then
+    call reduction_8points(rank, momenta, masses2, Gtensor%cmp, M2add, scboxes, all_scboxes, error_box)
+  else if(size(masses2) == 9) then
+    call reduction_9points(rank, momenta, masses2, Gtensor%cmp, M2add, scboxes, all_scboxes, error_box)
+  else if(size(masses2) == 10) then
+    call reduction_10points(rank, momenta, masses2, Gtensor%cmp, M2add, scboxes, all_scboxes, error_box)
   end if
   error_OPP = Gtensor%error + error_box
   if (error_OPP > hp_max_err) hp_max_err = error_OPP
@@ -3650,5 +3660,371 @@ scboxes, all_scboxes, error_box)
 
 end subroutine reduction_7points
 
+! --- OCTAGON ---
+! ********************************************************************
+subroutine reduction_8points(rank, momenta, masses2, Gtensor, M2add, &
+scboxes, all_scboxes, error_box)
+! ********************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_kinematics_/**/REALKIND, only: cont_LC_cntrv
+  use ol_loop_handling_/**/REALKIND, only: G_tensorShift_otf
+  use ol_data_types_/**/REALKIND, only: scalarbox
+  use ol_loop_parameters_decl_/**/DREALKIND, only: de1_IR, de2_i_IR
+  implicit none
+  integer,           intent(in)  :: rank
+  complex(REALKIND), intent(in)  :: momenta(:,:), masses2(0:7), Gtensor(:)
+  complex(REALKIND), intent(out) :: M2add
+  integer,         intent(in) :: scboxes(:)
+  type(scalarbox), intent(in) :: all_scboxes(:)
+  real(REALKIND), intent(out) :: error_box
+
+  complex(REALKIND) :: offshell_p(1:5,4), offshell_m2(4)
+
+  complex(REALKIND) :: box_coeff(size(scboxes)), box(size(scboxes)), scalar_box(0:2)
+  complex(REALKIND) :: q0p_q0m(2,5), momshift(5), Gsum(size(Gtensor))
+  integer :: i1, i2, i3, i4, k
+
+  if(rank > 1) call ol_error("TI_reduction: reduction of a rank > 1 heptagon")
+
+  M2add = 0._/**/REALKIND
+  error_box = 0._/**/REALKIND
+
+  k = 0
+  do i1 = 1, 5
+    do i2 = i1, 5
+      do i3 = i2, 5
+        do i4 = i3, 5
+          k = k + 1
+
+          q0p_q0m = all_scboxes(scboxes(k))%onshell_cuts
+          scalar_box = all_scboxes(scboxes(k))%poles
+          Gsum = Gtensor
+
+          if (all_scboxes(scboxes(k))%error > error_box) then
+            error_box = all_scboxes(scboxes(k))%error
+          end if
+
+          if(i4 == 5) then
+            if(i1 == 1) then
+              if(i2 == 1) then
+                if(i3 == 1) then
+                  momshift(1:5) = momenta(1:5,4)
+                else
+                  momshift(1:5) = momenta(1:5,3)
+                end if
+              else
+                momshift(1:5) = momenta(1:5,2)
+              end if
+            else
+              momshift(1:5) = momenta(1:5,1)
+            end if
+
+            ! Assignment of the off-shell momenta and masses for all the sub-boxes
+            ! in the case when D0 is pinched
+            offshell_p(1:4,1) = - momshift(1:4)
+            offshell_p(5,1) = momshift(5)
+
+            offshell_p(1:4,2) = momenta(1:4,i1) - momshift(1:4)
+            offshell_p(5,2) = momenta(5,i1) + momshift(5) - &
+                              2*cont_LC_cntrv(momenta(1:4,i1),momshift(1:4))
+
+            offshell_p(1:4,3) = momenta(1:4,i2+1) - momshift(1:4)
+            offshell_p(5,3) = momenta(5,i2+1) + momshift(5) - &
+                              2*cont_LC_cntrv(momenta(1:4,i2+1),momshift(1:4))
+
+            offshell_p(1:4,4) = momenta(1:4,i3+2) - momshift(1:4)
+            offshell_p(5,4) = momenta(5,i3+2) + momshift(5) - &
+                              2*cont_LC_cntrv(momenta(1:4,i3+2),momshift(1:4))
+
+            offshell_m2(1) = masses2(0)
+            offshell_m2(2) = masses2(i1)
+            offshell_m2(3) = masses2(i2+1)
+            offshell_m2(4) = masses2(i3+2) !?
+
+            call G_TensorShift_otf(Gsum,-momshift(1:4))
+          else
+
+            ! Assignment of the off-shell momenta and masses for all the sub-boxes
+            offshell_p(1:5,1) = momenta(1:5,i1)
+            offshell_p(1:5,2) = momenta(1:5,i2+1)
+            offshell_p(1:5,3) = momenta(1:5,i3+2)
+            offshell_p(1:5,4) = momenta(1:5,i4+3)
+
+            offshell_m2(1) = masses2(i1)
+            offshell_m2(2) = masses2(i2+1)
+            offshell_m2(3) = masses2(i3+2)
+            offshell_m2(4) = masses2(i4+3)
+          end if
+
+        call box_coefficient(offshell_p(:,:),&
+        offshell_m2(:),q0p_q0m,Gsum,box_coeff(k))
+
+        box(k) = box_coeff(k)*(scalar_box(0) + scalar_box(1)*de1_IR + scalar_box(2)*de2_i_IR)
+        M2add = M2add + box(k)
+        end do
+      end do
+    end do
+  end do
+
+end subroutine reduction_8points
+
+! --- NONAGONS ---
+! TODO:  <27-03-19, J.-N. Lang> !
+! NOT TESTED
+! ********************************************************************
+subroutine reduction_9points(rank, momenta, masses2, Gtensor, M2add, &
+scboxes, all_scboxes, error_box)
+! ********************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_kinematics_/**/REALKIND, only: cont_LC_cntrv
+  use ol_loop_handling_/**/REALKIND, only: G_tensorShift_otf
+  use ol_data_types_/**/REALKIND, only: scalarbox
+  use ol_loop_parameters_decl_/**/DREALKIND, only: de1_IR, de2_i_IR
+  implicit none
+  integer,           intent(in)  :: rank
+  complex(REALKIND), intent(in)  :: momenta(:,:), masses2(0:8), Gtensor(:)
+  complex(REALKIND), intent(out) :: M2add
+  integer,         intent(in) :: scboxes(:)
+  type(scalarbox), intent(in) :: all_scboxes(:)
+  real(REALKIND), intent(out) :: error_box
+
+  complex(REALKIND) :: offshell_p(1:5,5), offshell_m2(5)
+
+  complex(REALKIND) :: box_coeff(size(scboxes)), box(size(scboxes)), scalar_box(0:2)
+  complex(REALKIND) :: q0p_q0m(2,5), momshift(5), Gsum(size(Gtensor))
+  integer :: i1, i2, i3, i4, i5, k
+
+  if(rank > 1) call ol_error("TI_reduction: reduction of a rank > 1 heptagon")
+
+  M2add = 0._/**/REALKIND
+  error_box = 0._/**/REALKIND
+
+  k = 0
+  do i1 = 1, 5
+    do i2 = i1, 5
+      do i3 = i2, 5
+        do i4 = i3, 5
+          do i5 = i4, 5
+            k = k + 1
+
+            q0p_q0m = all_scboxes(scboxes(k))%onshell_cuts
+            scalar_box = all_scboxes(scboxes(k))%poles
+            Gsum = Gtensor
+
+            if (all_scboxes(scboxes(k))%error > error_box) then
+              error_box = all_scboxes(scboxes(k))%error
+            end if
+
+            if(i5 == 5) then
+              if(i1 == 1) then
+                if(i2 == 1) then
+                  if(i3 == 1) then
+                    if(i4 == 1) then
+                      momshift(1:5) = momenta(1:5,5)
+                    else
+                      momshift(1:5) = momenta(1:5,4)
+                    end if
+                  else
+                    momshift(1:5) = momenta(1:5,3)
+                  end if
+                else
+                  momshift(1:5) = momenta(1:5,2)
+                end if
+              else
+                momshift(1:5) = momenta(1:5,1)
+              end if
+
+              ! Assignment of the off-shell momenta and masses for all the sub-boxes
+              ! in the case when D0 is pinched
+              offshell_p(1:4,1) = - momshift(1:4)
+              offshell_p(5,1) = momshift(5)
+
+              offshell_p(1:4,2) = momenta(1:4,i1) - momshift(1:4)
+              offshell_p(5,2) = momenta(5,i1) + momshift(5) - &
+                                2*cont_LC_cntrv(momenta(1:4,i1),momshift(1:4))
+
+              offshell_p(1:4,3) = momenta(1:4,i2+1) - momshift(1:4)
+              offshell_p(5,3) = momenta(5,i2+1) + momshift(5) - &
+                                2*cont_LC_cntrv(momenta(1:4,i2+1),momshift(1:4))
+
+              offshell_p(1:4,4) = momenta(1:4,i3+2) - momshift(1:4)
+              offshell_p(5,4) = momenta(5,i3+2) + momshift(5) - &
+                                2*cont_LC_cntrv(momenta(1:4,i3+2),momshift(1:4))
+
+              offshell_p(1:4,5) = momenta(1:4,i4+3) - momshift(1:4)
+              offshell_p(5,5) = momenta(5,i4+3) + momshift(5) - &
+                                2*cont_LC_cntrv(momenta(1:4,i4+3),momshift(1:4))
+
+              offshell_m2(1) = masses2(0)
+              offshell_m2(2) = masses2(i1)
+              offshell_m2(3) = masses2(i2+1)
+              offshell_m2(4) = masses2(i3+2)
+              offshell_m2(5) = masses2(i4+3)
+
+              call G_TensorShift_otf(Gsum,-momshift(1:4))
+            else
+
+              ! Assignment of the off-shell momenta and masses for all the sub-boxes
+              offshell_p(1:5,1) = momenta(1:5,i1)
+              offshell_p(1:5,2) = momenta(1:5,i2+1)
+              offshell_p(1:5,3) = momenta(1:5,i3+2)
+              offshell_p(1:5,4) = momenta(1:5,i4+3)
+              offshell_p(1:5,5) = momenta(1:5,i5+4)
+
+              offshell_m2(1) = masses2(i1)
+              offshell_m2(2) = masses2(i2+1)
+              offshell_m2(3) = masses2(i3+2)
+              offshell_m2(4) = masses2(i4+3)
+              offshell_m2(5) = masses2(i5+4)
+            end if
+
+          call box_coefficient(offshell_p(:,:),&
+          offshell_m2(:),q0p_q0m,Gsum,box_coeff(k))
+
+          box(k) = box_coeff(k)*(scalar_box(0) + scalar_box(1)*de1_IR + scalar_box(2)*de2_i_IR)
+          M2add = M2add + box(k)
+          end do
+        end do
+      end do
+    end do
+  end do
+
+end subroutine reduction_9points
+
+! --- DECAGON ---
+! TODO:  <27-03-19, J.-N. Lang> !
+! NOT TESTED
+! ********************************************************************
+subroutine reduction_10points(rank, momenta, masses2, Gtensor, M2add, &
+scboxes, all_scboxes, error_box)
+! ********************************************************************
+  use KIND_TYPES, only: REALKIND
+  use ol_kinematics_/**/REALKIND, only: cont_LC_cntrv
+  use ol_loop_handling_/**/REALKIND, only: G_tensorShift_otf
+  use ol_data_types_/**/REALKIND, only: scalarbox
+  use ol_loop_parameters_decl_/**/DREALKIND, only: de1_IR, de2_i_IR
+  implicit none
+  integer,           intent(in)  :: rank
+  complex(REALKIND), intent(in)  :: momenta(:,:), masses2(0:9), Gtensor(:)
+  complex(REALKIND), intent(out) :: M2add
+  integer,         intent(in) :: scboxes(:)
+  type(scalarbox), intent(in) :: all_scboxes(:)
+  real(REALKIND), intent(out) :: error_box
+
+  complex(REALKIND) :: offshell_p(1:5,6), offshell_m2(6)
+
+  complex(REALKIND) :: box_coeff(size(scboxes)), box(size(scboxes)), scalar_box(0:2)
+  complex(REALKIND) :: q0p_q0m(2,5), momshift(5), Gsum(size(Gtensor))
+  integer :: i1, i2, i3, i4, i5, i6, k
+
+  if(rank > 1) call ol_error("TI_reduction: reduction of a rank > 1 heptagon")
+
+  M2add = 0._/**/REALKIND
+  error_box = 0._/**/REALKIND
+
+  k = 0
+  do i1 = 1, 5
+    do i2 = i1, 5
+      do i3 = i2, 5
+        do i4 = i3, 5
+          do i5 = i4, 5
+            do i6 = i5, 5
+              k = k + 1
+
+              q0p_q0m = all_scboxes(scboxes(k))%onshell_cuts
+              scalar_box = all_scboxes(scboxes(k))%poles
+              Gsum = Gtensor
+
+              if (all_scboxes(scboxes(k))%error > error_box) then
+                error_box = all_scboxes(scboxes(k))%error
+              end if
+
+              if(i6 == 5) then
+                if(i1 == 1) then
+                  if(i2 == 1) then
+                    if(i3 == 1) then
+                      if(i4 == 1) then
+                        if(i5 == 1) then
+                          momshift(1:5) = momenta(1:5,6)
+                        else
+                          momshift(1:5) = momenta(1:5,5)
+                        end if
+                      else
+                        momshift(1:5) = momenta(1:5,4)
+                      end if
+                    else
+                      momshift(1:5) = momenta(1:5,3)
+                    end if
+                  else
+                    momshift(1:5) = momenta(1:5,2)
+                  end if
+                else
+                  momshift(1:5) = momenta(1:5,1)
+                end if
+
+                ! Assignment of the off-shell momenta and masses for all the sub-boxes
+                ! in the case when D0 is pinched
+                offshell_p(1:4,1) = - momshift(1:4)
+                offshell_p(5,1) = momshift(5)
+
+                offshell_p(1:4,2) = momenta(1:4,i1) - momshift(1:4)
+                offshell_p(5,2) = momenta(5,i1) + momshift(5) - &
+                                  2*cont_LC_cntrv(momenta(1:4,i1),momshift(1:4))
+
+                offshell_p(1:4,3) = momenta(1:4,i2+1) - momshift(1:4)
+                offshell_p(5,3) = momenta(5,i2+1) + momshift(5) - &
+                                  2*cont_LC_cntrv(momenta(1:4,i2+1),momshift(1:4))
+
+                offshell_p(1:4,4) = momenta(1:4,i3+2) - momshift(1:4)
+                offshell_p(5,4) = momenta(5,i3+2) + momshift(5) - &
+                                  2*cont_LC_cntrv(momenta(1:4,i3+2),momshift(1:4))
+
+                offshell_p(1:4,5) = momenta(1:4,i4+3) - momshift(1:4)
+                offshell_p(5,5) = momenta(5,i4+3) + momshift(5) - &
+                                  2*cont_LC_cntrv(momenta(1:4,i4+3),momshift(1:4))
+
+                offshell_p(1:4,6) = momenta(1:4,i5+4) - momshift(1:4)
+                offshell_p(5,6) = momenta(5,i5+4) + momshift(5) - &
+                                  2*cont_LC_cntrv(momenta(1:4,i5+4),momshift(1:4))
+
+                offshell_m2(1) = masses2(0)
+                offshell_m2(2) = masses2(i1)
+                offshell_m2(3) = masses2(i2+1)
+                offshell_m2(4) = masses2(i3+2)
+                offshell_m2(5) = masses2(i4+3)
+                offshell_m2(6) = masses2(i5+4)
+
+                call G_TensorShift_otf(Gsum,-momshift(1:4))
+              else
+
+                ! Assignment of the off-shell momenta and masses for all the sub-boxes
+                offshell_p(1:5,1) = momenta(1:5,i1)
+                offshell_p(1:5,2) = momenta(1:5,i2+1)
+                offshell_p(1:5,3) = momenta(1:5,i3+2)
+                offshell_p(1:5,4) = momenta(1:5,i4+3)
+                offshell_p(1:5,5) = momenta(1:5,i5+4)
+                offshell_p(1:5,6) = momenta(1:5,i6+5)
+
+                offshell_m2(1) = masses2(i1)
+                offshell_m2(2) = masses2(i2+1)
+                offshell_m2(3) = masses2(i3+2)
+                offshell_m2(4) = masses2(i4+3)
+                offshell_m2(5) = masses2(i5+4)
+                offshell_m2(6) = masses2(i6+5)
+              end if
+
+            call box_coefficient(offshell_p(:,:),&
+            offshell_m2(:),q0p_q0m,Gsum,box_coeff(k))
+
+            box(k) = box_coeff(k)*(scalar_box(0) + scalar_box(1)*de1_IR + scalar_box(2)*de2_i_IR)
+            M2add = M2add + box(k)
+            end do
+          end do
+        end do
+      end do
+    end do
+  end do
+
+end subroutine reduction_10points
 
 end module ol_loop_reduction_/**/REALKIND

@@ -476,8 +476,8 @@ subroutine TI_call_OL(qt_pow, rank, momenta, masses, Gsum_hcl, M2, scboxes, all_
   !! Reduction of 8-point functions not available yet.
   !! The chosen external reduction library is called for this purpose
 
-  if(size(masses) .ge. 8) then
-    call ol_msg(1,"Reduction of N-point integral with N >= 8 not available. Using external library")
+  if(size(masses) .ge. 11) then
+    call ol_msg(1,"Reduction of N-point integral with N >= 11 not available. Using external library")
 
 #ifdef PRECISION_dp
   if (iand(Gsum_hcl%mode, hybrid_dp_mode) .ne. 0 .or. coli_cache_use .eq. 1) then

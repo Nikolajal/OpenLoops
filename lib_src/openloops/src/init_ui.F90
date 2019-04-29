@@ -278,9 +278,25 @@ module ol_init
         else
           call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
         end if
-      case ("use_qp_invariants")
+      case ("sync_qp_kinematics")
         if (expert_mode) then
-          call set_if_modified(use_qp_invariants, val)
+          call set_if_modified(sync_qp_kinematics, val)
+        else
+          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
+        end if
+      case ("hp_fake_trig")
+        if (expert_mode) then
+          call set_if_modified(hp_fake_trig, val)
+        else
+          call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
+        end if
+      case ("hel_mem_opt","hel_mem_opt_switch")
+        if (expert_mode) then
+          if (val == 0) then
+            call set_if_modified(hel_mem_opt_switch, .false.)
+          else
+            call set_if_modified(hel_mem_opt_switch, .true.)
+          end if
         else
           call ol_msg(0, trim(param) // " ignored. Only available in expert mode.")
         end if
@@ -327,22 +343,22 @@ module ol_init
         call set_if_modified(do_ew_renorm, 1)
       case ("add_associated_ew")
         add_associated_ew = val
-      case ("order_ew")
+      case ("order_ew", "oew")
         coupling_ew(0) = val
         coupling_ew(1) = 0
         coupling_qcd(0) = -1
         coupling_qcd(1) = -1
-      case ("order_qcd")
+      case ("order_qcd", "oqcd")
         coupling_ew(0) = -1
         coupling_ew(1) = -1
         coupling_qcd(0) = val
         coupling_qcd(1) = 0
         call set_if_modified(do_ew_renorm, 1)
-      case ("loop_order_ew")
+      case ("loop_order_ew", "loew")
         coupling_ew = -1
         coupling_qcd = -1
         loop_order_ew = val
-      case ("loop_order_qcd")
+      case ("loop_order_qcd", "loqcd")
         coupling_ew = -1
         coupling_qcd = -1
         loop_order_qcd = val
@@ -417,16 +433,12 @@ module ol_init
         call set_if_modified(do_qcd_renorm, val)
       case ("se_integral_switch")
         call set_if_modified(se_integral_switch, val)
-      case ("ew_scheme")
-        if (val /= 0 .and. val /= 1 .and. val /= 2) then
+      case ("ew_scheme", "ewscheme")
+        if (val /= 0 .and. val /= 1 .and. val /= -1 .and. val /= 2) then
           call ol_error(1,"unrecognised ew_scheme:" // to_string(val))
         else
           call set_if_modified(ew_scheme, val)
-          call set_if_modified(ew_renorm_scheme, val)
-        end if
-        if (val == 1) then
-          ! gmu scheme: expect gmu as input parameter, unless alpha is set afterwards
-          gmu_scheme_use_alpha_input = .false.
+          call set_if_modified(ew_renorm_scheme, abs(val))
         end if
       case ("ew_renorm_scheme")
         if (val /= 0 .and. val /= 1 .and. val /= 2) then
@@ -459,7 +471,11 @@ module ol_init
           call ol_error(1,"unrecognised " // trim(param) // "=" // to_string(val))
         end if
       case ("complex_mass_scheme", "use_cms", "cms")
-        call set_if_modified(cms_on, val)
+        if (val == 0 .or. val == 1 .or. val == 2) then
+          call set_if_modified(cms_on, val)
+        else
+          call ol_error(1,"unrecognised " // trim(param) // "=" // to_string(val))
+        end if
       case ("cll_tenred")
         call set_if_modified(cll_tenred, val)
       case ("cll_channels")
@@ -727,8 +743,10 @@ module ol_init
         val = hp_switch
       case ("bubble_vertex")
         val = bubble_vertex
-      case ("use_qp_invariants")
-        val = use_qp_invariants
+      case ("sync_qp_kinematics")
+        val = sync_qp_kinematics
+      case ("hp_fake_trig")
+        val = hp_fake_trig
       case ("verbose")
         call get_verbose(val)
       case("do_not_stop")
@@ -793,13 +811,10 @@ module ol_init
       case ("alphas", "alpha_s", "alpha_qcd")
         call set_if_modified(alpha_QCD, val)
       case ("alpha", "alpha_qed")
-        if (ew_scheme == 0) then
-          call set_if_modified(alpha_QED_0, val)
-        else if (ew_scheme == 1) then
-          gmu_scheme_use_alpha_input = .true.
-          call set_if_modified(alpha_QED_Gmu, val)
-        else if (ew_scheme == 2) then
-          call set_if_modified(alpha_QED_MZ, val)
+        if (ew_scheme == 0 .or. ew_scheme == 2 .or. ew_scheme == -1) then
+          call set_if_modified(alpha_QED_input, val)
+        else
+           call ol_msg("WARNING: " // trim(param) // " ignored in ew_scheme=" // trim(to_string(ew_scheme)) // ".")
         end if
       case ("alpha_qed_mz")
         call set_if_modified(alpha_QED_MZ, val)
@@ -807,7 +822,6 @@ module ol_init
         call set_if_modified(alpha_QED_0, val)
       case ("gmu")
         call set_if_modified(Gmu_unscaled, val)
-        gmu_scheme_use_alpha_input = .false.
       case ("scalefactor")
         if (scalefactor == 0) then
           call ol_error("scalefactor == 0 not supported!")

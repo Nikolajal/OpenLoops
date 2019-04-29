@@ -24,6 +24,11 @@ import hashlib
 import time
 import sys
 
+try:
+    strtype = basestring
+except NameError:
+    strtype = str
+
 timeformat = '%Y-%m-%d-%H-%M-%S'
 
 def remove_duplicates(ls):
@@ -50,7 +55,8 @@ def import_list(filename, lines=None, fatal=True,
     """Import a file as a list of strings stripped of whitespace, comments,
     and empty elements. filename can be a file name or a file object."""
     # OLD PYTHON
-    if isinstance(filename, str):
+    decode = False
+    if isinstance(filename, strtype):
         if not filename.startswith('http:'):
             try:
                 fh = open(filename, 'r')
@@ -69,6 +75,7 @@ def import_list(filename, lines=None, fatal=True,
             else:
                 from urllib.request import urlopen
                 from urllib.error import URLError
+                decode = True
             try:
                 fh = urlopen(filename)
             except URLError:
@@ -82,12 +89,13 @@ def import_list(filename, lines=None, fatal=True,
                     return None
     else:
         fh = filename
-
     if lines:
         ls = [fh.readline() for n in range(lines)]
     else:
         ls = fh.readlines()
     fh.close()
+    if decode:
+        ls = [li.decode('utf-8') for li in ls]
     return strip_comments(ls)
 
 

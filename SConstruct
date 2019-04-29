@@ -1,4 +1,6 @@
 
+from __future__ import print_function
+
 help_message = """
 OpenLoops build system
 

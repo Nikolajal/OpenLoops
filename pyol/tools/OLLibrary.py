@@ -23,6 +23,11 @@ import subprocess
 import OLBaseConfig
 import re
 
+try:
+    strtype = basestring
+except NameError:
+    strtype = str
+
 config = OLBaseConfig.get_config()
 
 class CPPContainer:
@@ -43,7 +48,8 @@ class CPPContainer:
         self.version = version
         self.process_api = process_api
         self.revision = revision
-        self.cpp_defs = [(cppdef,) if isinstance(cppdef, str) else cppdef for cppdef in cpp_defs]
+        self.cpp_defs = [(cppdef,) if isinstance(cppdef, strtype) else cppdef
+                         for cppdef in cpp_defs]
         self.scons_cmd = scons_cmd
         self.version_macro = version_macro
         self.process_api_macro = process_api_macro
@@ -154,9 +160,9 @@ class OLLibrary:
         """
         f_path = env.get('FORTRANPATH', [])
         f90_path = env.get('F90PATH', [])
-        if isinstance(f_path, str):
+        if isinstance(f_path, strtype):
             f_path = [f_path]
-        if isinstance(f90_path, str):
+        if isinstance(f90_path, strtype):
             f90_path = [f90_path]
         f_path = f_path + [os.path.join(config['lib_src_dir'], dep, 'mod')
                            for dep in self.mod_dependencies] + [self.mod_dir]

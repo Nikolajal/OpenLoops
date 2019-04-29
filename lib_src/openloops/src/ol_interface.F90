@@ -190,7 +190,8 @@ module openloops
     ! note: error handling is done in dlsym
     use KIND_TYPES, only: DREALKIND
     use ol_dlfcn, only: dlsym
-    use ol_loop_parameters_decl_/**/DREALKIND, only: stability_mode,a_switch,a_switch_rescue,redlib_qp
+    use ol_loop_parameters_decl_/**/DREALKIND, only: &
+         & stability_mode,a_switch,a_switch_rescue,redlib_qp,hel_mem_opt_switch
     implicit none
     type(c_ptr), intent(in) :: lib
     character(len=*), intent(in) :: libname
@@ -297,6 +298,13 @@ module openloops
     get_process_handle%a_switch_rescue=a_switch_rescue
     get_process_handle%redlib_qp=redlib_qp
     get_process_handle%stability_mode=stability_mode
+    ! optimized helicity bookkeeping
+    tmp_fun => dlsym(lib, "ol_hel_mem_opt_" // trim(proc))
+    if (associated(tmp_fun)) then
+      call tmp_fun(hel_mem_opt_switch)
+    else
+      call ol_msg("Process library not up-to-date. Please run: ./openloops update")
+    end if
   end function get_process_handle
 
   function register_process_lib(libname, proc, content, amptype, n_in, pol, perm, extid, photon_id)
@@ -2967,7 +2975,7 @@ module openloops
     implicit none
     integer, intent(in) :: id
     real(DREALKIND), intent(in) :: psp(:,:)
-    real(DREALKIND), intent(out) :: m2l0, m2l1(0:-2), cc(:), ewcc
+    real(DREALKIND), intent(out) :: m2l0, m2l1(0:2), cc(:), ewcc
     type(process_handle) :: subprocess
     integer  :: n_cc, i, j
     real(DREALKIND) :: ir1(0:2), m2l2(0:4), ir2(0:4), acc

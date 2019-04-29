@@ -24,10 +24,7 @@ module ol_data_types_/**/REALKIND
 #endif
   type wfun
     ! four complex components for the wave function
-     complex(REALKIND) :: j(4)
-#ifdef PRECISION_dp
-     complex(QREALKIND) :: j_qp(4)
-#endif
+    complex(REALKIND) :: j(4)
     complex(REALKIND), pointer :: j_prev(:)
     ! indicator if left- or right components of of-shell line vanish
     !                             j= (0,0,0,0) (0,0,j3,j4) (j1,j2,0,0) (j1,j2,j3,j4)
@@ -269,9 +266,11 @@ module ol_external_decl_/**/REALKIND
   ! A zero entry means that it is not a massless vector particle.
   integer, allocatable, save :: Ward_array(:) ! select particle "i" for the Ward identity -> Ward_array(i) = 1
   real(REALKIND), allocatable, save :: P_ex(:,:) ! uncleaned external 2->n-2 momenta, set by conv_mom_scatt2in
+  integer, allocatable, save :: M_ex(:) ! external 2->n-2 mass ids, set by conv_mom_scatt2in
 #ifdef PRECISION_dp
   ! number of incoming particles for phase space configuation and cleaning
   integer, save :: n_scatt = 2
+  logical, save :: init_qp = .false.
 #endif
 end module ol_external_decl_/**/REALKIND
 
@@ -347,7 +346,7 @@ module ol_parameters_decl_/**/REALKIND
   logical, save :: hp_ir_trig = .false.
 
   ! Fake QP trigger: computes the loop (not trees) in QP
-  logical, save :: hp_fake_trig = .false.
+  integer, save :: hp_fake_trig = 0
 
   integer, save :: hp_check_box = 1
 
@@ -390,9 +389,14 @@ module ol_parameters_decl_/**/REALKIND
 #endif
 
 #ifdef PRECISION_dp
+
+  ! QP kinematics
+  ! 0: always initialize  QP kinematics for hp_mode>0
+  ! 1: initialize  QP kinematics only when needed (hp_mode>0)
+  integer, save :: hp_qp_kinematics_init_mode = 1
   ! use quad-precision definition of momenta to compute invariants
   ! -> stable rescaling for collinear configurations
-  integer, save :: use_qp_invariants = 1
+  integer, save :: sync_qp_kinematics = 1
 
   integer, save :: parameters_verbose = 0
   integer, parameter :: procname_length = 80
@@ -425,6 +429,8 @@ module ol_parameters_decl_/**/REALKIND
   include "install_path.inc"
   ! Mode for check_last_[...] in laststep and tensor integral routine in looproutines
   integer, save :: l_switch = 1, a_switch = 1, a_switch_rescue = 7, redlib_qp = 5
+  ! switcher for helicity improvement in OFR
+  logical, save :: hel_mem_opt_switch = .true.
   ! switchers for checking Ward identities at tree/loop level
   integer, save :: Ward_tree = 0
   integer, save :: Ward_loop = 0
@@ -438,11 +444,10 @@ module ol_parameters_decl_/**/REALKIND
   ! in the tensor library cache system
   integer, save :: next_channel_number = 1
 ! TODO disable coli cache when using hybrid mode
-  integer, save :: coli_cache_use = 0
+  integer, save :: coli_cache_use = 1
   logical, save :: no_collier_stop = .false.
   ! select alpha_QED input scheme: 0 = on-shell = alpha(0), 1 = G_mu, 2 = alpha(MZ)
   integer, save :: ew_scheme = 1
-  logical, save :: gmu_scheme_use_alpha_input = .false.
   ! select alpha_QED renormalization scheme: 0 = on-shell = alpha(0), 1 = G_mu, 2 = alpha(MZ)
   integer, save :: ew_renorm_scheme = 1
   ! select reg. scheme for off-shell external photons: 0: off, 1: gamma -> FF splittings in dimreg
@@ -536,7 +541,7 @@ module ol_parameters_decl_/**/REALKIND
   real(REALKIND), save :: alpha_QCD = 0.1258086856923967_/**/REALKIND ! LO MRST
   real(REALKIND), save :: alpha_QED_MZ = 1/128._/**/REALKIND          ! alpha(MZ) derived from PDG 2014
   real(REALKIND), save :: alpha_QED_0  = 1/137.035999074_/**/REALKIND  ! alpha(0) from PDG 2014
-  real(REALKIND), save :: alpha_QED
+  real(REALKIND), save :: alpha_QED, alpha_QED_input
   real(REALKIND), save :: alpha_QED_Gmu
 #ifdef PRECISION_dp
   real(REALKIND), save :: Gmu_unscaled = 0.0000116637_/**/REALKIND    ! G_mu

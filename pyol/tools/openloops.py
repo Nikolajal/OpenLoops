@@ -38,6 +38,11 @@ import collections
 from ctypes import c_int, c_double, c_char_p, byref, POINTER
 import OLBaseConfig
 
+try:
+    strtype = basestring
+except NameError:
+    strtype = str
+
 config = OLBaseConfig.get_config()
 
 proclib_dir = 'proclib'
@@ -246,7 +251,7 @@ def set_parameter(key, val):
         setparameter_bool(key, val)
     elif isinstance(val, float):
         setparameter_double(key, val)
-    elif isinstance(val, str):
+    elif isinstance(val, strtype):
         if key.startswith('alpha') and '/' in val:
             try:
                 valnum, valden = val.split('/')
@@ -398,12 +403,12 @@ class Process(object):
         typearg = amptype
         needs_tree = False
         needs_pt = False
-        if isinstance(amptype, str):
+        if isinstance(amptype, strtype):
             try:
                 amptype = AMPTYPES[amptype.lower()]
             except KeyError:
                 pass
-        if isinstance(amptype, str):
+        if isinstance(amptype, strtype):
             if not set(typearg) - set(loopspec_flags):
                 if 's' in typearg and 'l' in typearg:
                     amptype = LOOP2
