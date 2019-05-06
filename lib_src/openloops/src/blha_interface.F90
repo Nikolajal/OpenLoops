@@ -588,7 +588,7 @@ module openloops_blha
           else if (trim(to_lowercase(val)) == "gmu") then
             lineout = trim(line) // "      | OK"
             call set_parameter("ew_scheme", 1)
-          else if (trim(to_lowercase(val)) == "alphaMZ") then
+          else if (trim(to_lowercase(val)) == "alphamz") then
             lineout = trim(line) // "      | OK"
             call set_parameter("ew_scheme", 2)
           else
