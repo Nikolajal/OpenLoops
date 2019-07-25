@@ -1,5 +1,4 @@
 .sconsign.dblite
-openloops.cfg
 process_def
 process_obj
 process_src
@@ -24,3 +23,5 @@ lib_src/rambo/obj
 lib_src/trred/mod
 lib_src/trred/obj
 log
+examples/SConstruct
+openloops.cfg

@@ -37,7 +37,7 @@ class CPPContainer:
 
     def __init__(self, mp_src = [], dp_src = [], version_src = [], mp = ['dp'],
                  version = 'none', process_api = -1, revision = 'none',
-                 cpp_defs = [], scons_cmd = 'scons', version_macro = 'VERSION',
+                 cpp_defs = [], scons_cmd = ['scons'], version_macro = 'VERSION',
                  process_api_macro = 'PROCESSAPI', revision_macro = 'REVISION',
                  kind_parameter = 'REALKIND', target = 'cpp',
                  target_prefix = ''):
@@ -98,7 +98,7 @@ class CPPContainer:
         if clean:
             scons_flags.append('-c')
 
-        success = subprocess.call([self.scons_cmd] + scons_flags + ['-f', self.cpp_script,
+        success = subprocess.call(self.scons_cmd + scons_flags + ['-f', self.cpp_script,
             'version=' + self.version,
             'process_api=' + str(self.process_api),
             'revision=' + self.revision,

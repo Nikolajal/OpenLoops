@@ -98,8 +98,8 @@ subroutine hol_deallocation(ol_coeff, m, dmode)
 
   do i = 1, m
     if(dmode == 0) then
-      deallocate(ol_coeff(i)%hf)
-      deallocate(ol_coeff(i)%j)
+      if(allocated(ol_coeff(i)%hf)) deallocate(ol_coeff(i)%hf)
+      if(allocated(ol_coeff(i)%j)) deallocate(ol_coeff(i)%j)
     endif
     ol_coeff(i)%error = 0
 #ifdef PRECISION_dp
@@ -187,7 +187,7 @@ subroutine hcl_deallocation(ol_coeff, m, dmode)
 
   do i = 1, m
     if(dmode == 0) then
-      deallocate(ol_coeff(i)%cmp)
+      if(allocated(ol_coeff(i)%cmp)) deallocate(ol_coeff(i)%cmp)
     endif
     ol_coeff(i)%error = 0
 #ifdef PRECISION_dp

@@ -77,7 +77,7 @@ module openloops_blha
     real(DREALKIND) :: m2l0, m2l1(0:2)
     rval = 0
     acc = 0
-    call set_parameter("mu", mu)
+    call set_parameter("muren", mu)
     select case (amplitudetype(id))
       case (1) ! Tree
         call evaluate_tree(id, psp, rval(1))

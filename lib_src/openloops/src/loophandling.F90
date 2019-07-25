@@ -29,6 +29,10 @@ module ol_loop_handling_/**/REALKIND
   implicit none
 
 #ifdef PRECISION_dp
+  interface req_dp_cmp
+    module procedure req_dp_cmp_hcl, req_dp_cmp_hol
+  end interface
+
   interface req_qp_cmp
     module procedure req_qp_cmp_hcl, req_qp_cmp_hol
   end interface
@@ -81,6 +85,28 @@ module ol_loop_handling_/**/REALKIND
     end if
 
   end subroutine hcl_dealloc_hybrid
+
+  function req_dp_cmp_hol(Gin)
+    type(hol), intent(in) :: Gin
+    logical :: req_dp_cmp_hol
+
+    if (iand(Gin%mode, hybrid_dp_mode) .ne. 0) then
+      req_dp_cmp_hol = .true.
+    else
+      req_dp_cmp_hol = .false.
+    end if
+  end function req_dp_cmp_hol
+
+  function req_dp_cmp_hcl(Gin)
+    type(hcl), intent(in) :: Gin
+    logical :: req_dp_cmp_hcl
+
+    if (iand(Gin%mode, hybrid_dp_mode) .ne. 0) then
+      req_dp_cmp_hcl = .true.
+    else
+      req_dp_cmp_hcl = .false.
+    end if
+  end function req_dp_cmp_hcl
 
   function req_qp_cmp_hol(Gin)
     type(hol), intent(in) :: Gin

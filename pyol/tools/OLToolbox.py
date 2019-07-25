@@ -95,7 +95,7 @@ def import_list(filename, lines=None, fatal=True,
         ls = fh.readlines()
     fh.close()
     if decode:
-        ls = [li.decode('utf-8') for li in ls]
+        ls = [li.decode() for li in ls]
     return strip_comments(ls)
 
 
@@ -175,10 +175,10 @@ def get_git_revision(mandatory=False):
         pass
     revision = 'none'
     if not git_exitcode:
-        revision = git_out.decode('utf-8').strip()
+        revision = git_out.decode().strip()
     if mandatory and (revision == 'none' or git_exitcode != 0):
         raise OSError(git_exitcode,
-                      '`git info` failed. ' + git_err.decode('utf-8').strip())
+                      '`git info` failed. ' + git_err.decode().strip())
     return revision
 
 
@@ -426,7 +426,7 @@ class ChannelDB:
                 data.extend([' '.join(ch) for ch in self.content[proc]])
             channels_hash = hashlib.md5()
             for iline in data:
-                channels_hash.update(iline.encode('utf-8'))
+                channels_hash.update(iline.encode())
             data.insert(0, channels_hash.hexdigest() + '  ' +
                            time.strftime(timeformat))
             export_list(tmp_file, data)

@@ -1289,8 +1289,7 @@ subroutine internal_momenta_six(P, Npart, ext_masses, use_qp_kinematics)
 !                      from the internal momenta are computed
 ! **********************************************************************
   use KIND_TYPES, only: REALKIND, intkind1
-  use ol_momenta_decl_/**/REALKIND, only: Q, L, QInvariantsMatrix, &
-                                          collconf, softconf
+  use ol_momenta_decl_/**/REALKIND, only: L, collconf, softconf
 #ifdef PRECISION_dp
   use ol_parameters_decl_/**/REALKIND, only: hp_switch, hp_mode, sync_qp_kinematics
   use ol_momenta_decl_/**/QREALKIND, only: L_qp=>L
@@ -1379,9 +1378,7 @@ subroutine internal_momenta_six(P, Npart, ext_masses, use_qp_kinematics)
   do i = 1, Npart
     do j = i + 1, Npart
       t1 = 2**(i-1)+2**(j-1)
-      QInvariantsMatrix(i,j) = L(5,t1) + L(6,t1)
-      QInvariantsMatrix(j,i) = QInvariantsMatrix(i,j)
-      maxinv = max(abs(QInvariantsMatrix(i,j)), maxinv)
+      maxinv = max(abs(L(5,t1) + L(6,t1)), maxinv)
     end do
   end do
   if (hp_mode .ge. 2) then

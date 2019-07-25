@@ -23,6 +23,7 @@ module ol_self_energy_integrals_/**/REALKIND
 ! !interfaces for scalar one-point & two-point functions
   use KIND_TYPES, only: REALKIND
   use ol_parameters_decl_/**/REALKIND, only: ZERO
+  use ol_parameters_decl_/**/DREALKIND, only: cms_on
   use ol_loop_parameters_decl_/**/REALKIND, only: de1_UV, de1_IR
   use ol_loop_parameters_decl_/**/DREALKIND, only: se_integral_switch, coli_cache_use, &
     & a_switch
@@ -59,10 +60,10 @@ module ol_self_energy_integrals_/**/REALKIND
     end if
   else
     if (se_integral_switch == 1 .and. a_switch == 1) then
-      call setmode_cll(2)
+      call setmode_cll(1)
     end if
     if (se_integral_switch == 7 .and. a_switch /= 1) then
-      call setmode_cll(1)
+      call setmode_cll(2)
     end if
     if ((se_integral_switch == 1 .or. se_integral_switch == 7) &
       .and. coli_cache_use == 1) then
@@ -392,6 +393,61 @@ module ol_self_energy_integrals_/**/REALKIND
     return
   end function calcdB1
 
+
+  function calcRB0(p2_in,m12_in,m22_in)
+    complex(REALKIND) calcRB0
+    complex(REALKIND), intent(in) :: p2_in, m12_in, m22_in
+
+    calcRB0 = calcB0(p2_in,m12_in,m22_in)
+    if (imag(p2_in) == 0 .and. cms_on == 1) then
+      if (real(p2_in) .gt. real(m12_in+m22_in)) then
+        calcRB0 = real(calcRB0)
+      end if
+    end if
+  end function calcRB0
+
+  function calcRdB0(p2_in,m12_in,m22_in)
+    complex(REALKIND) calcRdB0
+    complex(REALKIND), intent(in) :: p2_in, m12_in, m22_in
+
+    calcRdB0 = calcdB0(p2_in,m12_in,m22_in)
+    if (imag(p2_in) == 0 .and. cms_on == 1) then
+      if (real(p2_in) .gt. real(m12_in+m22_in)) then
+        calcRdB0 = real(calcRdB0)
+      end if
+    end if
+  end function calcRdB0
+
+  function calcRB1(p2_in,m12_in,m22_in)
+    complex(REALKIND) calcRB1
+    complex(REALKIND), intent(in) :: p2_in, m12_in, m22_in
+
+    if (imag(p2_in) == 0 .and. cms_on == 1 &
+      .and. (real(p2_in) > real(m12_in+m22_in)) &
+      .and. (p2_in /= 0)) then
+!(m12-m02)/2/p2*(B0 - B0(0,m0,m1)) - B0/2
+          calcRB1 = (m22_in-m12_in)/2./p2_in*(calcRB0(p2_in,m12_in,m22_in)-calcB0(ZERO,m12_in,m22_in)) &
+                  - 1./2.*calcRB0(p2_in,m12_in,m22_in)
+    else
+      calcRB1 = calcB1(p2_in,m12_in,m22_in)
+    end if
+  end function calcRB1
+
+  function calcRdB1(p2_in,m12_in,m22_in)
+    complex(REALKIND) calcRdB1
+    complex(REALKIND), intent(in) :: p2_in, m12_in, m22_in
+
+    if (imag(p2_in) == 0 .and. cms_on == 1 &
+      .and. (real(p2_in) > real(m12_in+m22_in)) &
+      .and. (p2_in /= 0)) then
+!-(m1^2-m0^2)/2/Q4*(real(B0(Q2,m0,m1)) - B0(0,m0,m1)) + (m1^2-m0^2-Q2)/2/Q2*real(dB0(Q2,m0,m1))
+          calcRdB1 = -(m22_in-m12_in)/2./p2_in**2*(calcRB0(p2_in,m12_in,m22_in)-calcB0(ZERO,m12_in,m22_in)) &
+                  + (m22_in-m12_in-p2_in)/2./p2_in*calcRdB0(p2_in,m12_in,m22_in)
+    else
+      calcRdB1 = calcdB1(p2_in,m12_in,m22_in)
+    end if
+
+  end function calcRdB1
 
 
 end module ol_self_energy_integrals_/**/REALKIND

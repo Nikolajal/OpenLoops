@@ -147,7 +147,8 @@ module ol_data_types_/**/REALKIND
   type scalarbox
     complex(REALKIND) :: poles(0:2)         ! finite, eps^(-1), eps^(-2)
     complex(REALKIND) :: onshell_cuts(2,5)  ! on-shell cuts of the box
-    real(REALKIND) :: error
+    real(REALKIND) :: cut_error
+    real(REALKIND) :: box_error
 #ifdef PRECISION_dp
     integer :: mom_ind(3)
     integer :: mom1
@@ -452,7 +453,7 @@ module ol_parameters_decl_/**/REALKIND
   integer, save :: ew_renorm_scheme = 1
   ! select reg. scheme for off-shell external photons: 0: off, 1: gamma -> FF splittings in dimreg
   logical, save :: offshell_photons_lsz = .true.
-  ! select reg. scheme for all external photons: 0: off, 1: gamma -> FF splittings in dimreg
+  ! select reg. scheme for all external photons: 0: numerical, 1: dimreg
   logical, save :: delta_alphamz_dimreg = .false.
   ! select renorm scheme for on-shell external photons: 0: off, 1: a(0)/a(Gmu/MZ) + dZe LSZ shift
   logical, save :: onshell_photons_lsz = .true.
@@ -510,6 +511,8 @@ module ol_parameters_decl_/**/REALKIND
   integer,        save :: scaling_mode = 1 ! 1: reduction only, 3: everything
   real(REALKIND), save :: psp_tolerance = 1.e-9
 
+  ! synchronise Yukawa masses with masses
+  logical, save :: yuk_from_mass = .true.
 #ifdef PRECISION_dp
   ! Particle masses and widths
   real(REALKIND), save :: rME_unscaled = 0,                    wME_unscaled = 0 ! electron mass and width
@@ -521,13 +524,13 @@ module ol_parameters_decl_/**/REALKIND
   real(REALKIND), save :: rMC_unscaled = 0,                    wMC_unscaled = 0 ! charm-quark mass and width
   real(REALKIND), save :: rMB_unscaled = 0._/**/REALKIND,      wMB_unscaled = 0 ! bottom-quark mass and width
   real(REALKIND), save :: rMT_unscaled = 172._/**/REALKIND,    wMT_unscaled = 0 ! top-quark mass and width
-  real(REALKIND), save :: rYE_unscaled = 0
-  real(REALKIND), save :: rYM_unscaled = 0
-  real(REALKIND), save :: rYL_unscaled = 0
-  real(REALKIND), save :: rYU_unscaled = 0
-  real(REALKIND), save :: rYD_unscaled = 0
-  real(REALKIND), save :: rYS_unscaled = 0
-  real(REALKIND), save :: rYC_unscaled = 0
+  real(REALKIND), save :: rYE_unscaled = 0,                    wYE_unscaled = 0
+  real(REALKIND), save :: rYM_unscaled = 0,                    wYM_unscaled = 0
+  real(REALKIND), save :: rYL_unscaled = 0,                    wYL_unscaled = 0
+  real(REALKIND), save :: rYU_unscaled = 0,                    wYU_unscaled = 0
+  real(REALKIND), save :: rYD_unscaled = 0,                    wYD_unscaled = 0
+  real(REALKIND), save :: rYS_unscaled = 0,                    wYS_unscaled = 0
+  real(REALKIND), save :: rYC_unscaled = 0,                    wYC_unscaled = 0
   real(REALKIND), save :: rYB_unscaled = 0,                    wYB_unscaled = 0
   real(REALKIND), save :: rYT_unscaled = 172._/**/REALKIND,    wYT_unscaled = 0
   real(REALKIND), save :: rMW_unscaled = 80.399_/**/REALKIND,  wMW_unscaled = 0 ! W boson mass LEP PDG 2008/2009 and width
@@ -550,13 +553,13 @@ module ol_parameters_decl_/**/REALKIND
   ! Everything beyond this line is derived from the values given above and initialised by parameters_init().
   real(REALKIND), save :: rescalefactor = 1.1_/**/REALKIND
   ! scaled masses, widths and yukawas
-  real(REALKIND), save :: rME, wME, rYE
-  real(REALKIND), save :: rMM, wMM, rYM
-  real(REALKIND), save :: rML, wML, rYL
-  real(REALKIND), save :: rMU, wMU, rYU
-  real(REALKIND), save :: rMD, wMD, rYD
-  real(REALKIND), save :: rMS, wMS, rYS
-  real(REALKIND), save :: rMC, wMC, rYC
+  real(REALKIND), save :: rME, wME, rYE, wYE
+  real(REALKIND), save :: rMM, wMM, rYM, wYM
+  real(REALKIND), save :: rML, wML, rYL, wYL
+  real(REALKIND), save :: rMU, wMU, rYU, wYU
+  real(REALKIND), save :: rMD, wMD, rYD, wYD
+  real(REALKIND), save :: rMS, wMS, rYS, wYS
+  real(REALKIND), save :: rMC, wMC, rYC, wYC
   real(REALKIND), save :: rMB, wMB, rYB, wYB
   real(REALKIND), save :: rMT, wMT, rYT, wYT
   real(REALKIND), save :: rMW, wMW
@@ -740,11 +743,12 @@ module ol_loop_parameters_decl_/**/REALKIND
   integer,        save :: R2_is_on = 1 ! switch on/off R2 contributions
   integer,        save :: TP_is_on = 1 ! switch on/off tadpole-like contributions
   integer,        save :: IR_is_on = 1 ! 0 = off, 1 = return poles, 2 = add I operator
-  ! i-operator mode: 1 = QCD, 2 = EM, 3 = QCD+EM, none otherwise;
-  integer,        save :: ioperator_mode = 3
+  ! i-operator mode: 1 = QCD, 2 = EM, 0 = QCD+EM, none otherwise;
+  integer,        save :: ioperator_mode = 0
   integer,        save :: polecheck_is = 0
+  logical, save :: do_pole_checks = .false. ! check poles and print result when amplitude is registered
 
-  integer,        save :: stability_mode = 23 ! 11: no trigger, default: 23
+  integer,        save :: stability_mode = 11 ! 11: no trigger, default: 23
   integer,        save :: deviation_mode = 1  ! deviation measure in vamp scaling based on
                                               ! (1) k-factor (2) virtual matrix element
 
@@ -835,13 +839,19 @@ module ol_loop_parameters_decl_/**/REALKIND
   real(REALKIND), save      :: x_IR  = 1       ! rescaling factor for dim-reg scale in IR-divergent quantities
   real(REALKIND), parameter :: kappa = 2/3._/**/REALKIND ! kappa parameter used in dipole subtraction
 #ifdef PRECISION_dp
-  real(REALKIND), save :: muyc_unscaled = 0 ! yukawa renormalization scale for c quark
-  real(REALKIND), save :: muyb_unscaled = 0 ! yukawa renormalization scale for b quark
-  real(REALKIND), save :: muyt_unscaled = 0 ! yukawa renormalization scale for t quark
+  real(REALKIND), save :: LambdaMC2_unscaled = 0 ! squared mass MSbar renormalization scale for c quark
+  real(REALKIND), save :: LambdaMB2_unscaled = 0 ! squared mass MSbar renormalization scale for b quark
+  real(REALKIND), save :: LambdaMT2_unscaled = 0 ! squared mass MSbar renormalization scale for t quark
+  real(REALKIND), save :: LambdaYC2_unscaled = 0 ! squared yukawa MSbar renormalization scale for c quark
+  real(REALKIND), save :: LambdaYB2_unscaled = 0 ! squared yukawa MSbar renormalization scale for b quark
+  real(REALKIND), save :: LambdaYT2_unscaled = 0 ! squared yukawa MSbar renormalization scale for t quark
 #endif
-  real(REALKIND), save :: muyc
-  real(REALKIND), save :: muyb
-  real(REALKIND), save :: muyt
+  real(REALKIND), save :: LambdaMC2
+  real(REALKIND), save :: LambdaMB2
+  real(REALKIND), save :: LambdaMT2
+  real(REALKIND), save :: LambdaYC2
+  real(REALKIND), save :: LambdaYB2
+  real(REALKIND), save :: LambdaYT2
 
 
   ! the following derived parameters are initilised by subroutine loop_parameters_init
