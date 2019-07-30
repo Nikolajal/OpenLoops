@@ -3543,7 +3543,7 @@ subroutine reduction_5points_ofr(rank, momenta, masses, Gtensor, M2, &
     max_error_opp = max(error_step, max_error_opp)
     error = Gtensor%error + error_step
 
-    if (error_step > hp_step_thres .and. error > hp_err_thres) call upgrade_qp_hcl(Gtensor)
+    if (hp_switch .eq. 1 .and. error_step > hp_step_thres .and. error > hp_err_thres) call upgrade_qp_hcl(Gtensor)
     if (req_dp_cmp(Gtensor)) then
 #endif
     q0p_q0m = all_scboxes(scboxes(k))%onshell_cuts
@@ -3638,7 +3638,7 @@ subroutine reduction_6points_ofr(rank, momenta, masses, Gtensor, M2, &
     error_step = all_scboxes(scboxes(k))%box_error + all_scboxes(scboxes(k))%cut_error
     max_error_opp = max(error_step, max_error_opp)
     error = Gtensor%error + error_step
-    if (error_step > hp_step_thres .and. error > hp_err_thres) call upgrade_qp_hcl(Gtensor)
+    if (hp_switch .eq. 1 .and. error_step > hp_step_thres .and. error > hp_err_thres) call upgrade_qp_hcl(Gtensor)
     if (req_dp_cmp(Gtensor)) then
 #endif
     q0p_q0m = all_scboxes(scboxes(k))%onshell_cuts
@@ -3766,51 +3766,50 @@ subroutine reduction_7points_ofr(rank, momenta, masses, Gtensor, M2, &
     do i2 = i1, 5
     do i3 = i2, 5
       k = k + 1
-
 #ifdef PRECISION_dp
-    q0p_q0m = all_scboxes(scboxes(k))%onshell_cuts
-    scalar_box = all_scboxes(scboxes(k))%poles
     error_step = all_scboxes(scboxes(k))%box_error + all_scboxes(scboxes(k))%cut_error
     max_error_opp = max(error_step, max_error_opp)
     error = Gtensor%error + error_step
-    if (error_step > hp_step_thres .and. error > hp_err_thres) call upgrade_qp_hcl(Gtensor)
+    if (hp_switch .eq. 1 .and. error_step > hp_step_thres .and. error > hp_err_thres) call upgrade_qp_hcl(Gtensor)
     if (req_dp_cmp(Gtensor)) then
 #endif
-      Gsum = Gtensor%cmp
-      if(i3 == 5) then
-        if (i1 == 1) then
-          if (i2 == 1) then
-            momshift = -sum(momenta(:3))
-          else
-            momshift = -sum(momenta(:2))
-          end if
+    q0p_q0m = all_scboxes(scboxes(k))%onshell_cuts
+    scalar_box = all_scboxes(scboxes(k))%poles
+    Gsum = Gtensor%cmp
+    if(i3 == 5) then
+      if (i1 == 1) then
+        if (i2 == 1) then
+          momshift = -sum(momenta(:3))
         else
-          momshift = -sum(momenta(:1))
+          momshift = -sum(momenta(:2))
         end if
-        call G_TensorShift_otf(Gsum,get_LC_4(momshift))
-        offshell_p(1:5,1) = get_LC_5(momshift)
-        offshell_p(1:5,2) = get_LC_5(sum(momenta(:i1)) + momshift)
-        offshell_p(1:5,3) = get_LC_5(sum(momenta(:i2+1)) + momshift)
-
-        ! Assignment of the off-shell momenta and masses for all the sub-boxes
-        ! in the case when D0 is pinched
-        offshell_m2(1) = get_mass2(masses(1))
-        offshell_m2(2) = get_mass2(masses(i1+1))
-        offshell_m2(3) = get_mass2(masses(i2+2))
       else
-        ! Assignment of the off-shell momenta and masses for all the sub-boxes
-        offshell_p(1:5,1) = get_LC_5(sum(momenta(:i1)))
-        offshell_p(1:5,2) = get_LC_5(sum(momenta(:i2+1)))
-        offshell_p(1:5,3) = get_LC_5(sum(momenta(:i3+2)))
-
-        offshell_m2(1) = get_mass2(masses(i1+1))
-        offshell_m2(2) = get_mass2(masses(i2+2))
-        offshell_m2(3) = get_mass2(masses(i3+3))
+        momshift = -sum(momenta(:1))
       end if
+      call G_TensorShift_otf(Gsum,get_LC_4(momshift))
+      offshell_p(1:5,1) = get_LC_5(momshift)
+      offshell_p(1:5,2) = get_LC_5(sum(momenta(:i1)) + momshift)
+      offshell_p(1:5,3) = get_LC_5(sum(momenta(:i2+1)) + momshift)
 
-      call box_coefficient(offshell_p(:,:),offshell_m2(:),q0p_q0m,Gsum,box_coeff)
-      box = box_coeff*(scalar_box(0) + scalar_box(1)*de1_IR + scalar_box(2)*de2_i_IR)
-      M2%cmp = M2%cmp + box
+      ! Assignment of the off-shell momenta and masses for all the sub-boxes
+      ! in the case when D0 is pinched
+      offshell_m2(1) = get_mass2(masses(1))
+      offshell_m2(2) = get_mass2(masses(i1+1))
+      offshell_m2(3) = get_mass2(masses(i2+2))
+    else
+      ! Assignment of the off-shell momenta and masses for all the sub-boxes
+      offshell_p(1:5,1) = get_LC_5(sum(momenta(:i1)))
+      offshell_p(1:5,2) = get_LC_5(sum(momenta(:i2+1)))
+      offshell_p(1:5,3) = get_LC_5(sum(momenta(:i3+2)))
+
+      offshell_m2(1) = get_mass2(masses(i1+1))
+      offshell_m2(2) = get_mass2(masses(i2+2))
+      offshell_m2(3) = get_mass2(masses(i3+3))
+    end if
+
+    call box_coefficient(offshell_p(:,:),offshell_m2(:),q0p_q0m,Gsum,box_coeff)
+    box = box_coeff*(scalar_box(0) + scalar_box(1)*de1_IR + scalar_box(2)*de2_i_IR)
+    M2%cmp = M2%cmp + box
 #ifdef PRECISION_dp
     end if
     if (req_qp_cmp(Gtensor)) then
@@ -3913,57 +3912,57 @@ subroutine reduction_8points_ofr(rank, momenta, masses, Gtensor, M2, &
       k = k + 1
 
 #ifdef PRECISION_dp
-    q0p_q0m = all_scboxes(scboxes(k))%onshell_cuts
-    scalar_box = all_scboxes(scboxes(k))%poles
     error_step = all_scboxes(scboxes(k))%box_error + all_scboxes(scboxes(k))%cut_error
     max_error_opp = max(error_step, max_error_opp)
     error = Gtensor%error + error_step
-    if (error_step > hp_step_thres .and. error > hp_err_thres) call upgrade_qp_hcl(Gtensor)
+    if (hp_switch .eq. 1 .and. error_step > hp_step_thres .and. error > hp_err_thres) call upgrade_qp_hcl(Gtensor)
     if (req_dp_cmp(Gtensor)) then
 #endif
-      Gsum = Gtensor%cmp
-      if(i4 == 5) then
-        if (i1 == 1) then
-          if (i2 == 1) then
-            if (i3 == 1) then
-              momshift = -sum(momenta(:4))
-            else
-              momshift = -sum(momenta(:3))
-            end if
+    q0p_q0m = all_scboxes(scboxes(k))%onshell_cuts
+    scalar_box = all_scboxes(scboxes(k))%poles
+    Gsum = Gtensor%cmp
+    if(i4 == 5) then
+      if (i1 == 1) then
+        if (i2 == 1) then
+          if (i3 == 1) then
+            momshift = -sum(momenta(:4))
           else
-            momshift = -sum(momenta(:2))
+            momshift = -sum(momenta(:3))
           end if
         else
-          momshift = -sum(momenta(:1))
+          momshift = -sum(momenta(:2))
         end if
-        call G_TensorShift_otf(Gsum,get_LC_4(momshift))
-        offshell_p(1:5,1) = get_LC_5(momshift)
-        offshell_p(1:5,2) = get_LC_5(sum(momenta(:i1)) + momshift)
-        offshell_p(1:5,3) = get_LC_5(sum(momenta(:i2+1)) + momshift)
-        offshell_p(1:5,4) = get_LC_5(sum(momenta(:i3+2)) + momshift)
-
-        ! Assignment of the off-shell momenta and masses for all the sub-boxes
-        ! in the case when D0 is pinched
-        offshell_m2(1) = get_mass2(masses(1))
-        offshell_m2(2) = get_mass2(masses(i1+1))
-        offshell_m2(3) = get_mass2(masses(i2+2))
-        offshell_m2(4) = get_mass2(masses(i3+3))
       else
-        ! Assignment of the off-shell momenta and masses for all the sub-boxes
-        offshell_p(1:5,1) = get_LC_5(sum(momenta(:i1)))
-        offshell_p(1:5,2) = get_LC_5(sum(momenta(:i2+1)))
-        offshell_p(1:5,3) = get_LC_5(sum(momenta(:i3+2)))
-        offshell_p(1:5,4) = get_LC_5(sum(momenta(:i4+3)))
-
-        offshell_m2(1) = get_mass2(masses(i1+1))
-        offshell_m2(2) = get_mass2(masses(i2+2))
-        offshell_m2(3) = get_mass2(masses(i3+3))
-        offshell_m2(4) = get_mass2(masses(i4+4))
+        momshift = -sum(momenta(:1))
       end if
+      call G_TensorShift_otf(Gsum,get_LC_4(momshift))
+      offshell_p(1:5,1) = get_LC_5(momshift)
+      offshell_p(1:5,2) = get_LC_5(sum(momenta(:i1)) + momshift)
+      offshell_p(1:5,3) = get_LC_5(sum(momenta(:i2+1)) + momshift)
+      offshell_p(1:5,4) = get_LC_5(sum(momenta(:i3+2)) + momshift)
 
-      call box_coefficient(offshell_p(:,:),offshell_m2(:),q0p_q0m,Gsum,box_coeff)
-      box = box_coeff*(scalar_box(0) + scalar_box(1)*de1_IR + scalar_box(2)*de2_i_IR)
-      M2%cmp = M2%cmp + box
+      ! Assignment of the off-shell momenta and masses for all the sub-boxes
+      ! in the case when D0 is pinched
+      offshell_m2(1) = get_mass2(masses(1))
+      offshell_m2(2) = get_mass2(masses(i1+1))
+      offshell_m2(3) = get_mass2(masses(i2+2))
+      offshell_m2(4) = get_mass2(masses(i3+3))
+    else
+      ! Assignment of the off-shell momenta and masses for all the sub-boxes
+      offshell_p(1:5,1) = get_LC_5(sum(momenta(:i1)))
+      offshell_p(1:5,2) = get_LC_5(sum(momenta(:i2+1)))
+      offshell_p(1:5,3) = get_LC_5(sum(momenta(:i3+2)))
+      offshell_p(1:5,4) = get_LC_5(sum(momenta(:i4+3)))
+
+      offshell_m2(1) = get_mass2(masses(i1+1))
+      offshell_m2(2) = get_mass2(masses(i2+2))
+      offshell_m2(3) = get_mass2(masses(i3+3))
+      offshell_m2(4) = get_mass2(masses(i4+4))
+    end if
+
+    call box_coefficient(offshell_p(:,:),offshell_m2(:),q0p_q0m,Gsum,box_coeff)
+    box = box_coeff*(scalar_box(0) + scalar_box(1)*de1_IR + scalar_box(2)*de2_i_IR)
+    M2%cmp = M2%cmp + box
 #ifdef PRECISION_dp
     end if
     if (req_qp_cmp(Gtensor)) then
@@ -4077,65 +4076,65 @@ subroutine reduction_9points_ofr(rank, momenta, masses, Gtensor, M2, &
       k = k + 1
 
 #ifdef PRECISION_dp
-    q0p_q0m = all_scboxes(scboxes(k))%onshell_cuts
-    scalar_box = all_scboxes(scboxes(k))%poles
     error_step = all_scboxes(scboxes(k))%box_error + all_scboxes(scboxes(k))%cut_error
     max_error_opp = max(error_step, max_error_opp)
     error = Gtensor%error + error_step
-    if (error_step > hp_step_thres .and. error > hp_err_thres) call upgrade_qp_hcl(Gtensor)
+    if (hp_switch .eq. 1 .and. error_step > hp_step_thres .and. error > hp_err_thres) call upgrade_qp_hcl(Gtensor)
     if (req_dp_cmp(Gtensor)) then
 #endif
-      Gsum = Gtensor%cmp
-      if(i5 == 5) then
-        if (i1 == 1) then
-          if (i2 == 1) then
-            if (i3 == 1) then
-              if (i4 == 1) then
-                momshift = -sum(momenta(:5))
-              else
-                momshift = -sum(momenta(:4))
-              end if
+    q0p_q0m = all_scboxes(scboxes(k))%onshell_cuts
+    scalar_box = all_scboxes(scboxes(k))%poles
+    Gsum = Gtensor%cmp
+    if(i5 == 5) then
+      if (i1 == 1) then
+        if (i2 == 1) then
+          if (i3 == 1) then
+            if (i4 == 1) then
+              momshift = -sum(momenta(:5))
             else
-              momshift = -sum(momenta(:3))
+              momshift = -sum(momenta(:4))
             end if
           else
-            momshift = -sum(momenta(:2))
+            momshift = -sum(momenta(:3))
           end if
         else
-          momshift = -sum(momenta(:1))
+          momshift = -sum(momenta(:2))
         end if
-        call G_TensorShift_otf(Gsum,get_LC_4(momshift))
-        offshell_p(1:5,1) = get_LC_5(momshift)
-        offshell_p(1:5,2) = get_LC_5(sum(momenta(:i1)) + momshift)
-        offshell_p(1:5,3) = get_LC_5(sum(momenta(:i2+1)) + momshift)
-        offshell_p(1:5,4) = get_LC_5(sum(momenta(:i3+2)) + momshift)
-        offshell_p(1:5,5) = get_LC_5(sum(momenta(:i4+3)) + momshift)
-
-        ! Assignment of the off-shell momenta and masses for all the sub-boxes
-        ! in the case when D0 is pinched
-        offshell_m2(1) = get_mass2(masses(1))
-        offshell_m2(2) = get_mass2(masses(i1+1))
-        offshell_m2(3) = get_mass2(masses(i2+2))
-        offshell_m2(4) = get_mass2(masses(i3+3))
-        offshell_m2(5) = get_mass2(masses(i4+4))
       else
-        ! Assignment of the off-shell momenta and masses for all the sub-boxes
-        offshell_p(1:5,1) = get_LC_5(sum(momenta(:i1)))
-        offshell_p(1:5,2) = get_LC_5(sum(momenta(:i2+1)))
-        offshell_p(1:5,3) = get_LC_5(sum(momenta(:i3+2)))
-        offshell_p(1:5,4) = get_LC_5(sum(momenta(:i4+3)))
-        offshell_p(1:5,5) = get_LC_5(sum(momenta(:i5+4)))
-
-        offshell_m2(1) = get_mass2(masses(i1+1))
-        offshell_m2(2) = get_mass2(masses(i2+2))
-        offshell_m2(3) = get_mass2(masses(i3+3))
-        offshell_m2(4) = get_mass2(masses(i4+4))
-        offshell_m2(5) = get_mass2(masses(i5+5))
+        momshift = -sum(momenta(:1))
       end if
+      call G_TensorShift_otf(Gsum,get_LC_4(momshift))
+      offshell_p(1:5,1) = get_LC_5(momshift)
+      offshell_p(1:5,2) = get_LC_5(sum(momenta(:i1)) + momshift)
+      offshell_p(1:5,3) = get_LC_5(sum(momenta(:i2+1)) + momshift)
+      offshell_p(1:5,4) = get_LC_5(sum(momenta(:i3+2)) + momshift)
+      offshell_p(1:5,5) = get_LC_5(sum(momenta(:i4+3)) + momshift)
 
-      call box_coefficient(offshell_p(:,:),offshell_m2(:),q0p_q0m,Gsum,box_coeff)
-      box = box_coeff*(scalar_box(0) + scalar_box(1)*de1_IR + scalar_box(2)*de2_i_IR)
-      M2%cmp = M2%cmp + box
+      ! Assignment of the off-shell momenta and masses for all the sub-boxes
+      ! in the case when D0 is pinched
+      offshell_m2(1) = get_mass2(masses(1))
+      offshell_m2(2) = get_mass2(masses(i1+1))
+      offshell_m2(3) = get_mass2(masses(i2+2))
+      offshell_m2(4) = get_mass2(masses(i3+3))
+      offshell_m2(5) = get_mass2(masses(i4+4))
+    else
+      ! Assignment of the off-shell momenta and masses for all the sub-boxes
+      offshell_p(1:5,1) = get_LC_5(sum(momenta(:i1)))
+      offshell_p(1:5,2) = get_LC_5(sum(momenta(:i2+1)))
+      offshell_p(1:5,3) = get_LC_5(sum(momenta(:i3+2)))
+      offshell_p(1:5,4) = get_LC_5(sum(momenta(:i4+3)))
+      offshell_p(1:5,5) = get_LC_5(sum(momenta(:i5+4)))
+
+      offshell_m2(1) = get_mass2(masses(i1+1))
+      offshell_m2(2) = get_mass2(masses(i2+2))
+      offshell_m2(3) = get_mass2(masses(i3+3))
+      offshell_m2(4) = get_mass2(masses(i4+4))
+      offshell_m2(5) = get_mass2(masses(i5+5))
+    end if
+
+    call box_coefficient(offshell_p(:,:),offshell_m2(:),q0p_q0m,Gsum,box_coeff)
+    box = box_coeff*(scalar_box(0) + scalar_box(1)*de1_IR + scalar_box(2)*de2_i_IR)
+    M2%cmp = M2%cmp + box
 #ifdef PRECISION_dp
     end if
     if (req_qp_cmp(Gtensor)) then

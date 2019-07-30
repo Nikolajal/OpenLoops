@@ -1016,6 +1016,9 @@ end subroutine loop_parameters_init
 
 subroutine qcd_parameters_init(is_loop_in)
   use ol_parameters_decl_/**/REALKIND, only: alpha_QCD, G2_QCD, gQCD, pi
+#ifndef PRECISION_dp
+  use ol_parameters_decl_/**/DREALKIND, only: alpha_QCD_dp => alpha_QCD
+#endif
   use ol_loop_parameters_decl_/**/DREALKIND, only: muren_unscaled, do_qcd_renorm
   use ol_loop_parameters_decl_/**/REALKIND, only: muren, muren2, scalefactor
   use ol_qcd_renormalisation_/**/REALKIND, only: qcd_renormalisation
@@ -1035,6 +1038,9 @@ subroutine qcd_parameters_init(is_loop_in)
     end if
     call ol_msg(4, "QCD loop parameters initialized")
   else
+#ifndef PRECISION_dp
+    alpha_QCD     = alpha_QCD_dp
+#endif
     !QCD
     G2_QCD = 4*pi*alpha_QCD
     gQCD   = sqrt(G2_QCD)
@@ -1059,6 +1065,7 @@ subroutine ensure_mp_loop_init()
     & call parameters_init()
   if (loop_parameters_status_dp /= loop_parameters_status) &
     & call loop_parameters_init()
+  call qcd_parameters_init(.true.)
 #else
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch
   use ol_parameters_decl_/**/QREALKIND, only: parameters_status
@@ -1219,6 +1226,7 @@ subroutine parameters_write(filename)
   write(outid,*) 'check_Ward_tree    =', Ward_tree
   write(outid,*) 'check_Ward_loop    =', Ward_loop
   write(outid,*) 'out_symmetry       =', out_symmetry_on
+  write(outid,*) 'psp_tolerance      =', psp_tolerance
   write(outid,*) 'hp_mode            =', hp_mode
   if (hp_switch .eq. 1) then
   write(outid,*) 'hp_loopacc         =', hp_loopacc

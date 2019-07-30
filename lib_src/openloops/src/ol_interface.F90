@@ -44,8 +44,9 @@ module openloops
   public :: evaluate_ccmatrix, evaluate_loopccmatrix, evaluate_ccmatrix2
   public :: evaluate_ccewmatrix, evaluate_ccewmatrix2
   public :: evaluate_sc, evaluate_loopsc, evaluate_sc2
+  public :: evaluate_sctensor, evaluate_sctensor2, evaluate_loopsctensor
   public :: evaluate_scpowheg, evaluate_loopscpowheg, evaluate_scpowheg2
-  public :: evaluate_sctensor, evaluate_loopsctensor, evaluate_sctensor2
+  public :: evaluate_stensor, evaluate_loopstensor, evaluate_stensor2
   public :: evaluate_tree_colvect, evaluate_tree_colvect2
   public :: evaluate_full, evaluate_loop, evaluate_loop2
   public :: evaluate_loopbare, evaluate_ct, evaluate_loopct, evaluate_r2
@@ -66,17 +67,17 @@ module openloops
     module procedure ol_printparameter
   end interface printparameter
 
-  interface evaluate_sctensor
+  interface evaluate_stensor
     module procedure evaluate_scpowheg
-  end interface evaluate_sctensor
+  end interface evaluate_stensor
 
-  interface evaluate_loopsctensor
+  interface evaluate_loopstensor
     module procedure evaluate_loopscpowheg
-  end interface evaluate_loopsctensor
+  end interface evaluate_loopstensor
 
-  interface evaluate_sctensor2
+  interface evaluate_stensor2
     module procedure evaluate_scpowheg2
-  end interface evaluate_sctensor2
+  end interface evaluate_stensor2
 
 
   type process_handle
@@ -2813,14 +2814,17 @@ module openloops
     ! [out] amp: amp(:,h) is the colour vector for helicity configuration h
     ! [out] nhel: number of non-zero helicity configurations,
     !       amp(:,nhel+1:) contains no information
+    use ol_ew_renormalisation_/**/REALKIND, only: photon_factors
     implicit none
     integer, intent(in) :: id
     real(DREALKIND), intent(in) :: psp(:,:)
     complex(DREALKIND), intent(out) :: amp(:,:)
     integer, intent(out) :: nhel
-    real(DREALKIND) :: res
+    real(DREALKIND) :: res, bornphotonfactor
     call evaluate_tree(id, psp, res) ! fill colour vector cache
     call process_handles(id)%tree_colvect(amp, nhel)
+    call photon_factors(process_handles(id)%photon_id, 0, bornphotonfactor)
+    amp = amp * sqrt(bornphotonfactor)
   end subroutine evaluate_tree_colvect
 
 
@@ -2852,16 +2856,19 @@ module openloops
     ! [in] id: process id as set by register_process
     ! [in] psp: phase space point
     ! [out] m2arr: array of squared matrix elements per colour flow
+    use ol_ew_renormalisation_/**/REALKIND, only: photon_factors
     implicit none
     integer, intent(in) :: id
     real(DREALKIND), intent(in) :: psp(:,:)
     real(DREALKIND), intent(out) :: m2arr(:)
     integer :: nhel
-    real(DREALKIND) :: res
+    real(DREALKIND) :: res, bornphotonfactor
     complex(DREALKIND) :: amp(get_tree_colbasis_dim(id),get_nhel(id))
     call evaluate_tree(id, psp, res) ! fill colour vector cache
     call process_handles(id)%tree_colvect(amp, nhel)
     m2arr = sum(real(amp(:,1:nhel)*conjg(amp(:,1:nhel))), 2)
+    call photon_factors(process_handles(id)%photon_id, 0, bornphotonfactor)
+    m2arr = m2arr * bornphotonfactor
   end subroutine evaluate_tree_colvect2
 
 
@@ -3663,7 +3670,7 @@ module openloops
   end subroutine evaluate_scpowheg_c
 
 
-  subroutine evaluate_sctensor_c(id, pp, emitter, res, resmunu) bind(c,name="ol_evaluate_sctensor")
+  subroutine evaluate_stensor_c(id, pp, emitter, res, resmunu) bind(c,name="ol_evaluate_stensor")
     implicit none
     integer(c_int), value :: id, emitter
     real(c_double), intent(in) :: pp(5*n_external(id))
@@ -3679,7 +3686,116 @@ module openloops
     call evaluate_scpowheg(f_id, f_pp(0:3,:), f_emitter, f_res, f_resmunu)
     res = f_res
     resmunu = reshape(f_resmunu,(/4*4/))
+  end subroutine evaluate_stensor_c
+
+
+  subroutine evaluate_sctensor(id, psp, emitter, res, resmunu)
+   ! Colour-Spin correlated tree tensors
+   ! [in] id: process id as set by register_process
+   ! [in] psp: phase space point
+   ! [in] emitter: j
+   ! [out] res: squared born matrix element
+   ! [out] res(N:4:4): array with the spin correlated born matrix element B^(jk)(mu,nu)
+    use ol_generic, only: to_string
+    implicit none
+    integer, intent(in) :: id, emitter
+    real(DREALKIND), intent(in) :: psp(:,:)
+    real(DREALKIND), intent(out) :: res, resmunu(n_external(id),4,4)
+    call stop_invalid_id(id)
+    call ol_fatal('evaluate: sctensor routine not available for process ' // trim(to_string(id)))
+  end subroutine evaluate_sctensor
+
+
+  subroutine evaluate_sctensor_c(id, pp, emitter, res, resmunu) bind(c,name="ol_evaluate_sctensor")
+    implicit none
+    integer(c_int), value :: id, emitter
+    real(c_double), intent(in) :: pp(5*n_external(id))
+    real(c_double), intent(out) :: res, resmunu(n_external(id)*16)
+    integer :: f_id, f_emitter
+    real(DREALKIND) :: f_pp(0:4,n_external(id))
+    real(DREALKIND) :: f_res, f_resmunu(4,4)
+    f_id = id
+    call stop_invalid_id(f_id) ! needed because of reshape
+    if (error > 1) return
+    f_pp = reshape(pp, [5,process_handles(id)%n_particles])
+    f_emitter = emitter
+    call evaluate_sctensor(f_id, f_pp(0:3,:), f_emitter, f_res, f_resmunu)
+    res = f_res
+    resmunu = reshape(f_resmunu,(/n_external(id)*4*4/))
   end subroutine evaluate_sctensor_c
+
+
+  subroutine evaluate_sctensor2(id, psp, emitter, res, resmunu)
+   ! Colour-Spin correlated tree tensors
+   ! [in] id: process id as set by register_process
+   ! [in] psp: phase space point
+   ! [in] emitter: j
+   ! [out] res: squared born matrix element
+   ! [out] res(N:4:4): array with the spin correlated born matrix element B^(jk)(mu,nu)
+    use ol_generic, only: to_string
+    implicit none
+    integer, intent(in) :: id, emitter
+    real(DREALKIND), intent(in) :: psp(:,:)
+    real(DREALKIND), intent(out) :: res, resmunu(n_external(id),4,4)
+    call stop_invalid_id(id)
+    call ol_fatal('evaluate: sctensor2 routine not available for process ' // trim(to_string(id)))
+  end subroutine evaluate_sctensor2
+
+
+  subroutine evaluate_sctensor2_c(id, pp, emitter, res, resmunu) bind(c,name="ol_evaluate_sctensor2")
+    implicit none
+    integer(c_int), value :: id, emitter
+    real(c_double), intent(in) :: pp(5*n_external(id))
+    real(c_double), intent(out) :: res, resmunu(n_external(id)*16)
+    integer :: f_id, f_emitter
+    real(DREALKIND) :: f_pp(0:4,n_external(id))
+    real(DREALKIND) :: f_res, f_resmunu(4,4)
+    f_id = id
+    call stop_invalid_id(f_id) ! needed because of reshape
+    if (error > 1) return
+    f_pp = reshape(pp, [5,process_handles(id)%n_particles])
+    f_emitter = emitter
+    call evaluate_sctensor2(f_id, f_pp(0:3,:), f_emitter, f_res, f_resmunu)
+    res = f_res
+    resmunu = reshape(f_resmunu,(/n_external(id)*4*4/))
+  end subroutine evaluate_sctensor2_c
+
+
+  subroutine evaluate_loopsctensor(id, psp, emitter, m2l0, m2l1, resmunu)
+   ! Colour-Spin correlated tree tensors
+   ! [in] id: process id as set by register_process
+   ! [in] psp: phase space point
+   ! [in] emitter: j
+   ! [out] res: squared born matrix element
+   ! [out] res(N:4:4): array with the spin correlated born matrix element B^(jk)(mu,nu)
+    use ol_generic, only: to_string
+    implicit none
+    integer, intent(in) :: id, emitter
+    real(DREALKIND), intent(in) :: psp(:,:)
+    real(DREALKIND), intent(out) :: m2l0, m2l1(0:2), resmunu(n_external(id),4,4)
+    call stop_invalid_id(id)
+    call ol_fatal('evaluate: loopsctensor routine not available for process ' // trim(to_string(id)))
+  end subroutine evaluate_loopsctensor
+
+
+  subroutine evaluate_loopsctensor_c(id, pp, emitter, m2l0, m2l1, resmunu) bind(c,name="ol_evaluate_loopsctensor")
+    implicit none
+    integer(c_int), value :: id, emitter
+    real(c_double), intent(in) :: pp(5*n_external(id))
+    real(c_double), intent(out) :: m2l0, m2l1(0:2), resmunu(n_external(id)*16)
+    integer :: f_id, f_emitter
+    real(DREALKIND) :: f_pp(0:4,n_external(id))
+    real(DREALKIND) :: f_m2l0, f_m2l1(0:2), f_resmunu(4,4)
+    f_id = id
+    call stop_invalid_id(f_id) ! needed because of reshape
+    if (error > 1) return
+    f_pp = reshape(pp, [5,process_handles(id)%n_particles])
+    f_emitter = emitter
+    call evaluate_loopsctensor(f_id, f_pp(0:3,:), f_emitter, f_m2l0, f_m2l1, f_resmunu)
+    m2l0 = f_m2l0
+    m2l1 = f_m2l1
+    resmunu = reshape(f_resmunu,(/n_external(id)*4*4/))
+  end subroutine evaluate_loopsctensor_c
 
 
   subroutine evaluate_scpowheg2(id, psp, emitter, res, resmunu)
@@ -3745,7 +3861,7 @@ module openloops
   end subroutine evaluate_scpowheg2_c
 
 
-  subroutine evaluate_sctensor2_c(id, pp, emitter, res, resmunu) bind(c,name="ol_evaluate_sctensor2")
+  subroutine evaluate_stensor2_c(id, pp, emitter, res, resmunu) bind(c,name="ol_evaluate_stensor2")
     implicit none
     integer(c_int), value :: id, emitter
     real(c_double), intent(in) :: pp(5*n_external(id))
@@ -3761,7 +3877,7 @@ module openloops
     call evaluate_scpowheg2(f_id, f_pp(0:3,:), f_emitter, f_res, f_resmunu)
     res = f_res
     resmunu = reshape(f_resmunu,(/4*4/))
-  end subroutine evaluate_sctensor2_c
+  end subroutine evaluate_stensor2_c
 
 
   subroutine evaluate_loopscpowheg(id, psp, emitter, m2l0, m2l1, resmunu)
@@ -3826,7 +3942,7 @@ module openloops
   end subroutine evaluate_loopscpowheg_c
 
 
-  subroutine evaluate_loopsctensor_c(id, pp, emitter, m2l0, m2l1, resmunu) bind(c,name="ol_evaluate_loopsctensor")
+  subroutine evaluate_loopstensor_c(id, pp, emitter, m2l0, m2l1, resmunu) bind(c,name="ol_evaluate_loopstensor")
     implicit none
     integer(c_int), value :: id, emitter
     real(c_double), intent(in) :: pp(5*n_external(id))
@@ -3843,7 +3959,7 @@ module openloops
     m2l0 = f_m2l0
     m2l1 = f_m2l1
     resmunu = reshape(f_resmunu,(/4*4/))
-  end subroutine evaluate_loopsctensor_c
+  end subroutine evaluate_loopstensor_c
 
 
   recursive subroutine evaluate_full(id, psp, m2l0, m2l1, ir1, m2l2, ir2, acc)
