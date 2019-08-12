@@ -1648,10 +1648,15 @@ module ol_init
 
   subroutine tree_parameters_flush() bind(c,name="ol_tree_parameters_flush")
     use ol_parameters_init_/**/DREALKIND, only: parameters_init
+    use ol_parameters_init_/**/REALKIND, only: qcd_parameters_init
     implicit none
     if (setparameter_tree_was_called) then
       call parameters_init()
       setparameter_tree_was_called = .false.
+    end if
+    if (setparameter_alphaQCD_was_called) then
+      call qcd_parameters_init()
+      setparameter_alphaQCD_was_called = .false.
     end if
   end subroutine tree_parameters_flush
 
