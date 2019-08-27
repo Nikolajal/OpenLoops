@@ -482,6 +482,9 @@ module ol_parameters_decl_/**/REALKIND
   ! Auto-preset: preset=2 for OLmode=1,2 and preset=5 for OLmode=2, preset=3 for loop-induced
   logical, save :: auto_preset = .true.
   ! expert_mode: allows to set stability options manually
+  real(DREALKIND), save :: psp_tolerance = 1.e-9
+  ! wf_V_select: select external vector boson wavfunction, 1=default, 2=ABC, 3: MG
+  integer, save :: wf_v_select = 1
 #ifdef EXPERT
   logical, save :: expert_mode = .true.
 #else
@@ -509,7 +512,6 @@ module ol_parameters_decl_/**/REALKIND
   real(REALKIND), save :: scalefactor = 1._/**/REALKIND
   logical,        save :: reset_scalefactor = .false.
   integer,        save :: scaling_mode = 1 ! 1: reduction only, 3: everything
-  real(REALKIND), save :: psp_tolerance = 1.e-9
 
   ! synchronise Yukawa masses with masses
   logical, save :: yuk_from_mass = .true.

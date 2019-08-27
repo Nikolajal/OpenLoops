@@ -209,6 +209,8 @@ subroutine wf_V_Std(P, M, POL, J_V, POLSEL)
 ! J_V(1:4) = EPS^*(-P,POL)
 !          = outgoing vector boson wave function (light-cone representation)
 ! **********************************************************************
+  use ol_debug, only: ol_fatal
+  use ol_parameters_decl_/**/DREALKIND, only: wf_v_select
   implicit none
 
   real(REALKIND),    intent(in)  :: P(0:3), M
@@ -218,13 +220,25 @@ subroutine wf_V_Std(P, M, POL, J_V, POLSEL)
   complex(REALKIND) :: J_AUX(4)
 
   if (P(0) >= 0) then ! incoming gluon -> EPS(P)
-    call wfIN_V(P,M,POL,J_V, POLSEL)
-!    call wf_interface_V(P,M,POL,J_V) ! gauge-fixing of Stefanos algebraic code
-!    call wfIN_V_MG(P,M,POL,J_V) ! MadGraph convention
+    if (wf_v_select == 1) then
+      call wfIN_V(P,M,POL,J_V, POLSEL)
+    else if (wf_v_select == 2) then
+      call wf_interface_V(P,M,POL,J_V) ! gauge-fixing of Stefanos algebraic code
+    else if (wf_v_select == 3) then
+      call wfIN_V_MG(P,M,POL,J_V) ! MadGraph convention
+    else
+      call ol_fatal("chosen wf_V not supported")
+    end if
   else if (P(0) < 0) then ! outgoing gluon -> EPS^*(-P)
-    call wfIN_V(-P,M,POL,J_AUX, POLSEL)
-!    call wf_interface_V(-P,M,POL,J_AUX) ! gauge-fixing Stefanos algebraic code
-!    call wfIN_V_MG(P,M,POL,J_AUX) ! MadGraph convention
+    if (wf_v_select == 1) then
+      call wfIN_V(-P,M,POL,J_AUX, POLSEL)
+    else if (wf_v_select == 2) then
+      call wf_interface_V(-P,M,POL,J_AUX) ! gauge-fixing Stefanos algebraic code
+    else if (wf_v_select == 3) then
+      call wfIN_V_MG(P,M,POL,J_AUX) ! MadGraph convention
+    else
+      call ol_fatal("chosen wf_V not supported")
+    end if
 
     J_V(1) = conjg(J_AUX(1))
     J_V(2) = conjg(J_AUX(2))

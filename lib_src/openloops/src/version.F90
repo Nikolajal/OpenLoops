@@ -51,7 +51,8 @@ module ol_version
       & " #       F. Buccioni, J.-N. Lang, J. Lindert, P. Maierhoefer,        #" // LF // &
       & " #                S. Pozzorini, M. Zoller, H. Zhang                  #" // LF // &
       & " #                                                                   #" // LF // &
-      & " #         Please cite Phys. Rev. Lett. 108 (2012) 111601            #" // LF // &
+      & " #         Please cite arXiv:1907.13071                              #" // LF // &
+      & " #                     Phys. Rev. Lett. 108 (2012) 111601            #" // LF // &
       & " #                     Eur.Phys.J. C78 (2018) no.1, 70               #" // LF // &
       & " #                                                                   #" // LF // &
       & " #####################################################################" // LF
@@ -74,7 +75,8 @@ module ol_version
       & "#       You are using OpenLoops 2 to evaluate loop amplitudes      #" // LF // &
       & "#        F. Buccioni, J.-N. Lang, J. Lindert, P. Maierhoefer,      #" // LF // &
       & "#               S. Pozzorini, M. Zoller, H. Zhang                  #" // LF // &
-      & "#                Eur.Phys.J. C78 (2018) no.1, 70                   #" // LF // &
+      & "#                      arXiv:1907.13071                            #" // LF // &      
+      & "#                                                                  #" // LF // &
       & "####################################################################"
     if (len(trim(welcome_str)) >= 699) then
       ! Again, so that nobody does anything stupid without noticing.

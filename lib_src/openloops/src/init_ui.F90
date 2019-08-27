@@ -518,6 +518,12 @@ module ol_init
         else
           call ol_error(1,"unrecognised " // trim(param) // "=" // to_string(val))
         end if
+      case ("wf_v_select")
+        if (val == 1 .or. val == 2 .or. val == 3) then
+          call set_if_modified(wf_v_select, val)
+        else
+          call ol_error(1,"unrecognised " // trim(param) // "=" // to_string(val))
+        end if
       case ("cll_tenred")
         call set_if_modified(cll_tenred, val)
       case ("cll_channels")
