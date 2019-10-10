@@ -22,7 +22,7 @@ module kind_types
   implicit none
 
   integer, parameter :: intkind1 = selected_int_kind(2)
-  integer, parameter :: intkind2 = selected_int_kind(4)
+  integer, parameter :: intkind2 = selected_int_kind(6)
 #ifdef USE_sp
   integer, parameter :: sp = selected_real_kind(6)
   complex(sp), parameter :: cI_sp = (0._sp, 1._sp)
