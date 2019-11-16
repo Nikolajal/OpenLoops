@@ -548,6 +548,7 @@ module ol_parameters_decl_/**/REALKIND
   real(REALKIND), save :: alpha_QED_0  = 1/137.035999074_/**/REALKIND  ! alpha(0) from PDG 2014
   real(REALKIND), save :: alpha_QED, alpha_QED_input
   real(REALKIND), save :: alpha_QED_Gmu
+  real(REALKIND), save :: sw2_input = 0.222626515643872389077366863865260666_/**/REALKIND
 #ifdef PRECISION_dp
   real(REALKIND), save :: Gmu_unscaled = 0.0000116637_/**/REALKIND    ! G_mu
 #endif
@@ -601,6 +602,7 @@ module ol_parameters_decl_/**/REALKIND
   ! Right/left couplings of a Z boson to neutrinos, leptons, up- and down-type quarks
   complex(REALKIND), save :: gZn(2), gZl(2), gZu(2), gZd(2)
   ! Right(1)/left(2) couplings for Higgs(H), Chi(X) = Z-Goldstone, Phi(P) = W-Goldstone
+  real(REALKIND),    save :: I3l(2)  = [0.5_/**/REALKIND,-0.5_/**/REALKIND]
   complex(REALKIND), save :: gH(2)   = [  cONE, cONE ]
   complex(REALKIND), save :: gX(2)   = [ -cONE, cONE ]
   complex(REALKIND), save :: gPnl(2) = [  cONE, ZERO ]
@@ -745,6 +747,9 @@ module ol_loop_parameters_decl_/**/REALKIND
   integer,        save :: R2_is_on = 1 ! switch on/off R2 contributions
   integer,        save :: TP_is_on = 1 ! switch on/off tadpole-like contributions
   integer,        save :: IR_is_on = 1 ! 0 = off, 1 = return poles, 2 = add I operator
+  logical,        save :: qed_on = .true.     ! QED contributions
+  logical,        save :: weak_on = .true.    ! weak contributions
+  logical,        save :: qedreg_on = .false. ! regularise IR singularities in QED via finite photon mass = MZ
   ! i-operator mode: 1 = QCD, 2 = EM, 0 = QCD+EM, none otherwise;
   integer,        save :: ioperator_mode = 0
   integer,        save :: polecheck_is = 0
@@ -1007,6 +1012,8 @@ module ol_loop_parameters_decl_/**/REALKIND
   complex(REALKIND), save :: dZe0QEDEWnreg = 0 ! EW coupling RC   : e_bare  = (1+dZeEW)*e_ren in on-shell/a(0) scheme with light fermuion controbutions in n-reg
   complex(REALKIND), save :: dZeGmuQEDEW   = 0 ! EW coupling RC   : e_bare  = (1+dZeEW)*e_ren in Gmu-scheme
   complex(REALKIND), save :: dZeZQEDEW     = 0 ! EW coupling RC   : e_bare  = (1+dZeEW)*e_ren in a(MZ)-scheme
+  complex(REALKIND), save :: dVLEW         = 0 ! L-lepton-Z vertex RC
+  complex(REALKIND), save :: dVREW         = 0 ! R-lepton-Z vertex RC
 
   ! Counter terms for EW corrections
   ! VV Vector propagators

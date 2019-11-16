@@ -476,8 +476,8 @@ module ol_init
       case ("se_integral_switch")
         call set_if_modified(se_integral_switch, val)
       case ("ew_scheme", "ewscheme")
-        if (val /= 0 .and. val /= 1 .and. val /= -1 .and. val /= 2) then
-          call ol_error(1,"unrecognised ew_scheme:" // to_string(val))
+        if (val < 0 .or. val > 4) then
+          call ol_error(1,"unrecognised ew_scheme: " // to_string(val))
         else
           call set_if_modified(ew_scheme, val)
           call set_if_modified(ew_renorm_scheme, abs(val))
@@ -487,6 +487,19 @@ module ol_init
           call ol_error(1,"unrecognised ew_renorm_scheme:" // to_string(val))
         else
           call set_if_modified(ew_renorm_scheme, val)
+        end if
+      case ("select_ew")
+        if (val == 0) then
+          call set_if_modified(qed_on, .true.)
+          call set_if_modified(weak_on, .true.)
+        else if (val == 1) then
+          call set_if_modified(qed_on, .true.)
+          call set_if_modified(weak_on, .false.)
+        else if (val == 2) then
+          call set_if_modified(qed_on, .false.)
+          call set_if_modified(weak_on, .true.)
+        else
+          call ol_error("select_ew not available:" // trim(to_string(val)))
         end if
       case ("onshell_photons_lsz", "onshell_photon_lsz")
         if (val == 1) then
@@ -859,7 +872,7 @@ module ol_init
       case ("alphas", "alpha_s", "alpha_qcd")
         call set_if_modified_alphaQCD(alpha_QCD, val)
       case ("alpha", "alpha_qed")
-        if (ew_scheme == 0 .or. ew_scheme == 2 .or. ew_scheme == -1) then
+        if (ew_scheme == 0 .or. ew_scheme == 2 .or. ew_scheme == -1 .or. ew_scheme == 4) then
           call set_if_modified(alpha_QED_input, val)
         else
            call ol_msg("WARNING: " // trim(param) // " ignored in ew_scheme=" // trim(to_string(ew_scheme)) // ".")
@@ -870,6 +883,8 @@ module ol_init
         call set_if_modified(alpha_QED_0, val)
       case ("gmu")
         call set_if_modified(Gmu_unscaled, val)
+      case ("sw2eff", "sw2", "sintheta2eff")
+        call set_if_modified(sw2_input, val)
       case ("scalefactor")
         if (scalefactor == 0) then
           call ol_error("scalefactor == 0 not supported!")
