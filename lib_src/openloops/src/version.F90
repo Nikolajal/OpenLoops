@@ -24,7 +24,7 @@ module ol_version
   integer :: process_api = PROCESSAPI
   character(7) :: revision = REVISION
   logical :: splash_todo = .true.
-  integer, parameter :: welcome_length = 1200
+  integer, parameter :: welcome_length = 1300
 
   contains
 

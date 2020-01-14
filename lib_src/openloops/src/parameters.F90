@@ -483,6 +483,7 @@ module ol_parameters_decl_/**/REALKIND
   logical, save :: auto_preset = .true.
   ! expert_mode: allows to set stability options manually
   real(DREALKIND), save :: psp_tolerance = 1.e-9
+  logical, save :: no_cleaning =  .false.
   ! wf_V_select: select external vector boson wavfunction, 1=default, 2=ABC, 3: MG
   integer, save :: wf_v_select = 1
 #ifdef EXPERT

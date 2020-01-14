@@ -768,7 +768,7 @@ subroutine clean_mom_in(P_in, m_ext2, P, n)
   use KIND_TYPES, only: REALKIND
   use ol_debug, only: ol_msg
   use ol_generic, only: to_string
-  use ol_parameters_decl_/**/DREALKIND, only: psp_tolerance
+  use ol_parameters_decl_/**/DREALKIND, only: psp_tolerance, no_cleaning
   implicit none
   real(REALKIND), intent(in)  :: P_in(0:3,n)
   integer,        intent(in)  :: n
@@ -816,6 +816,8 @@ subroutine clean_mom_in(P_in, m_ext2, P, n)
       call ol_msg("===============")
     end if
   end do
+
+  if (no_cleaning) return
 
   ! position of the outgoing momentum with the largest energy
   pout_max_pos_arr = maxloc(abs(P(0,3:)))

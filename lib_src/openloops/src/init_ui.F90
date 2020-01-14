@@ -572,6 +572,12 @@ module ol_init
         else
           do_not_stop = .false.
         end if
+      case ("psp_cleaning")
+        if (val == 0) then
+          no_cleaning = .true.
+        else
+          no_cleaning = .false.
+        end if
       case ("no_splash", "nosplash")
         if (val == 0) then
           nosplash = .false.
