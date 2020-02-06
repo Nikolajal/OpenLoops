@@ -676,6 +676,9 @@ subroutine wfIN_V_MG(P, M, POL, EPS)
   EPS(3) = - epss(2) - CI * epss(3)
   EPS(4) = - epss(2) + CI * epss(3)
 
+  ! workaround
+  EPS = EPS + small_real
+
 end subroutine wfIN_V_MG
 
 
