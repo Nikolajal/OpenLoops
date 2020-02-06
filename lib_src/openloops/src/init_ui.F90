@@ -578,6 +578,12 @@ module ol_init
         else
           no_cleaning = .false.
         end if
+      case ("psp_cleaning_hardness")
+        if (val == 0) then
+          cleaning_via_hardness = .false.
+        else
+          cleaning_via_hardness = .true.
+        end if
       case ("no_splash", "nosplash")
         if (val == 0) then
           nosplash = .false.
