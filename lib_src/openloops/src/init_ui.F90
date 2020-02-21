@@ -476,14 +476,14 @@ module ol_init
       case ("se_integral_switch")
         call set_if_modified(se_integral_switch, val)
       case ("ew_scheme", "ewscheme")
-        if (val < 0 .or. val > 4) then
+        if (val /= 0 .and. val /= 1 .and. val /= 2 .and. val /= 20 .and. val /= 21 .and. val /= 22) then
           call ol_error(1,"unrecognised ew_scheme: " // to_string(val))
         else
           call set_if_modified(ew_scheme, val)
           call set_if_modified(ew_renorm_scheme, abs(val))
         end if
       case ("ew_renorm_scheme")
-        if (val /= 0 .and. val /= 1 .and. val /= 2) then
+        if (val /= 0 .and. val /= 1 .and. val /= 2 .and. val /= 20 .and. val /= 21 .and. val /= 22) then
           call ol_error(1,"unrecognised ew_renorm_scheme:" // to_string(val))
         else
           call set_if_modified(ew_renorm_scheme, val)

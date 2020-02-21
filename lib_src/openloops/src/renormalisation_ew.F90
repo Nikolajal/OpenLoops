@@ -42,7 +42,8 @@ subroutine ew_renormalisation
   use ol_self_energy_integrals_/**/REALKIND
 #ifndef PRECISION_dp
   use ol_loop_parameters_decl_/**/DREALKIND, only: &
-    & nc, nf, N_lf, N_lu, N_ld, N_ll, nq_nondecoupl, CT_is_on, R2_is_on, TP_is_on, SwF, SwB
+    & nc, nf, N_lf, N_lu, N_ld, N_ll, nq_nondecoupl, CT_is_on, R2_is_on, TP_is_on, SwF, SwB, &
+    & qed_on, weak_on, qedreg_on
 #endif
   implicit none
 
@@ -124,6 +125,7 @@ subroutine ew_renormalisation
   complex(REALKIND), save      ::  B00ZZ   = 0
   complex(REALKIND), save      ::  B0ZZH   = 0
   complex(REALKIND), save      ::  dB0ZZH  = 0
+  complex(REALKIND), save      ::  dB00ZH  = 0
   complex(REALKIND), save      ::  B00ZH   = 0
   complex(REALKIND), save      ::  B00WH   = 0
   complex(REALKIND), save      ::  dB00WH  = 0
@@ -224,6 +226,18 @@ subroutine ew_renormalisation
   complex(REALKIND), save      ::  B0ZLL   = 0
   complex(REALKIND), save      ::  dB0ZLL  = 0
 
+  complex(REALKIND), save      ::  Va0Z0Z00 = 0
+  complex(REALKIND), save      ::  Va0Z0W00 = 0
+  complex(REALKIND), save      ::  Vb0Z00WW = 0
+  complex(REALKIND), save      ::  C00Z0Z00 = 0
+  complex(REALKIND), save      ::  C10Z0Z00 = 0
+  complex(REALKIND), save      ::  C20Z0Z00 = 0
+  complex(REALKIND), save      ::  C00Z0W00 = 0
+  complex(REALKIND), save      ::  C10Z0W00 = 0
+  complex(REALKIND), save      ::  C20Z0W00 = 0
+  complex(REALKIND), save      ::  C00Z00WW = 0
+  complex(REALKIND), save      ::  C10Z00WW = 0
+  complex(REALKIND), save      ::  C20Z00WW = 0
 
   complex(REALKIND), save      ::   cTW = 0
   complex(REALKIND), save      ::   cTZ = 0
@@ -375,6 +389,7 @@ subroutine ew_renormalisation
   dB0WW0  = calcdB0(MW2,MW2,ZERO)
   B0ZZH   = calcB0(MZ2,MZ2,MH2)
   dB0ZZH  = calcdB0(MZ2,MZ2,MH2)
+  dB00ZH  = calcdB0(ZERO,MZ2,MH2)
   B0WWH   = calcB0(MW2,MW2,MH2)
   dB0WWH  = calcdB0(MW2,MW2,MH2)
   B0WWZ   = calcB0(MW2,MW2,MZ2)
@@ -456,6 +471,17 @@ subroutine ew_renormalisation
   dB0HLL  = calcRdB0(MH2,ML2,ML2)
   B0ZLL   = calcRB0(MZ2,ML2,ML2)
   dB0ZLL  = calcRdB0(MZ2,ML2,ML2)
+  if (ew_renorm_scheme == 20 .or. ew_renorm_scheme == 21 .or. ew_renorm_scheme == 22) then ! sinTheta2 schemes from 1906.11569
+    C00Z0Z00 = calcC0(ZERO,MZ2,ZERO,MZ2,ZERO,ZERO)
+    C10Z0Z00 = calcC1(ZERO,MZ2,ZERO,MZ2,ZERO,ZERO)
+    C20Z0Z00 = calcC2(ZERO,MZ2,ZERO,MZ2,ZERO,ZERO)
+    C00Z0W00 = calcC0(ZERO,MZ2,ZERO,MW2,ZERO,ZERO)
+    C10Z0W00 = calcC1(ZERO,MZ2,ZERO,MW2,ZERO,ZERO)
+    C20Z0W00 = calcC2(ZERO,MZ2,ZERO,MW2,ZERO,ZERO)
+    C00Z00WW = calcC0(ZERO,MZ2,ZERO,ZERO,MW2,ZERO)
+    C10Z00WW = calcC1(ZERO,MZ2,ZERO,ZERO,MW2,ZERO)
+    C20Z00WW = calcC2(ZERO,MZ2,ZERO,ZERO,MW2,ZERO)
+  end if
   call init_ol_self_energy_integrals(.false.)
 
 
@@ -464,191 +490,288 @@ subroutine ew_renormalisation
     ! non-fermionic!
 
     !Bosonic Tadpole. Agrees with eq. 12 in NP B 383 (1992) 73
-    Tadpole   = 0.75*MH2/MW2/sw*A0H                   &
-              + (0.5*MH2/MW2/sw+3./sw)*A0W            &
-              + (0.25*MH2/MW2/sw + 1.5/sw/cw2)*A0Z    &
-              - (2*MW2)/sw - MZ2/(cw2*sw) ! rational contribution
+    if (weak_on) then
+      Tadpole   = 0.75*MH2/MW2/sw*A0H                   &
+                + (0.5*MH2/MW2/sw+3./sw)*A0W            &
+                + (0.25*MH2/MW2/sw + 1.5/sw/cw2)*A0Z    &
+                - (2*MW2)/sw - MZ2/(cw2*sw) ! rational contribution
+    end if
 
     !This is the bosonic part of page 105-107 from Denner92 evaluated in selfenergies.nb
 
-    dSiAAheavy0=dSiAAheavy0-3*B00WW-4*MW2*dB00WW
+    if (weak_on) then
+      dSiAAheavy0=dSiAAheavy0-3*B00WW-4*MW2*dB00WW
 
-    dSiAA0 = dSiAA0-3*B00WW-4*MW2*dB00WW
+      dSiAA0 = dSiAA0-3*B00WW-4*MW2*dB00WW
 
-    dSiAAZ=dSiAAZ-3*B0ZWW-(4*MW2+3*rMZ2)*dB0ZWW
+      dSiAAZ=dSiAAZ-3*B0ZWW-(4*MW2+3*rMZ2)*dB0ZWW
 
-    SiAZ0=SiAZ0+(2*MW2*B00WW)/(cw*sw)
+      SiAZ0=SiAZ0+(2*MW2*B00WW)/(cw*sw)
 
-    SiAZZ=SiAZZ+(rMZ2/3. - (-2 + 12*cw2)*MW2*B00WW &
-        + ((4 + 12*cw2)*MW2 + (0.5 + 9*cw2)*rMZ2)*B0ZWW)/(3.*cw*sw)
+      SiAZZ=SiAZZ+(rMZ2/3. - (-2 + 12*cw2)*MW2*B00WW &
+          + ((4 + 12*cw2)*MW2 + (0.5 + 9*cw2)*rMZ2)*B0ZWW)/(3.*cw*sw)
 
-    dSiAZZ=dSiAZZ+(2 + (3 + 54*cw2)*B0ZWW  &
-        +  3*(8*MW2 + 24*cw2*MW2 + rMZ2 + 18*cw2*rMZ2)*dB0ZWW)/(18.*cw*sw)
+      dSiAZZ=dSiAZZ+(2 + (3 + 54*cw2)*B0ZWW  &
+          +  3*(8*MW2 + 24*cw2*MW2 + rMZ2 + 18*cw2*rMZ2)*dB0ZWW)/(18.*cw*sw)
 
-    SiZZ=SiZZ-(((-1 + 4*cw2)*rMZ2)/3. - (2 - 8*cw2 + 24*cw4)*MW2*B00WW  &
-        + ((-10 + 16*cw2 + 24*cw4)*MW2 + (-0.5 + 2*cw2 + 18*cw4)*rMZ2)*B0ZWW)/(6.*cw2*sw2) &
-        - ((-2*rMZ2)/3. - 2*MH2*B00HH - 2*MZ2*B00ZZ + (2*MH2 - 10*MZ2 - rMZ2)*B0ZZH &
-        - ((-MH2 + MZ2)**2*(-B00ZH + B0ZZH))/rMZ2)/(12.*cw2*sw2)
+      SiZZ=SiZZ-(((-1 + 4*cw2)*rMZ2)/3. - (2 - 8*cw2 + 24*cw4)*MW2*B00WW  &
+          + ((-10 + 16*cw2 + 24*cw4)*MW2 + (-0.5 + 2*cw2 + 18*cw4)*rMZ2)*B0ZWW)/(6.*cw2*sw2) &
+          - ((-2*rMZ2)/3. - 2*MH2*B00HH - 2*MZ2*B00ZZ + (2*MH2 - 10*MZ2 - rMZ2)*B0ZZH &
+          - ((-MH2 + MZ2)**2*(-B00ZH + B0ZZH))/rMZ2)/(12.*cw2*sw2)
 
-    dSiZZ=dSiZZ+(2._/**/REALKIND/3. &
-        + ((MH2 - MZ2)**2*(B00ZH - B0ZZH))/rMZ2**2 + B0ZZH &
-        + (2 - 8*cw2 - 3*(-1 + 4*cw2 + 36*cw4)*B0ZWW &
-        - 3*(4*(-5 + 8*cw2 + 12*cw4)*MW2 + (-1 + 4*cw2 + 36*cw4)*rMZ2)*dB0ZWW)/3.  &
-        - (2*MH2 - 10*MZ2 - rMZ2)*dB0ZZH &
-        + ((MH2 - MZ2)**2*dB0ZZH)/rMZ2)/(12.*cw2*sw2)
+      dSiZZ=dSiZZ+(2._/**/REALKIND/3. &
+          + ((MH2 - MZ2)**2*(B00ZH - B0ZZH))/rMZ2**2 + B0ZZH &
+          + (2 - 8*cw2 - 3*(-1 + 4*cw2 + 36*cw4)*B0ZWW &
+          - 3*(4*(-5 + 8*cw2 + 12*cw4)*MW2 + (-1 + 4*cw2 + 36*cw4)*rMZ2)*dB0ZWW)/3.  &
+          - (2*MH2 - 10*MZ2 - rMZ2)*dB0ZZH &
+          + ((MH2 - MZ2)**2*dB0ZZH)/rMZ2)/(12.*cw2*sw2)
 
-    SiW=SiW+(-8*(rMW2/3. - 2*MW2*B00WW + (MW2**2*(B00W0 - B0WW0))/rMW2 &
-        + (2*MW2 + 5*rMW2)*B0WW0) - ((-2*rMW2)/3. - 2*MH2*B00HH - 2*MW2*B00WW  &
-        + ((MH2 - MW2)**2*(B00WH - B0WWH))/rMW2 + (2*MH2 - 10*MW2 - rMW2)*B0WWH)/sw2  &
-        - ((2*(-1 + 4*cw2)*rMW2)/3. - 2*(1 + 8*cw2)*(MW2*B00WW + MZ2*B00ZZ) &
-        + ((1 + 8*cw2)*(MW2 - MZ2)**2*(B00WZ - B0WWZ))/rMW2 &
-        + ((54 - 10/cw2 + 16*cw2)*MW2 + (-1 + 40*cw2)*rMW2)*B0WWZ)/sw2)/12.
+      SiW=SiW+(-8*(rMW2/3. - 2*MW2*B00WW + (MW2**2*(B00W0 - B0WW0))/rMW2 &
+          + (2*MW2 + 5*rMW2)*B0WW0) - ((-2*rMW2)/3. - 2*MH2*B00HH - 2*MW2*B00WW  &
+          + ((MH2 - MW2)**2*(B00WH - B0WWH))/rMW2 + (2*MH2 - 10*MW2 - rMW2)*B0WWH)/sw2  &
+          - ((2*(-1 + 4*cw2)*rMW2)/3. - 2*(1 + 8*cw2)*(MW2*B00WW + MZ2*B00ZZ) &
+          + ((1 + 8*cw2)*(MW2 - MZ2)**2*(B00WZ - B0WWZ))/rMW2 &
+          + ((54 - 10/cw2 + 16*cw2)*MW2 + (-1 + 40*cw2)*rMW2)*B0WWZ)/sw2)/12.
 
-    dSiW=dSiW+(-2*(1._/**/REALKIND/3. + 5*B0WW0 + (MW2**2*(-B00W0 + B0WW0))/rMW2**2  &
-        - (MW2**2*dB0WW0)/rMW2 + (2*MW2 + 5*rMW2)*dB0WW0))/3. &
-        - (-2._/**/REALKIND/3. - B0WWH + ((-MH2 + MW2)**2*(-B00WH + B0WWH))/rMW2**2 &
-        + (2*MH2 - 10*MW2 - rMW2)*dB0WWH - ((-MH2 + MW2)**2*dB0WWH)/rMW2)/(12.*sw2) &
-        - ((2*(-1 + 4*cw2))/3. + (-1 + 40*cw2)*B0WWZ &
-        + ((1 + 8*cw2)*(MW2 - MZ2)**2*(-B00WZ + B0WWZ))/rMW2**2 &
-        - ((1 + 8*cw2)*(MW2 - MZ2)**2*dB0WWZ)/rMW2 + ((54 - 10/cw2 + 16*cw2)*MW2 &
-        + (-1 + 40*cw2)*rMW2)*dB0WWZ)/(12.*sw2)
+      dSiW=dSiW+(-2*(1._/**/REALKIND/3. + 5*B0WW0 + (MW2**2*(-B00W0 + B0WW0))/rMW2**2  &
+          - (MW2**2*dB0WW0)/rMW2 + (2*MW2 + 5*rMW2)*dB0WW0))/3. &
+          - (-2._/**/REALKIND/3. - B0WWH + ((-MH2 + MW2)**2*(-B00WH + B0WWH))/rMW2**2 &
+          + (2*MH2 - 10*MW2 - rMW2)*dB0WWH - ((-MH2 + MW2)**2*dB0WWH)/rMW2)/(12.*sw2) &
+          - ((2*(-1 + 4*cw2))/3. + (-1 + 40*cw2)*B0WWZ &
+          + ((1 + 8*cw2)*(MW2 - MZ2)**2*(-B00WZ + B0WWZ))/rMW2**2 &
+          - ((1 + 8*cw2)*(MW2 - MZ2)**2*dB0WWZ)/rMW2 + ((54 - 10/cw2 + 16*cw2)*MW2 &
+          + (-1 + 40*cw2)*rMW2)*dB0WWZ)/(12.*sw2)
 
-    SiW0=SiW0+(-8*(2*MW2*B00W0 - 2*MW2*B00WW - MW2**2*dB00W0) &
-          - (-2*MH2*B00HH + (2*MH2 - 10*MW2)*B00WH - 2*MW2*B00WW - (MH2 - MW2)**2*dB00WH)/sw2 &
-          - ((54 - 10/cw2 + 16*cw2)*MW2*B00WZ - 2*(1 + 8*cw2)*(MW2*B00WW + MZ2*B00ZZ) &
-          - (1 + 8*cw2)*(MW2 - MZ2)**2*dB00WZ)/sw2)/12.
+      SiW0=SiW0+(-8*(2*MW2*B00W0 - 2*MW2*B00WW - MW2**2*dB00W0) &
+            - (-2*MH2*B00HH + (2*MH2 - 10*MW2)*B00WH - 2*MW2*B00WW - (MH2 - MW2)**2*dB00WH)/sw2 &
+            - ((54 - 10/cw2 + 16*cw2)*MW2*B00WZ - 2*(1 + 8*cw2)*(MW2*B00WW + MZ2*B00ZZ) &
+            - (1 + 8*cw2)*(MW2 - MZ2)**2*dB00WZ)/sw2)/12.
 
-    SiH=SiH+((3*MH2*(A0H + 3*MH2*B0HHH))/MW2 &
-        + (2*(-12*MW2**2 + (MH2 + 6*MW2)*A0W  &
-        + (MH2**2 + 12*MW2**2 - 4*MW2*rMH2)*B0HWW))/MW2 &
-        + (-12*MZ2**2 + (MH2 + 6*MZ2)*A0Z  &
-        + (MH2**2 + 12*MZ2**2 - 4*MZ2*rMH2)*B0HZZ)/(cw2*MZ2))/(8.*sw2)
+      SiH=SiH+((3*MH2*(A0H + 3*MH2*B0HHH))/MW2 &
+          + (2*(-12*MW2**2 + (MH2 + 6*MW2)*A0W  &
+          + (MH2**2 + 12*MW2**2 - 4*MW2*rMH2)*B0HWW))/MW2 &
+          + (-12*MZ2**2 + (MH2 + 6*MZ2)*A0Z  &
+          + (MH2**2 + 12*MZ2**2 - 4*MZ2*rMH2)*B0HZZ)/(cw2*MZ2))/(8.*sw2)
 
-    dSiH=dSiH+((9*MH2**2*lambdaHHH**2*dB0HHH)/MW2 + 4*(-2*B0HWW &
-        + (MH2**2/(2.*MW2) + 6*MW2 - 2*rMH2)*dB0HWW) +(2*(-2*B0HZZ &
-        + (MH2**2/(2.*MZ2) + 6*MZ2 - 2*rMH2)*dB0HZZ))/cw2)/(8.*sw2)
-
-    SitL=SitL-(1 + (2 + MB2/MW2)*B1TBW)/(2.*sw2) - (4*(1 + 2*B1TT0))/9. &
-        - (MT2*(B1TTH + B1TTZ))/(4.*MW2*sw2) - (1 + 2*B1TTZ)*gZu(2)**2
-
-    SitR=SitR-(MT2*B1TBW)/(2.*MW2*sw2) - (4*(1 + 2*B1TT0))/9. &
-        - (MT2*(B1TTH + B1TTZ))/(4.*MW2*sw2) - (1 + 2*B1TTZ)*gZu(1)**2
-
-    SitS=SitS-(MB2*B0TBW)/(2.*MW2*sw2) - (4*(-2 + 4*B0TT0))/9. &
-        - (MT2*(-B0TTH + B0TTZ))/(4.*MW2*sw2) - (-2 + 4*B0TTZ)*gZu(1)*gZu(2)
-
-    dSitL=dSitL-((2 + MB2/MW2)*dB1TBW)/(2.*sw2) - (8*dB1TT0)/9. &
-        - (MT2*(dB1TTH + dB1TTZ))/(4.*MW2*sw2) - 2*dB1TTZ*gZu(2)**2
-
-    dSitR=dSitR-(MT2*dB1TBW)/(2.*MW2*sw2) - (8*dB1TT0)/9. &
-        - (MT2*(dB1TTH + dB1TTZ))/(4.*MW2*sw2) - 2*dB1TTZ*gZu(1)**2
-
-    dSitS=dSitS-(MB2*dB0TBW)/(2.*MW2*sw2) - (16*dB0TT0)/9. &
-        - (MT2*(-dB0TTH + dB0TTZ))/(4.*MW2*sw2) - 4*dB0TTZ*gZu(1)*gZu(2)
-
-    if (MB /= 0._/**/REALKIND) then
-      SibL=SibL+(-1 - 2*B1BB0)/9. &          ! Photon
-          - (1 + 2*B1BBZ)*gZd(2)**2 &                     ! Z
-          - (1 + (2 + MT2/MW2)*B1BTW)/(2.*sw2) &          ! W
-          - (MB2*(B1BBH + B1BBZ))/(4.*MW2*sw2)            ! H & X
-
-      SibR=SibR+(-1 - 2*B1BB0)/9. &           ! Photon
-          - (1 + 2*B1BBZ)*gZd(1)**2 &                     ! Z
-          - (MB2*B1BTW)/(2.*MW2*sw2) &                    ! W
-          - (MB2*(B1BBH + B1BBZ))/(4.*MW2*sw2)            ! H & X
-
-      SibS=SibS+(2 - 4*B0BB0)/9. & ! Photon
-          - (MB2*(-B0BBH + B0BBZ))/(4.*MW2*sw2) & ! H & X
-          - (MT2*B0BTW)/(2.*MW2*sw2) & ! W
-          - (-2 + 4*B0BBZ)*gZd(1)*gZd(2) ! Z
-
-    else
-      SibL=SibL+(-1 - IRrational - 2*B1BB0)/9. &          ! Photon
-          - (1 + 2*B1BBZ)*gZd(2)**2 &                     ! Z
-          - (1 + (2 + MT2/MW2)*B1BTW)/(2.*sw2)            ! W
-
-      SibR=SibR+(-1 - IRrational - 2*B1BB0)/9. &          ! Photon
-          - (1 + 2*B1BBZ)*gZd(1)**2 &                     ! Z
-          - (MB2*B1BTW)/(2.*MW2*sw2)                      ! W
-
+      dSiH=dSiH+((9*MH2**2*lambdaHHH**2*dB0HHH)/MW2 + 4*(-2*B0HWW &
+          + (MH2**2/(2.*MW2) + 6*MW2 - 2*rMH2)*dB0HWW) +(2*(-2*B0HZZ &
+          + (MH2**2/(2.*MZ2) + 6*MZ2 - 2*rMH2)*dB0HZZ))/cw2)/(8.*sw2)
     end if
 
-    dSibL=dSibL+(-2*dB1BB0)/9. & ! Photon
-        - (MB2*(dB1BBH + dB1BBZ))/(4.*MW2*sw2) & ! H & X
-        - ((2 + MT2/MW2)*dB1BTW)/(2.*sw2) & ! W
-        - 2*dB1BBZ*gZd(2)**2 ! Z
+    if (qed_on) then
+      if (qedreg_on) then
+        SieL=SieL - (1. + 2.*B100Z)*Ql2               ! Photon(MZ)
+        SieR=SieR - (1. + 2.*B100Z)*Ql2               ! Photon(MZ)
 
-    dSibR=dSibR+(-2*dB1BB0)/9. & ! Photon
-        - (MB2*(dB1BBH + dB1BBZ))/(4.*MW2*sw2) & ! H & X
-        - (MB2*dB1BTW)/(2.*MW2*sw2) & ! W
-        - 2*dB1BBZ*gZd(1)**2  ! Z
+        if (ML /= 0._/**/REALKIND) then
+          SilL=SilL-1. - 2.*B1LLZ   ! Photon(MZ)
+          SilR=SilR-1. - 2.*B1LLZ   ! Photon(MZ)
+          SilS=SilS+(2. - 4.*B0LLZ) ! Photon(MZ)
+          dSilL=dSilL-2.*dB1LLZ     ! Photon(MZ)
+          dSilR=dSilR-2.*dB1LLZ     ! Photon(MZ)
+          dSilS=dSilS-4.*dB0LLZ     ! Photon(MZ)
+        else
+          SilL=SieL
+          SilR=SieR
+        end if
 
-    dSibS=dSibS+(-4*dB0BB0)/9. & ! Photon
-        - (MB2*(-dB0BBH + dB0BBZ))/(4.*MW2*sw2) & ! H & X
-        - (MT2*dB0BTW)/(2.*MW2*sw2) & ! W
-        - 4*dB0BBZ*gZd(1)*gZd(2) ! Z
+        SiuL=SiuL - (1. + 2.*B100Z)*Qu2               ! Photon(MZ)
+        SiuR=SiuR - (1. + 2.*B100Z)*Qu2               ! Photon(MZ)
 
-    SiuL=SiuL+(-4.*(1. + IRrational + 2.*B1000))/9. &  ! Photon
-             - (1 + 2*B100W)/(2.*sw2) &                ! W
-             - (1 + 2*B100Z)*gZu(2)**2                 ! Z
+        SidL=SiuL - (1. + 2.*B100Z)*Qd2               ! Photon(MZ)
+        SidR=SiuR - (1. + 2.*B100Z)*Qd2               ! Photon(MZ)
 
-    SiuR=SiuR+(-4.*(1. + IRrational + 2.*B1000))/9. &  ! Photon
-               - (1 + 2*B100Z)*gZu(1)**2               ! Z
+        SitL=SitL - (1 + 2*B1TTZ)*Qu2                 ! Photon(MZ)
+        SitR=SitR - (1 + 2*B1TTZ)*Qu2                 ! Photon(MZ)
+        SitS=SitS - (-2 + 4*B0TTZ)*Qu2                ! Photon(MZ)
+        dSitL=dSitL - 2*dB1TTZ*Qu2                    ! Photon(MZ)
+        dSitR=dSitR - 2*dB1TTZ*Qu2                    ! Photon(MZ)
+        dSitS=dSitS - 4*dB0TTZ*Qu2                    ! Photon(MZ)
 
-    SidL=SidL+(-1. - IRrational - 2.*B1000)/9. &       ! Photon
-             - (1 + 2*B100W)/(2.*sw2) &                ! W
-             - (1 + 2*B100Z)*gZd(2)**2                 ! Z
+        if (MB /= 0._/**/REALKIND) then
+          SibL=SibL+(-1 - 2*B1BBZ)*Qd2                ! Photon(MZ)
+          SibR=SibR+(-1 - 2*B1BBZ)*Qd2                ! Photon(MZ)
+          SibS=SibS+(2 - 4*B0BBZ)*Qd2                 ! Photon(MZ)
+          dSibL=dSibL+(-2*dB1BBZ)*Qd2                 ! Photon(MZ)
+          dSibR=dSibR+(-2*dB1BBZ)*Qd2                 ! Photon(MZ)
+          dSibS=dSibS+(-4*dB0BBZ)*Qd2                 ! Photon(MZ)
+        else
+          SibL=SibL+(-1 - 2*B1BBZ)*Qd2                ! Photon(MZ)
+          SibR=SibR+(-1 - 2*B1BBZ)*Qd2                ! Photon(MZ)
+        end if
 
-    SidR=SidR+(-1. - IRrational - 2.*B1000)/9. &       ! Photon
-             - (1 + 2*B100Z)*gZd(1)**2                 ! Z
+      else
+        SieL=SieL - (1. + IRrational + 2.*B1000)*Ql2  ! Photon
+        SieR=SieR - (1. + IRrational + 2.*B1000)*Ql2  ! Photon
 
-    SieL=SieL-1. - IRrational - 2.*B1000 &             ! Photon
-             - (1 + 2*B100W)/(2.*sw2) &                ! W
-             - (1 + 2*B100Z)*gZl(2)**2                 ! Z
+        if (ML /= 0._/**/REALKIND) then
+          SilL=SilL-1. - 2.*B1LL0   ! Photon
+          SilR=SilR-1. - 2.*B1LL0   ! Photon
+          SilS=SilS+(2. - 4.*B0LL0) ! Photon
+          dSilL=dSilL-2.*dB1LL0     ! Photon
+          dSilR=dSilR-2.*dB1LL0     ! Photon
+          dSilS=dSilS-4.*dB0LL0     ! Photon
+        else
+          SilL=SieL
+          SilR=SieR
+        end if
 
-    SieR=SieR-1. - IRrational - 2.*B1000 &             ! Photon
-             - (1 + 2*B100Z)*gZl(1)**2                 ! Z
+        SiuL=SiuL - (1. + IRrational + 2.*B1000)*Qu2  ! Photon
+        SiuR=SiuR - (1. + IRrational + 2.*B1000)*Qu2  ! Photon
 
-    SinL=SinL-(1. + 2.*B100W)/(2.*sw2) &               ! W
-             - (1. + 2*B100Z)*gZn(2)**2                 ! Z
+        SidL=SiuL - (1. + IRrational + 2.*B1000)*Qd2  ! Photon
+        SidR=SiuR - (1. + IRrational + 2.*B1000)*Qd2  ! Photon
+
+        SitL=SitL - (1 + 2*B1TT0)*Qu2                 ! Photon
+        SitR=SitR - (1 + 2*B1TT0)*Qu2                 ! Photon
+        SitS=SitS - (-2 + 4*B0TT0)*Qu2                ! Photon
+        dSitL=dSitL - 2*dB1TT0*Qu2                    ! Photon
+        dSitR=dSitR - 2*dB1TT0*Qu2                    ! Photon
+        dSitS=dSitS - 4*dB0TT0*Qu2                    ! Photon
+
+        if (MB /= 0._/**/REALKIND) then
+          SibL=SibL+(-1 - 2*B1BB0)*Qd2                ! Photon
+          SibR=SibR+(-1 - 2*B1BB0)*Qd2                ! Photon
+          SibS=SibS+(2 - 4*B0BB0)*Qd2                 ! Photon
+          dSibL=dSibL+(-2*dB1BB0)*Qd2                 ! Photon
+          dSibR=dSibR+(-2*dB1BB0)*Qd2                 ! Photon
+          dSibS=dSibS+(-4*dB0BB0)*Qd2                 ! Photon
+        else
+          SibL=SibL+(-1 - IRrational - 2*B1BB0)*Qd2   ! Photon
+          SibR=SibR+(-1 - IRrational - 2*B1BB0)*Qd2   ! Photon
+        end if
+
+      end if
+    end if
+
+    if (weak_on) then
+      SieL=SieL - (1 + 2*B100W)/(2.*sw2) &                ! W
+                - (1 + 2*B100Z)*gZl(2)**2                 ! Z
+
+      SieR=SieR - (1 + 2*B100Z)*gZl(1)**2                ! Z
+
+      SinL=SinL-(1. + 2.*B100W)/(2.*sw2) &               ! W
+               - (1. + 2*B100Z)*gZn(2)**2                ! Z
+
+      if (ML /= 0._/**/REALKIND) then
+        SilL=SilL &
+            - (1. + 2*B1LLZ)*gZl(2)**2 & ! Z
+            - (1. + 2*B1L0W)/(2.*sw2) &  ! W
+            - (ML2*(B1LLH + B1LLZ))/(4.*MW2*sw2) ! H & X
+
+        SilR=SilR &
+            - (1 + 2*B1LLZ)*gZl(1)**2 & ! Z
+            - (ML2*B1L0W)/(2.*MW2*sw2) & ! W
+            - (ML2*(B1LLH + B1LLZ))/(4.*MW2*sw2) ! H & X
+
+        SilS=SilS &
+            - (ML2*(-B0LLH + B0LLZ))/(4.*MW2*sw2)  & ! H & X
+            - (-2. + 4*B0LLZ)*gZl(1)*gZl(2) ! Z
+
+        dSilL=dSilL &
+            - (ML2*(dB1LLH + dB1LLZ))/(4.*MW2*sw2) & ! H & X
+            - dB1L0W/sw2 & ! W
+            - 2.*dB1LLZ*gZl(2)**2 ! Z
+
+        dSilR=dSilR &
+            - (ML2*(dB1LLH + dB1LLZ))/(4.*MW2*sw2) & ! H & X
+            - (ML2*dB1L0W)/(2.*MW2*sw2) & ! W
+            - 2.*dB1LLZ*gZl(1)**2        ! Z
+
+        dSilS=dSilS &
+            - (ML2*(-dB0LLH + dB0LLZ))/(4.*MW2*sw2) & ! H & X
+            - 4.*dB0LLZ*gZl(1)*gZl(2)    ! Z
+
+        SinlL=SinlL &
+               - (1. + (2.+ML2/MW2)*B10LW)/(2.*sw2) &  ! W
+               - (1 + 2*B100Z)*gZn(2)**2                  ! Z
+      else
+        SilL=SieL
+        SilR=SieR
+        SinlL=SinL
+      end if
+
+      SiuL=SiuL - (1 + 2*B100W)/(2.*sw2) &                ! W
+                - (1 + 2*B100Z)*gZu(2)**2                 ! Z
+
+      SiuR=SiuR - (1 + 2*B100Z)*gZu(1)**2                 ! Z
+
+      SidL=SidL - (1 + 2*B100W)/(2.*sw2) &                ! W
+                - (1 + 2*B100Z)*gZd(2)**2                 ! Z
+
+      SidR=SidR - (1 + 2*B100Z)*gZd(1)**2                 ! Z
+
+      SitL=SitL &
+          - (1 + (2 + MB2/MW2)*B1TBW)/(2.*sw2) &
+          - (MT2*(B1TTH + B1TTZ))/(4.*MW2*sw2) &
+          - (1 + 2*B1TTZ)*gZu(2)**2
+
+      SitR=SitR &
+          - (MT2*B1TBW)/(2.*MW2*sw2) &
+          - (MT2*(B1TTH + B1TTZ))/(4.*MW2*sw2) &
+          - (1 + 2*B1TTZ)*gZu(1)**2
+
+      SitS=SitS &
+          - (MB2*B0TBW)/(2.*MW2*sw2) &
+          - (MT2*(-B0TTH + B0TTZ))/(4.*MW2*sw2) &
+          - (-2 + 4*B0TTZ)*gZu(1)*gZu(2)
+
+      dSitL=dSitL &
+          - ((2 + MB2/MW2)*dB1TBW)/(2.*sw2) &
+          - (MT2*(dB1TTH + dB1TTZ))/(4.*MW2*sw2) &
+          - 2*dB1TTZ*gZu(2)**2
+
+      dSitR=dSitR &
+          - (MT2*dB1TBW)/(2.*MW2*sw2) &
+          - (MT2*(dB1TTH + dB1TTZ))/(4.*MW2*sw2) &
+          - 2*dB1TTZ*gZu(1)**2
+
+      dSitS=dSitS &
+          - (MB2*dB0TBW)/(2.*MW2*sw2) &
+          - (MT2*(-dB0TTH + dB0TTZ))/(4.*MW2*sw2) &
+          - 4*dB0TTZ*gZu(1)*gZu(2)
 
 
-    if (ML /= 0._/**/REALKIND) then
-      SilL=SilL-1. - 2.*B1LL0 &  ! Photon
-          - (1. + 2*B1LLZ)*gZl(2)**2 & ! Z
-          - (1. + 2*B1L0W)/(2.*sw2) &  ! W
-          - (ML2*(B1LLH + B1LLZ))/(4.*MW2*sw2) ! H & X
+      if (MB /= 0._/**/REALKIND) then
+        SibL=SibL &
+            - (1 + 2*B1BBZ)*gZd(2)**2 &                     ! Z
+            - (1 + (2 + MT2/MW2)*B1BTW)/(2.*sw2) &          ! W
+            - (MB2*(B1BBH + B1BBZ))/(4.*MW2*sw2)            ! H & X
 
-      SilR=SilR-1. - 2.*B1LL0 &  ! Photon
-          - (1 + 2*B1LLZ)*gZl(1)**2 & ! Z
-          - (ML2*B1L0W)/(2.*MW2*sw2) & ! W
-          - (ML2*(B1LLH + B1LLZ))/(4.*MW2*sw2) ! H & X
+        SibR=SibR &
+            - (1 + 2*B1BBZ)*gZd(1)**2 &                     ! Z
+            - (MB2*B1BTW)/(2.*MW2*sw2) &                    ! W
+            - (MB2*(B1BBH + B1BBZ))/(4.*MW2*sw2)            ! H & X
 
-      SilS=SilS+(2. - 4.*B0LL0) & ! Photon
-          - (ML2*(-B0LLH + B0LLZ))/(4.*MW2*sw2)  & ! H & X
-          - (-2. + 4*B0LLZ)*gZl(1)*gZl(2) ! Z
+        SibS=SibS &
+            - (MB2*(-B0BBH + B0BBZ))/(4.*MW2*sw2) & ! H & X
+            - (MT2*B0BTW)/(2.*MW2*sw2) & ! W
+            - (-2 + 4*B0BBZ)*gZd(1)*gZd(2) ! Z
 
-      dSilL=dSilL-2.*dB1LL0 & ! Photon
-          - (ML2*(dB1LLH + dB1LLZ))/(4.*MW2*sw2) & ! H & X
-          - dB1L0W/sw2 & ! W
-          - 2.*dB1LLZ*gZl(2)**2 ! Z
+        dSibL=dSibL &
+            - (MB2*(dB1BBH + dB1BBZ))/(4.*MW2*sw2) & ! H & X
+            - ((2 + MT2/MW2)*dB1BTW)/(2.*sw2) & ! W
+            - 2*dB1BBZ*gZd(2)**2 ! Z
 
-      dSilR=dSilR-2.*dB1LL0 & ! Photon
-          - (ML2*(dB1LLH + dB1LLZ))/(4.*MW2*sw2) & ! H & X
-          - (ML2*dB1L0W)/(2.*MW2*sw2) & ! W
-          - 2.*dB1LLZ*gZl(1)**2        ! Z
+        dSibR=dSibR &
+            - (MB2*(dB1BBH + dB1BBZ))/(4.*MW2*sw2) & ! H & X
+            - (MB2*dB1BTW)/(2.*MW2*sw2) & ! W
+            - 2*dB1BBZ*gZd(1)**2  ! Z
 
-      dSilS=dSilS-4.*dB0LL0 & ! Photon
-          - (ML2*(-dB0LLH + dB0LLZ))/(4.*MW2*sw2) & ! H & X
-          - 4.*dB0LLZ*gZl(1)*gZl(2)    ! Z
+        dSibS=dSibS &
+            - (MB2*(-dB0BBH + dB0BBZ))/(4.*MW2*sw2) & ! H & X
+            - (MT2*dB0BTW)/(2.*MW2*sw2) & ! W
+            - 4*dB0BBZ*gZd(1)*gZd(2) ! Z
+      else
+        SibL=SibL &
+            - (1 + 2*B1BBZ)*gZd(2)**2 &                     ! Z
+            - (1 + (2 + MT2/MW2)*B1BTW)/(2.*sw2)            ! W
 
-      SinlL=SinlL-(1. + (2.+ML2/MW2)*B10LW)/(2.*sw2) &  ! W
-             - (1 + 2*B100Z)*gZn(2)**2                  ! Z
+        SibR=SibR &
+            - (1 + 2*B1BBZ)*gZd(1)**2 &                     ! Z
+            - (MB2*B1BTW)/(2.*MW2*sw2)                      ! W
+      end if
 
-    else
-      SilL=SieL
-      SilR=SieR
-      SinlL=SinL
     end if
 
   end if
@@ -657,110 +780,127 @@ subroutine ew_renormalisation
     ! fermionic
 
     !Fermionic Tadpole. Agrees with eq. 12 in NP B 383 (1992) 73
-    Tadpole   = Tadpole - nc*(2*MT2/MW2/sw*A0T + 2*MB2/MW2/sw*A0B) - 2.*ML2/MW2/sw*A0L
+    if (weak_on) then
+      Tadpole   = Tadpole - nc*(2*MT2/MW2/sw*A0T + 2*MB2/MW2/sw*A0B) - 2.*ML2/MW2/sw*A0L
+    end if
 
 !This is the fermionic part based on page 105-107 from Denner92
 
     ! contributions from light fermions incl. bottom
-    PiAAlightZ=PiAAlightZ  &
-      -     2.*4.*rMZ2*(1._/**/REALKIND/3. - B0Z00)/3. &      ! light-leptons
-      -        4.*(rMZ2*(1._/**/REALKIND/3. - B0ZLL) - 2.*ML2*(B0ZLL-B00LL))/3. & ! tau-lepton
-      -   2*20*nc*rMZ2*(1._/**/REALKIND/3. - B0Z00)/27. &       ! light-quarks
-      -      4*nc*(rMZ2*(1._/**/REALKIND/3. - B0ZBB) - 2.*MB2*(B0ZBB-B00BB))/27. ! b-quark
+    if (qed_on) then
+      PiAAlightZ=PiAAlightZ  &
+        -     2.*4.*rMZ2*(1._/**/REALKIND/3. - B0Z00)/3. &      ! light-leptons
+        -        4.*(rMZ2*(1._/**/REALKIND/3. - B0ZLL) - 2.*ML2*(B0ZLL-B00LL))/3. & ! tau-lepton
+        -   2*20*nc*rMZ2*(1._/**/REALKIND/3. - B0Z00)/27. &       ! light-quarks
+        -      4*nc*(rMZ2*(1._/**/REALKIND/3. - B0ZBB) - 2.*MB2*(B0ZBB-B00BB))/27. ! b-quark
 
-    ! contributions from heavy fermions = top-quark
-    dSiAAheavy0=dSiAAheavy0-(16*nc*(1-3*B00TT-6*MT2*dB00TT))/81.
+      ! contributions from heavy fermions = top-quark
+      dSiAAheavy0=dSiAAheavy0-(16*nc*(1-3*B00TT-6*MT2*dB00TT))/81.
 
-    dSiAAZ=dSiAAZ &
-         - 2.*4.*(1._/**/REALKIND/3.-B0Z00-rMZ2*dB0Z00)/3. &               ! light-leptons
-         -        4.*(1._/**/REALKIND/3.-B0ZLL-(2.*ML2+rMZ2)*dB0ZLL)/3. &  ! tau-lepton
-         - 2.*20.*nc*(1._/**/REALKIND/3.-B0Z00-rMZ2*dB0Z00)/27. &          ! light-quarks
-         -     4.*nc*(1._/**/REALKIND/3.-B0ZBB-(2.*MB2+rMZ2)*dB0ZBB)/27. & ! b-quark
-         -    16.*nc*(1._/**/REALKIND/3.-B0ZTT-(2.*MT2+rMZ2)*dB0ZTT)/27.   ! t-quark
+      dSiAAZ=dSiAAZ &
+           - 2.*4.*(1._/**/REALKIND/3.-B0Z00-rMZ2*dB0Z00)/3. &               ! light-leptons
+           -        4.*(1._/**/REALKIND/3.-B0ZLL-(2.*ML2+rMZ2)*dB0ZLL)/3. &  ! tau-lepton
+           - 2.*20.*nc*(1._/**/REALKIND/3.-B0Z00-rMZ2*dB0Z00)/27. &          ! light-quarks
+           -     4.*nc*(1._/**/REALKIND/3.-B0ZBB-(2.*MB2+rMZ2)*dB0ZBB)/27. & ! b-quark
+           -    16.*nc*(1._/**/REALKIND/3.-B0ZTT-(2.*MT2+rMZ2)*dB0ZTT)/27.   ! t-quark
 
-    ! contribution from heavy + light fermions (in dimreg)
-    dSiAA0=dSiAA0+4._/**/REALKIND/3.*( &
-                                 (  2.*B0000) & ! light-leptons
-          +                      (     B00LL) & ! tau-lepton
-          + nc*1._/**/REALKIND/9*( 2.*B0000) & ! down-quarks
-          + nc*4._/**/REALKIND/9*( 2.*B0000) & ! up-quarks
-          + nc*1._/**/REALKIND/9*( B00BB ) &    ! b_quark
-          + nc*4._/**/REALKIND/9*( B00TT ) &    ! t-quark
-          )
+      ! contribution from heavy + light fermions (in dimreg)
+      if (qedreg_on) then
+        dSiAA0=dSiAA0+4._/**/REALKIND/3.*( &
+                                     (  2.*B0Z00) & ! light-leptons
+              +                      (     B0ZLL) & ! tau-lepton
+              + nc*1._/**/REALKIND/9*( 2.*B0Z00) & ! down-quarks
+              + nc*4._/**/REALKIND/9*( 2.*B0Z00) & ! up-quarks
+              + nc*1._/**/REALKIND/9*( B0ZBB ) &    ! b_quark
+              + nc*4._/**/REALKIND/9*( B0ZTT ) &    ! t-quark
+               )
+      else
+        dSiAA0=dSiAA0+4._/**/REALKIND/3.*( &
+                                     (  2.*B0000) & ! light-leptons
+              +                      (     B00LL) & ! tau-lepton
+              + nc*1._/**/REALKIND/9*( 2.*B0000) & ! down-quarks
+              + nc*4._/**/REALKIND/9*( 2.*B0000) & ! up-quarks
+              + nc*1._/**/REALKIND/9*( B00BB ) &    ! b_quark
+              + nc*4._/**/REALKIND/9*( B00TT ) &    ! t-quark
+               )
+      end if
+    end if
 
+
+    if (weak_on) then
 !      SiAZ0=SiAZ0+0 !no fermionic contribution
 
-    SiAZZ=SiAZZ-2._/**/REALKIND/3.*( &
-             2.*(rMZ2/3. - rMZ2*B0Z00)*(gZl(1) + gZl(2))   & ! light-lepton
-        +       (rMZ2/3. + 2*ML2*B00LL + (-2*ML2 - rMZ2)*B0ZLL)*(gZl(1) + gZl(2)) & ! tau-lepton
-        + 2.*nc*(rMZ2/3. - rMZ2*B0Z00)*(gZd(1) + gZd(2))/3.  & ! down-quark
-        - 2.*nc*(rMZ2/3. - rMZ2*B0Z00)*(gZu(1) + gZu(2))*2._/**/REALKIND/3. & ! up-quark
-        +   nc*(rMZ2/3. + 2*MB2*B00BB + (-2*MB2 - rMZ2)*B0ZBB)*(gZd(1) + gZd(2))/3. &     ! b-quark
-        -   nc*(rMZ2/3. + 2*MT2*B00TT + (-2*MT2 - rMZ2)*B0ZTT)*(gZu(1) + gZu(2))*2._/**/REALKIND/3. &  ! top-quark
-        )
+      SiAZZ=SiAZZ-2._/**/REALKIND/3.*( &
+               2.*(rMZ2/3. - rMZ2*B0Z00)*(gZl(1) + gZl(2))   & ! light-lepton
+          +       (rMZ2/3. + 2*ML2*B00LL + (-2*ML2 - rMZ2)*B0ZLL)*(gZl(1) + gZl(2)) & ! tau-lepton
+          + 2.*nc*(rMZ2/3. - rMZ2*B0Z00)*(gZd(1) + gZd(2))/3.  & ! down-quark
+          - 2.*nc*(rMZ2/3. - rMZ2*B0Z00)*(gZu(1) + gZu(2))*2._/**/REALKIND/3. & ! up-quark
+          +   nc*(rMZ2/3. + 2*MB2*B00BB + (-2*MB2 - rMZ2)*B0ZBB)*(gZd(1) + gZd(2))/3. &     ! b-quark
+          -   nc*(rMZ2/3. + 2*MT2*B00TT + (-2*MT2 - rMZ2)*B0ZTT)*(gZu(1) + gZu(2))*2._/**/REALKIND/3. &  ! top-quark
+          )
 
-    dSiAZZ=dSiAZZ-2._/**/REALKIND/9.*( &
-        -    2.*(-1 + 3*B0Z00 + 3*rMZ2*dB0Z00)*(gZl(1) + gZl(2)) & ! light-lepton
-        -       (-1 + 3*B0ZLL + 3*(2*ML2 + rMZ2)*dB0ZLL)*(gZl(1) + gZl(2)) & ! tau-lepton
-        - 2.*nc*(-1 + 3*B0Z00 + 3*rMZ2*dB0Z00)*(gZd(1) + gZd(2))/3. & ! down-quark
-        + 2.*nc*(-1 + 3*B0Z00 + 3*rMZ2*dB0Z00)*(gZu(1) + gZu(2))*2._/**/REALKIND/3. & ! up-quark
-        -    nc*(-1 + 3*B0ZBB + 3*(2*MB2 + rMZ2)*dB0ZBB)*(gZd(1) + gZd(2))/3. & ! b-quark
-        +    nc*(-1 + 3*B0ZTT + 3*(2*MT2 + rMZ2)*dB0ZTT)*(gZu(1) + gZu(2))*2._/**/REALKIND/3. & ! top-quark
-       )
+      dSiAZZ=dSiAZZ-2._/**/REALKIND/9.*( &
+          -    2.*(-1 + 3*B0Z00 + 3*rMZ2*dB0Z00)*(gZl(1) + gZl(2)) & ! light-lepton
+          -       (-1 + 3*B0ZLL + 3*(2*ML2 + rMZ2)*dB0ZLL)*(gZl(1) + gZl(2)) & ! tau-lepton
+          - 2.*nc*(-1 + 3*B0Z00 + 3*rMZ2*dB0Z00)*(gZd(1) + gZd(2))/3. & ! down-quark
+          + 2.*nc*(-1 + 3*B0Z00 + 3*rMZ2*dB0Z00)*(gZu(1) + gZu(2))*2._/**/REALKIND/3. & ! up-quark
+          -    nc*(-1 + 3*B0ZBB + 3*(2*MB2 + rMZ2)*dB0ZBB)*(gZd(1) + gZd(2))/3. & ! b-quark
+          +    nc*(-1 + 3*B0ZTT + 3*(2*MT2 + rMZ2)*dB0ZTT)*(gZu(1) + gZu(2))*2._/**/REALKIND/3. & ! top-quark
+         )
 
-    SiZZ=SiZZ-2._/**/REALKIND/3.*( &
-        -      3*rMZ2*(-1 + 3*B0Z00)*(gZn(1)**2 + gZn(2)**2)/3. &  ! neutrinos
-        -      2*rMZ2*(-1 + 3*B0Z00)*(gZl(1)**2 + gZl(2)**2)/3. &  ! light-leptons
-        + (3*ML2*B0ZLL)/(4.*cw2*sw2) + (rMZ2/3. + 2*ML2*B00LL - (2*ML2 + rMZ2)*B0ZLL)*(gZl(1)**2 + gZl(2)**2) &  ! tau-lepton
-        -   2*nc*rMZ2*(-1 + 3*B0Z00)*(gZd(1)**2 + gZd(2)**2)/3. & ! down-quark
-        -   2*nc*rMZ2*(-1 + 3*B0Z00)*(gZu(1)**2 + gZu(2)**2)/3. & ! up-quark
-        + nc*((3*MB2*B0ZBB)/(4.*cw2*sw2) + (rMZ2/3. + 2*MB2*B00BB - (2*MB2 + rMZ2)*B0ZBB)*(gZd(1)**2 + gZd(2)**2)) &  ! b-quark
-        + nc*((3*MT2*B0ZTT)/(4.*cw2*sw2) + (rMZ2/3. + 2*MT2*B00TT - (2*MT2 + rMZ2)*B0ZTT)*(gZu(1)**2 + gZu(2)**2)) & ! t-quark
-        )
+      SiZZ=SiZZ-2._/**/REALKIND/3.*( &
+          -      3*rMZ2*(-1 + 3*B0Z00)*(gZn(1)**2 + gZn(2)**2)/3. &  ! neutrinos
+          -      2*rMZ2*(-1 + 3*B0Z00)*(gZl(1)**2 + gZl(2)**2)/3. &  ! light-leptons
+          + (3*ML2*B0ZLL)/(4.*cw2*sw2) + (rMZ2/3. + 2*ML2*B00LL - (2*ML2 + rMZ2)*B0ZLL)*(gZl(1)**2 + gZl(2)**2) &  ! tau-lepton
+          -   2*nc*rMZ2*(-1 + 3*B0Z00)*(gZd(1)**2 + gZd(2)**2)/3. & ! down-quark
+          -   2*nc*rMZ2*(-1 + 3*B0Z00)*(gZu(1)**2 + gZu(2)**2)/3. & ! up-quark
+          + nc*((3*MB2*B0ZBB)/(4.*cw2*sw2) + (rMZ2/3. + 2*MB2*B00BB - (2*MB2 + rMZ2)*B0ZBB)*(gZd(1)**2 + gZd(2)**2)) &  ! b-quark
+          + nc*((3*MT2*B0ZTT)/(4.*cw2*sw2) + (rMZ2/3. + 2*MT2*B00TT - (2*MT2 + rMZ2)*B0ZTT)*(gZu(1)**2 + gZu(2)**2)) & ! t-quark
+          )
 
-    dSiZZ=dSiZZ-2._/**/REALKIND/3.*( &
-        - 3.*(-1 + 3*B0Z00 + 3*rMZ2*dB0Z00)*(gZn(1)**2 + gZn(2)**2)/3. & ! neutrinos
-        - 2.*(-1 + 3*B0Z00 + 3*rMZ2*dB0Z00)*(gZl(1)**2 + gZl(2)**2)/3. & ! light-leptons
-        +    (3*ML2*dB0ZLL)/(4.*cw2*sw2) - ((-1 + 3*B0ZLL + 3*(2*ML2 + rMZ2)*dB0ZLL)*(gZl(1)**2 + gZl(2)**2))/3. & ! tau-lepton
-        - 2.*nc*(-1 + 3*B0Z00 + 3*rMZ2*dB0Z00)*(gZd(1)**2 + gZd(2)**2)/3. &  ! down-quark
-        - 2.*nc*(-1 + 3*B0Z00 + 3*rMZ2*dB0Z00)*(gZu(1)**2 + gZu(2)**2)/3. &  ! up-quark
-        + nc*((3*MB2*dB0ZBB)/(4.*cw2*sw2) - ((-1 + 3*B0ZBB + 3*(2*MB2 + rMZ2)*dB0ZBB)*(gZd(1)**2 + gZd(2)**2))/3.) & ! b-quark
-        + nc*((3*MT2*dB0ZTT)/(4.*cw2*sw2) - ((-1 + 3*B0ZTT + 3*(2*MT2 + rMZ2)*dB0ZTT)*(gZu(1)**2 + gZu(2)**2))/3.) & ! t-quark
-        )
+      dSiZZ=dSiZZ-2._/**/REALKIND/3.*( &
+          - 3.*(-1 + 3*B0Z00 + 3*rMZ2*dB0Z00)*(gZn(1)**2 + gZn(2)**2)/3. & ! neutrinos
+          - 2.*(-1 + 3*B0Z00 + 3*rMZ2*dB0Z00)*(gZl(1)**2 + gZl(2)**2)/3. & ! light-leptons
+          +    (3*ML2*dB0ZLL)/(4.*cw2*sw2) - ((-1 + 3*B0ZLL + 3*(2*ML2 + rMZ2)*dB0ZLL)*(gZl(1)**2 + gZl(2)**2))/3. & ! tau-lepton
+          - 2.*nc*(-1 + 3*B0Z00 + 3*rMZ2*dB0Z00)*(gZd(1)**2 + gZd(2)**2)/3. &  ! down-quark
+          - 2.*nc*(-1 + 3*B0Z00 + 3*rMZ2*dB0Z00)*(gZu(1)**2 + gZu(2)**2)/3. &  ! up-quark
+          + nc*((3*MB2*dB0ZBB)/(4.*cw2*sw2) - ((-1 + 3*B0ZBB + 3*(2*MB2 + rMZ2)*dB0ZBB)*(gZd(1)**2 + gZd(2)**2))/3.) & ! b-quark
+          + nc*((3*MT2*dB0ZTT)/(4.*cw2*sw2) - ((-1 + 3*B0ZTT + 3*(2*MT2 + rMZ2)*dB0ZTT)*(gZu(1)**2 + gZu(2)**2))/3.) & ! t-quark
+          )
 
-    SiW=SiW-( &
-           2*rMW2*(1._/**/REALKIND/3. - B0W00) & ! light-leptons
-         + (rMW2/3. + ML2*B00LL + ((ML2 - 2*rMW2)*B0W0L)/2. + (ML2**2*(-B000L + B0W0L))/(2.*rMW2)) & ! heavy-leptons
-         + 2*nc*rMW2*(1._/**/REALKIND/3.-B0W00) & ! light-quarks
-         + nc*(rMW2/3. + MB2*B00BB + MT2*B00TT & ! heavy-quarks
-           + ((MB2 + MT2 - 2*rMW2)*B0WTB)/2.  &
-           + ((MB2 - MT2)**2*(-B00TB + B0WTB))/(2.*rMW2)) &
-         )/(3.*sw2)
+      SiW=SiW-( &
+             2*rMW2*(1._/**/REALKIND/3. - B0W00) & ! light-leptons
+           + (rMW2/3. + ML2*B00LL + ((ML2 - 2*rMW2)*B0W0L)/2. + (ML2**2*(-B000L + B0W0L))/(2.*rMW2)) & ! heavy-leptons
+           + 2*nc*rMW2*(1._/**/REALKIND/3.-B0W00) & ! light-quarks
+           + nc*(rMW2/3. + MB2*B00BB + MT2*B00TT & ! heavy-quarks
+             + ((MB2 + MT2 - 2*rMW2)*B0WTB)/2.  &
+             + ((MB2 - MT2)**2*(-B00TB + B0WTB))/(2.*rMW2)) &
+           )/(3.*sw2)
 
-    dSiW=dSiW+( &
-         - 2*(1._/**/REALKIND/3.- B0W00 - rMW2*dB0W00) & ! light-leptons
-         - 1._/**/REALKIND/2.*(2._/**/REALKIND/3.+ ML2**2*(B000L - B0W0L)/rMW2**2 - 2*B0W0L & ! heavy-leptons
-                  +  ML2**2*dB0W0L/rMW2 + (ML2 - 2*rMW2)*dB0W0L) &
-         - 2*nc*(1._/**/REALKIND/3. - B0W00 - rMW2*dB0W00) & ! light-quark
-         -   nc/2.*(2._/**/REALKIND/3. + ((MB2 - MT2)**2* (B00TB - B0WTB))/rMW2**2 - 2*B0WTB & ! heavy-quark
-                  +  ((MB2 - MT2)**2*dB0WTB)/rMW2 + (MB2 + MT2 - 2*rMW2)*dB0WTB) &
-          )/(3.*sw2)
+      dSiW=dSiW+( &
+           - 2*(1._/**/REALKIND/3.- B0W00 - rMW2*dB0W00) & ! light-leptons
+           - 1._/**/REALKIND/2.*(2._/**/REALKIND/3.+ ML2**2*(B000L - B0W0L)/rMW2**2 - 2*B0W0L & ! heavy-leptons
+                    +  ML2**2*dB0W0L/rMW2 + (ML2 - 2*rMW2)*dB0W0L) &
+           - 2*nc*(1._/**/REALKIND/3. - B0W00 - rMW2*dB0W00) & ! light-quark
+           -   nc/2.*(2._/**/REALKIND/3. + ((MB2 - MT2)**2* (B00TB - B0WTB))/rMW2**2 - 2*B0WTB & ! heavy-quark
+                    +  ((MB2 - MT2)**2*dB0WTB)/rMW2 + (MB2 + MT2 - 2*rMW2)*dB0WTB) &
+            )/(3.*sw2)
 
-    SiW0=SiW0 &
-        - 1/(3.*sw2)*(ML2*B00LL + ML2*B000L/2. + ML2**2*dB000L/2.) &
-        - nc/(3.*sw2)*(MB2*B00BB + ((MB2 + MT2)*B00TB)/2. +  &
-          MT2*B00TT +  ((MB2 - MT2)**2*dB00TB)/2.)
+      SiW0=SiW0 &
+          - 1/(3.*sw2)*(ML2*B00LL + ML2*B000L/2. + ML2**2*dB000L/2.) &
+          - nc/(3.*sw2)*(MB2*B00BB + ((MB2 + MT2)*B00TB)/2. +  &
+            MT2*B00TT +  ((MB2 - MT2)**2*dB00TB)/2.)
 
-    SiH=SiH &
-       -   (ML2*(2*A0L + (4*ML2 - rMH2)*B0HLL))/(2.*MW2*sw2) &  ! tau
-       -(MB2*nc*(2*A0B + (4*MB2 - rMH2)*B0HBB))/(2.*MW2*sw2) &  ! b-quark
-       -(MT2*nc*(2*A0T + (4*MT2 - rMH2)*B0HTT))/(2.*MW2*sw2)    ! t-quark
+      SiH=SiH &
+         -   (ML2*(2*A0L + (4*ML2 - rMH2)*B0HLL))/(2.*MW2*sw2) &  ! tau
+         -(MB2*nc*(2*A0B + (4*MB2 - rMH2)*B0HBB))/(2.*MW2*sw2) &  ! b-quark
+         -(MT2*nc*(2*A0T + (4*MT2 - rMH2)*B0HTT))/(2.*MW2*sw2)    ! t-quark
 
-
-    dSiH=dSiH &
-       -   (ML2*(-B0HLL + (4*ML2 - rMH2)*dB0HLL))/(2.*MW2*sw2) & ! tau
-       -(MB2*nc*(-B0HBB + (4*MB2 - rMH2)*dB0HBB))/(2.*MW2*sw2) & ! b-quark
-       -(MT2*nc*(-B0HTT + (4*MT2 - rMH2)*dB0HTT))/(2.*MW2*sw2)   ! t-quark
+      dSiH=dSiH &
+         -   (ML2*(-B0HLL + (4*ML2 - rMH2)*dB0HLL))/(2.*MW2*sw2) & ! tau
+         -(MB2*nc*(-B0HBB + (4*MB2 - rMH2)*dB0HBB))/(2.*MW2*sw2) & ! b-quark
+         -(MT2*nc*(-B0HTT + (4*MT2 - rMH2)*dB0HTT))/(2.*MW2*sw2)   ! t-quark
+    end if
 
   end if
 
@@ -906,10 +1046,22 @@ subroutine ew_renormalisation
 
 
 ! weak mixing angle
-  dcwEW     = cw/2.*(dZMW2EW/MW2-dZMZ2EW/MZ2)
-  dswEW     =  -1.*cw/sw*dcwEW
+  if (ew_renorm_scheme == 20 .or. ew_renorm_scheme == 21 .or. ew_renorm_scheme == 22) then ! sinTheta2 schemes from 1906.11569
+    Va0Z0Z00 = B0Z00 - 2. + (-2*C00Z0Z00-3*C10Z0Z00-3*C20Z0Z00)*MZ2
+    Va0Z0W00 = B0Z00 - 2. + (-C10Z0W00-C20Z0W00)*MW2 + (-2*C00Z0W00-2*C10Z0W00-2*C20Z0W00)*MZ2
+    Vb0Z00WW = 3.*B0ZWW - MZ2*(2*C10Z00WW+2*C20Z00WW) - MW2*(C10Z00WW + C20Z00WW)
+    dVLEW = gZl(2)**2*Va0Z0Z00+0.5_/**/REALKIND/sw2*gZn(2)/gZl(2)*Va0Z0W00-cw/sw3/2./gZl(2)*Vb0Z00WW
+    dVREW = gZl(1)**2*Va0Z0Z00
+    dswEW = real(0.5*sw*((cw/sw*SiAZZ/rMZ2)+(1.-Ql/I3l(2)*sw2)*(dZeLEW+dVLEW-dZeREW-dVREW)))
+    dcwEW = -1.*sw/cw*dswEW
+    dZMW2EW = MW2*(2.*dcwEW/cw+dZMZ2EW/MZ2)
+  else
+    dcwEW     = cw/2.*(dZMW2EW/MW2-dZMZ2EW/MZ2)
+    dswEW     =  -1.*cw/sw*dcwEW
+  end if
 
 ! charge renormalization
+
   ! a(0)
   dZe0QEDEWnreg = -0.5*dZAAEWnreg - sw/cw*SiAZ0/MZ2
   dZe0QEDEWdreg = -0.5*dZAAEWdreg - sw/cw*SiAZ0/MZ2
@@ -922,15 +1074,15 @@ subroutine ew_renormalisation
   ! a(MZ)
   dZeZQEDEW = -0.5*(dZAAEWnreg+dAlphaQED_MZ) - sw/cw*SiAZ0/MZ2   !NB: dAlphaQED_MZ drops out -> reg independent
 
-  if (ew_renorm_scheme == 0) then ! on-shell scheme = alpha(0) scheme
+  if (ew_renorm_scheme == 0 .or. ew_renorm_scheme == 20) then ! on-shell scheme = alpha(0) scheme
     if (delta_alphamz_dimreg) then
       dZeQEDEW = dZe0QEDEWdreg ! dim-reg
     else
       dZeQEDEW = dZe0QEDEWnreg ! n-reg
     end if
-  else if (ew_renorm_scheme == 1) then ! Gmu scheme
+  else if (ew_renorm_scheme == 1 .or. ew_renorm_scheme == 21) then ! Gmu scheme
     dZeQEDEW = dZeGmuQEDEW
-  else if (ew_renorm_scheme == 2) then ! alpha(mZ) scheme
+  else if (ew_renorm_scheme == 2 .or. ew_renorm_scheme == 22) then ! alpha(mZ) scheme
     dZeQEDEW = dZeZQEDEW
   else
     call ol_error(2, 'in ew_renormalisation: ew_renorm_scheme= ' // to_string(ew_renorm_scheme) // ' not supported!')
@@ -1003,19 +1155,22 @@ subroutine ew_renormalisation
 !     dZMW2EWPole = -10d0/3*MW2*de1_UV - 1d0/12d0/sw2*((40d0*cw2+38d0)*MW2-(16d0*cw2+12d0)*MZ2)*de1_UV & !Bosonic
 !                   + 1d0/3d0/sw2*de1_UV*(12*MW2 - 9d0/2d0*MT2) !Fermionic
 !     dcwEWPole     = cw/2.*(dZMW2EWPole/MW2-dZMZ2EWPole/MZ2)
+!     dswEWPole     =  -1.*cw/sw*dcwEWPole
 
 ! check explicit poles for debugging
 !      print*, de1_UV, de1_IR, dZuREW-dZuRPole, dZuLEW-dZuLPole
 !      print*, de1_UV, de1_IR, dZtREW-dZtRPole, dZtLEW-dZtLPole
 !      print*, de1_UV, de1_IR, dZeQEDEW-dZeQEDEWPole
-!      print*, de1_UV, de1_IR, dcwEW-dcwEWPole
+!      print*, "cw", de1_UV, de1_IR, dcwEW, dcwEWPole, dcwEW-dcwEWPole, dcwEW/dcwEWPole
+!      print*, de1_UV, de1_IR, dswEW-dswEWPole
+!      print*, "sw",  de1_UV, de1_IR, dswEW, dswEWPole, dswEW-dswEWPole, dswEW/dswEWPole
 !      print*, de1_UV, de1_IR, dZAAEW-dZAAEWPole
 !      print*, de1_UV, de1_IR, dZZAEW-dZZAEWPole
 !      print*, de1_UV, de1_IR, dZAZEW-dZAZEWPole
 !      print*, de1_UV, de1_IR, dZZZEW-dZZZEWPole
 !      print*, de1_UV, de1_IR, dZWEW-dZWEWPole
-!      print*, de1_UV, de1_IR, dZMZ2EW-dZMZ2EWPole
-!      print*, de1_UV, de1_IR, dZMW2EW-dZMW2EWPole
+!      print*, "MZ2", de1_UV, de1_IR, dZMZ2EW, dZMZ2EWPole, dZMZ2EW-dZMZ2EWPole,dZMZ2EW/dZMZ2EWPole
+!      print*, "MW2", de1_UV, de1_IR, dZMW2EW, dZMW2EWPole, dZMW2EW-dZMW2EWPole,dZMW2EW/dZMW2EWPole
 
 
 ! print rs constans
@@ -1925,7 +2080,7 @@ subroutine photon_factors(photonid, ew_renorm, bornfactor, loopfactor)
   n_offshell_gamma=sum(photonid/photonid,photonid.lt.0)
 
   bornfactor=1.
-  if (onshell_photons_lsz .and. (ew_scheme > 0)) then
+  if (onshell_photons_lsz .and. ew_scheme /= 0 .and. ew_scheme /= 20) then
     bornfactor=(alpha_QED_0/alpha_QED)**n_onshell_gamma
   end if
 
@@ -1938,12 +2093,12 @@ subroutine photon_factors(photonid, ew_renorm, bornfactor, loopfactor)
     loopfactor=0.
 
     ! on-shell photons: dZe(Gmu/MZ) -> dZe(0)
-    if (onshell_photons_lsz .and. (ew_renorm_scheme > 0)) then
+    if (onshell_photons_lsz .and. ew_renorm_scheme /= 0 .and. ew_scheme /= 20) then
       loopfactor=(dZe0QEDEWnreg-dZeQEDEW)*alpha_QED*countertermnorm*4.*pi*n_onshell_gamma
     end if
 
     ! off-photons: dZe(0,n-reg) -> dZe(Gmu)
-    if (offshell_photons_lsz .and. ew_renorm_scheme == 0) then
+    if (offshell_photons_lsz .and. (ew_renorm_scheme == 0 .or. ew_renorm_scheme == 20)) then
         loopfactor=loopfactor+(dZeGmuQEDEW-dZeQEDEW)*alpha_QED*countertermnorm*4.*pi*n_offshell_gamma
     end if
 

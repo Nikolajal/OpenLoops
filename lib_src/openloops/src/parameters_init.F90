@@ -319,7 +319,7 @@ subroutine parameters_init()
   ! Dependent couplings
 
   !EW
-  if (ew_scheme == 3 .or. ew_scheme == 4) then
+  if (ew_scheme == 20 .or. ew_scheme == 21 .or. ew_scheme == 22) then
     sw2 = sw2_input
     cw2 = 1 - sw2
     sw  = sqrt(sw2)
@@ -352,16 +352,16 @@ subroutine parameters_init()
     alpha_QED_Gmu = sqrt2/pi*Gmu*rMW2*sw2
   end if
 
-  if (ew_scheme == 0) then ! alpha(0) OS scheme
+  if (ew_scheme == 0 .or. ew_scheme == 20) then ! alpha(0) OS scheme
     if (alpha_QED_input /= 0) then
       alpha_QED = alpha_QED_input
       alpha_QED_0 = alpha_QED_input
     else
      alpha_QED = alpha_QED_0
     end if
-  else if (ew_scheme == 1 .or. ew_scheme == 3) then ! Gmu scheme
+  else if (ew_scheme == 1 .or. ew_scheme == 21) then ! Gmu scheme
     alpha_qed = alpha_qed_gmu
-  else if (ew_scheme == 2 .or. ew_scheme == 4) then ! alpha(MZ) scheme
+  else if (ew_scheme == 2 .or. ew_scheme == 22) then ! alpha(MZ) scheme
     if (alpha_QED_input /= 0) then
       alpha_QED = alpha_QED_input
       alpha_QED_MZ = alpha_QED_input
@@ -1151,9 +1151,9 @@ subroutine parameters_write(filename)
   write(outid,*) 'alpha_qed_MZ  =', alpha_QED_MZ, '  1/alpha_qed_MZ  =', 1/alpha_QED_MZ
   write(outid,*) 'alpha_qed_Gmu =', alpha_QED_Gmu, '  1/alpha_qed_Gmu =', 1/alpha_QED_Gmu
   write(outid,*) 'Gmu           =', Gmu
+  write(outid,*) 'sw            =', sw,           '  sw2            =', sw2
   write(outid,*)
   write(outid,*) 'derived couplings'
-  write(outid,*) 'sw           =', sw,           '  sw2            =', sw2
   write(outid,*) 'vev          =', 2*MW*sw/eQED
   if (trim(model) == "2hdm") then
     write(outid,*)
