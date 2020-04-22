@@ -1622,13 +1622,35 @@ module ol_init
           case ("hpoprodmfv_ufo", "hpoprodmfv_ufo_fixed", "higgspo")
             call set_if_modified(model, "higgspo")
             call set_if_modified(nf, 6)
-        case default
-          call ol_error(1, "unknown model: " // trim(val) // ", model set to: " // trim(model))
-        end select
-
-
+          case default
+            call ol_error(1, "unknown model: " // trim(val) // ", model set to: " // trim(model))
+          end select
+      case ("ew_scheme", "ewscheme")
+        select case (to_lowercase(trim(val)))
+          case ("alpha0_mz_mw")
+            call set_if_modified(ew_scheme, 0)
+          case ("gmu_mz_mw")
+            call set_if_modified(ew_scheme, 1)
+          case ("alphaz_mz_mw")
+            call set_if_modified(ew_scheme, 2)
+          case ("alpha0_mz_sw2eff")
+            call set_if_modified(ew_scheme, 20)
+          case ("gmu_mz_sw2eff")
+            call set_if_modified(ew_scheme, 21)
+          case ("alphaz_mz_sw2eff")
+            call set_if_modified(ew_scheme, 22)
+          case default
+            read(val,*,iostat=error) real_parameter
+            if (error == 0) then
+              call setparameter_double(param, real_parameter)
+            else
+              error = 1
+            end if
+            if (error == 1 .and. init_error_fatal == 1) then
+              call ol_error(1, "unknown ew_scheme: " // trim(val) // ", ew_scheme set to: " // to_string(ew_scheme))
+            end if
+          end select
       case default
-
         error = 1
         ! if the string can be converted to a real number, foward it to ol_setparameter_double();
         ! note that integers will be forwarded to ol_setparameter_int() automatically

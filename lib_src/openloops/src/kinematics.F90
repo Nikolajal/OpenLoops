@@ -1142,7 +1142,7 @@ subroutine conv_mom_scatt2in_cache(P_in_clean,n)
     m_ext2_perm(inverse_crossing_dp(k)) = get_rmass2(M_ex_dp(k))
   end do
   P_in(:,1:n_scatt) =   scalefactor * P_ex(:,1:n_scatt)
-  P_in(:,n_scatt+1:)  = - scalefactor * P_ex(:,n_scatt+1:)
+  P_in(:,n_scatt+1:n)  = - scalefactor * P_ex(:,n_scatt+1:n)
   if (n_scatt == 2 .and. n > 2) then
     ! Clean momenta to get full numerical precision.
     ! Do the cleaning in the original permutation where the first two momenta are incoming.

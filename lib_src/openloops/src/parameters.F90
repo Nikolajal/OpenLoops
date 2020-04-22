@@ -331,7 +331,7 @@ module ol_parameters_decl_/**/REALKIND
   ! internal, do not touch change
   real(REALKIND), save :: hp_err_thres = 8._/**/REALKIND  ! accumulated error threshold
   real(REALKIND), save :: hp_step_thres = 0.5_/**/REALKIND ! step threshold
-  real(REALKIND), save :: hp_redset_gd3_thres = 3.5_/**/REALKIND
+  real(REALKIND), save :: hp_redset_gd3_thres = 3e-4_/**/REALKIND
 
   ! merging dp and qp channel the dp channel is upgraded to qp (which comes at zero cost.)
   logical, save :: hp_automerge = .true.
