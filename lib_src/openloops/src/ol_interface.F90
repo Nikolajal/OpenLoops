@@ -4134,7 +4134,11 @@ module openloops
     call subprocess%pol_init(subprocess%pol)
     if (any(subprocess%photon_id /= 0)) call subprocess%set_photons(subprocess%photon_id)
     call parameters_flush()
-    if (cr%type > 10) call subprocess%loopcc(.true., has_loopcc)
+    if (cr%type > 10) then
+      call subprocess%loopcc(.true., has_loopcc)
+    else
+      has_loopcc = .false.
+    end if
     if (any(subprocess%last_psp /= psp) .or. &
       & any(subprocess%last_perm /= subprocess%permutation) .or. &
       & any(subprocess%last_pol /= subprocess%pol) .or. &
