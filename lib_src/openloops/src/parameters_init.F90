@@ -1010,7 +1010,7 @@ subroutine loop_parameters_init
 
   call qcd_parameters_init(.true.)
   if (do_ew_renorm /= 0) then
-    call ew_renormalisation
+    call ew_renormalisation(do_ew_renorm)
   end if
 
   ! Increment number of time this function has been called:

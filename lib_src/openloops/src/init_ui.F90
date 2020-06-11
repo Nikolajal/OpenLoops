@@ -422,6 +422,12 @@ module ol_init
             flavour_mapping_on = 2
           end if
         end if
+      case ("qed")
+        if (val < 0 .or. val > 1) then
+          call ol_error("QED not supported: " // to_string(val))
+        else
+          QED = val
+        end if
       case ("ioperator_mode")
         call set_if_modified(ioperator_mode, val)
       case ("polecheck","truepoles","truepoles_on")
@@ -488,18 +494,13 @@ module ol_init
         else
           call set_if_modified(ew_renorm_scheme, val)
         end if
-      case ("select_ew")
+      case ("qedreg_on", "qedmassreg_on")
         if (val == 0) then
-          call set_if_modified(qed_on, .true.)
-          call set_if_modified(weak_on, .true.)
+          call set_if_modified(qedreg_on, .false.)
         else if (val == 1) then
-          call set_if_modified(qed_on, .true.)
-          call set_if_modified(weak_on, .false.)
-        else if (val == 2) then
-          call set_if_modified(qed_on, .false.)
-          call set_if_modified(weak_on, .true.)
+          call set_if_modified(qedreg_on, .true.)
         else
-          call ol_error("select_ew not available:" // trim(to_string(val)))
+          call ol_error("qedreg_on not available:" // trim(to_string(val)))
         end if
       case ("onshell_photons_lsz", "onshell_photon_lsz")
         if (val == 1) then

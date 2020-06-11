@@ -142,6 +142,7 @@ module openloops
     integer :: NF
     integer :: NC
     integer :: CKMORDER
+    integer :: QED
     integer :: POLSEL
     character :: ME, MM, ML, MU, MD, MS, MC, MB
     integer :: YE, YM, YL, YU, YD, YS, YC, YB, YT
@@ -1328,7 +1329,7 @@ module openloops
       & rYE, rYM, rYL, rYU, rYD, rYC, rYS, rYB, rYT, &
       & leadingcolour, coupling_qcd, coupling_ew, &
       & loop_order_ew, loop_order_qcd, &
-      & approximation, CKMORDER, model, allowed_libs, apicheck
+      & approximation, CKMORDER, QED, model, allowed_libs, apicheck
     use ol_loop_parameters_decl_/**/DREALKIND , only: nf, nc
     use ol_version, only: process_api
     implicit none
@@ -1361,6 +1362,7 @@ module openloops
       call check(process_infos(p)%NC == nc, found, "nc NOT ok.")
       call check(process_infos(p)%NF == nf, found, "nf NOT ok.")
       call check(process_infos(p)%CKMorder == CKMORDER, found, "CKM NOT ok.")
+      call check(process_infos(p)%QED == QED, found, "QED NOT ok.")
       call check(index(process_infos(p)%MODEL, trim(model)) == 1, found, "model NOT ok.")
       call check((process_infos(p)%ME /= "0" .and. rME /= 0) .or. rME == 0, found, "mass ME NOT ok.")
       call check((process_infos(p)%MM /= "0" .and. rMM /= 0) .or. rMM == 0, found, "mass MM NOT ok.")
@@ -1599,6 +1601,7 @@ module openloops
       call readInfoInt(lineinfo, 'YukT', infos%YT)
       call readInfo(lineinfo, 'APPROX', infos%APPROX)
       call readInfoInt(lineinfo, 'CKMORDER', infos%CKMorder)
+      call readInfoInt(lineinfo, 'QED', infos%QED)
       call readInfoInt(lineinfo, 'nc', infos%NC)
       call readInfoInt(lineinfo, 'nf', infos%NF)
       call readInfoInt(lineinfo, 'LeadingColour', infos%LeadingColour)

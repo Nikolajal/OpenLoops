@@ -465,6 +465,7 @@ module ol_parameters_decl_/**/REALKIND
   integer :: loop_order_ew = -1
   integer :: loop_order_qcd = -1
   integer :: CKMORDER = 0
+  integer :: QED = 0
   ! select scalar integral library for self energies: 0 = none, 1 = Coli, 3=OneLOop, 7 = DD
   ! automatically set according to redlib (redlib=1->1,7->7,other->3)
   integer, save :: se_integral_switch = 1
@@ -749,8 +750,6 @@ module ol_loop_parameters_decl_/**/REALKIND
   integer,        save :: R2_is_on = 1 ! switch on/off R2 contributions
   integer,        save :: TP_is_on = 1 ! switch on/off tadpole-like contributions
   integer,        save :: IR_is_on = 1 ! 0 = off, 1 = return poles, 2 = add I operator
-  logical,        save :: qed_on = .true.     ! QED contributions
-  logical,        save :: weak_on = .true.    ! weak contributions
   logical,        save :: qedreg_on = .false. ! regularise IR singularities in QED via finite photon mass = MZ
   ! i-operator mode: 1 = QCD, 2 = EM, 0 = QCD+EM, none otherwise;
   integer,        save :: ioperator_mode = 0
@@ -823,15 +822,19 @@ module ol_loop_parameters_decl_/**/REALKIND
   real(REALKIND), save      :: cf    = 4._/**/REALKIND/3 ! fundamental Casimir
   real(REALKIND), save      :: tf    = 0.5_/**/REALKIND  ! generator normalisation
 
-  real(REALKIND), parameter      :: Qu   = 4._/**/REALKIND/3. ! up-type quark electrical charge squared
-  real(REALKIND), parameter      :: Qd   = -1._/**/REALKIND/3. ! down-type quark electrical charge squared
-  real(REALKIND), parameter      :: Ql   = -1 ! lepton electrical charge squared
+  complex(REALKIND), parameter      :: Qu   = 4._/**/REALKIND/3. ! up-type quark electrical charge squared
+  complex(REALKIND), parameter      :: Qd   = -1._/**/REALKIND/3. ! down-type quark electrical charge squared
+  complex(REALKIND), parameter      :: Ql   = -1 ! lepton electrical charge squared
 
-  real(REALKIND), parameter      :: Qu2   = 4._/**/REALKIND/9. ! up-type quark electrical charge squared
-  real(REALKIND), parameter      :: Qd2   = 1._/**/REALKIND/9. ! down-type quark electrical charge squared
-  real(REALKIND), parameter      :: Ql2   = 1 ! lepton electrical charge squared
+  complex(REALKIND), parameter      :: Qu2   = 4._/**/REALKIND/9. ! up-type quark electrical charge squared
+  complex(REALKIND), parameter      :: Qd2   = 1._/**/REALKIND/9. ! down-type quark electrical charge squared
+  complex(REALKIND), parameter      :: Ql2   = 1 ! lepton electrical charge squared
 
-  real(REALKIND), save      :: Qf2sum   = 20._/**/REALKIND/3. ! sum_f ( Qf^2 ) for gamma -> FF QED splittings in I-Operator
+  complex(REALKIND), parameter      :: Qu3   = 8._/**/REALKIND/27. ! up-type quark electrical charge cubed
+  complex(REALKIND), parameter      :: Qd3   = -1._/**/REALKIND/27. ! down-type quark electrical charge cubed
+  complex(REALKIND), parameter      :: Ql3   = -1 ! lepton electrical charge cubed
+
+  complex(REALKIND), save      :: Qf2sum   = 20._/**/REALKIND/3. ! sum_f ( Qf^2 ) for gamma -> FF QED splittings in I-Operator
 
   real(REALKIND), save      :: polescale   = 1 ! used as pole values in VAMP2chk to determine the true poles
   real(REALKIND), save      :: de1_UV      = 0 ! numerical value of single UV pole (independent of norm-convention)

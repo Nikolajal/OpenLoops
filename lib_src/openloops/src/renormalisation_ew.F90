@@ -1,4 +1,3 @@
-!******************************************************************************!
 ! Copyright (C) 2014-2019 OpenLoops Collaboration. For authors see authors.txt !
 !                                                                              !
 ! This file is part of OpenLoops.                                              !
@@ -25,7 +24,7 @@ module ol_ew_renormalisation_/**/REALKIND
   contains
 
 ! **********************************************************************
-subroutine ew_renormalisation
+subroutine ew_renormalisation(select_ew_renorm)
 ! **********************************************************************
 ! EW renormalisation and R2 constants (in physical GeV units);
 ! conventions for UV/IR div. see subroutine loop_parameters_init.
@@ -43,9 +42,10 @@ subroutine ew_renormalisation
 #ifndef PRECISION_dp
   use ol_loop_parameters_decl_/**/DREALKIND, only: &
     & nc, nf, N_lf, N_lu, N_ld, N_ll, nq_nondecoupl, CT_is_on, R2_is_on, TP_is_on, SwF, SwB, &
-    & qed_on, weak_on, qedreg_on
+    & qedreg_on
 #endif
   implicit none
+  integer, optional :: select_ew_renorm
 
   real(REALKIND) :: deB_UV, deB_IR, deT_UV, deT_IR
   real(REALKIND) :: eps=1.e-17
@@ -257,6 +257,21 @@ subroutine ew_renormalisation
   complex(REALKIND), save      ::   dZeQEDEWPole, dcwEWPole, dswEWPole, dZAAEWPole, dZZAEWPole, dZAZEWPole
   complex(REALKIND), save      ::   dZMZ2EWPole, dZMW2EWPole, dZZZEWPole, dZWEWPole
 
+  logical :: qed_on = .true., weak_on = .true.
+
+  if (present(select_ew_renorm)) then
+    select case(select_ew_renorm)
+      case (2)
+        qed_on = .true.
+        weak_on = .false.
+      case (3)
+        qed_on = .false.
+        weak_on = .true.
+      case default
+        qed_on = .true.
+        weak_on = .true.
+    end select
+  end if
 
   if (LeadingColour == 0) then
     cf = (nc**2-1)/(2.*nc)
@@ -786,8 +801,10 @@ subroutine ew_renormalisation
 
 !This is the fermionic part based on page 105-107 from Denner92
 
-    ! contributions from light fermions incl. bottom
-    if (qed_on) then
+
+    if (weak_on) then
+
+      ! contributions from light fermions incl. bottom
       PiAAlightZ=PiAAlightZ  &
         -     2.*4.*rMZ2*(1._/**/REALKIND/3. - B0Z00)/3. &      ! light-leptons
         -        4.*(rMZ2*(1._/**/REALKIND/3. - B0ZLL) - 2.*ML2*(B0ZLL-B00LL))/3. & ! tau-lepton
@@ -805,29 +822,15 @@ subroutine ew_renormalisation
            -    16.*nc*(1._/**/REALKIND/3.-B0ZTT-(2.*MT2+rMZ2)*dB0ZTT)/27.   ! t-quark
 
       ! contribution from heavy + light fermions (in dimreg)
-      if (qedreg_on) then
-        dSiAA0=dSiAA0+4._/**/REALKIND/3.*( &
-                                     (  2.*B0Z00) & ! light-leptons
-              +                      (     B0ZLL) & ! tau-lepton
-              + nc*1._/**/REALKIND/9*( 2.*B0Z00) & ! down-quarks
-              + nc*4._/**/REALKIND/9*( 2.*B0Z00) & ! up-quarks
-              + nc*1._/**/REALKIND/9*( B0ZBB ) &    ! b_quark
-              + nc*4._/**/REALKIND/9*( B0ZTT ) &    ! t-quark
-               )
-      else
-        dSiAA0=dSiAA0+4._/**/REALKIND/3.*( &
-                                     (  2.*B0000) & ! light-leptons
-              +                      (     B00LL) & ! tau-lepton
-              + nc*1._/**/REALKIND/9*( 2.*B0000) & ! down-quarks
-              + nc*4._/**/REALKIND/9*( 2.*B0000) & ! up-quarks
-              + nc*1._/**/REALKIND/9*( B00BB ) &    ! b_quark
-              + nc*4._/**/REALKIND/9*( B00TT ) &    ! t-quark
-               )
-      end if
-    end if
+      dSiAA0=dSiAA0+4._/**/REALKIND/3.*( &
+                                   (  2.*B0000) & ! light-leptons
+          +                      (     B00LL) & ! tau-lepton
+          + nc*1._/**/REALKIND/9*( 2.*B0000) & ! down-quarks
+          + nc*4._/**/REALKIND/9*( 2.*B0000) & ! up-quarks
+          + nc*1._/**/REALKIND/9*( B00BB ) &    ! b_quark
+          + nc*4._/**/REALKIND/9*( B00TT ) &    ! t-quark
+           )
 
-
-    if (weak_on) then
 !      SiAZ0=SiAZ0+0 !no fermionic contribution
 
       SiAZZ=SiAZZ-2._/**/REALKIND/3.*( &
@@ -1622,56 +1625,62 @@ subroutine ew_renormalisation
   if (R2_is_on /= 0) then
 
 ! twopoint
-        EWctAA=EWctAA+[cONE*(-3. - (10._/**/REALKIND*nc)/9.), &
+        if (weak_on) then
+          EWctAA=EWctAA+[cONE*(-3. - (10._/**/REALKIND*nc)/9.), &
                2.*MW2 + 4*nc*sumMQ2Q2 + 4*sumML2Q2,cONE*(2._/**/REALKIND/3.)]
 
-        EWctAZ=EWctAZ+[1./(2.*cw*sw) + cw/sw + nc/(2.*cw*sw) - (2.*sw)/cw -  &
-                (10.*nc*sw)/(9.*cw),(-2.*cw*MW2)/sw &
-                - (2.*nc*sumMQ2QI)/(cw*sw) - (2.*sumML2QI)/(cw*sw)  &
-                + (4.*nc*sumMQ2Q2*sw)/cw + (4.*sumML2Q2*sw)/cw ,(-2.*cw)/(3.*sw)]
+          EWctAZ=EWctAZ+[1./(2.*cw*sw) + cw/sw + nc/(2.*cw*sw) - (2.*sw)/cw -  &
+                  (10.*nc*sw)/(9.*cw),(-2.*cw*MW2)/sw &
+                  - (2.*nc*sumMQ2QI)/(cw*sw) - (2.*sumML2QI)/(cw*sw)  &
+                  + (4.*nc*sumMQ2Q2*sw)/cw + (4.*sumML2Q2*sw)/cw ,(-2.*cw)/(3.*sw)]
 
-        EWctZZ=EWctZZ+[1./cw2 + nc/cw2 - 1/(2.*cw2*sw2) - cw2/sw2 -  &
-                nc/(2.*cw2*sw2) - (2.*sw2)/cw2 - (10.*nc*sw2)/(9.*cw2), &
-               (-4.*nc*sumMQ2QI)/cw2 + (-4.*sumML2QI)/cw2 + (2.*cw2*MW2)/sw2 &
-               + (nc*sumMQ2)/(2.*cw2*sw2) + sumML2/(2.*cw2*sw2) &
-               + (4.*nc*sumMQ2Q2*sw2)/cw2 + (4.*sumML2Q2*sw2)/cw2 , &
-               (2.*cw2)/(3.*sw2)]
+          EWctZZ=EWctZZ+[1./cw2 + nc/cw2 - 1/(2.*cw2*sw2) - cw2/sw2 -  &
+                  nc/(2.*cw2*sw2) - (2.*sw2)/cw2 - (10.*nc*sw2)/(9.*cw2), &
+                 (-4.*nc*sumMQ2QI)/cw2 + (-4.*sumML2QI)/cw2 + (2.*cw2*MW2)/sw2 &
+                + (nc*sumMQ2)/(2.*cw2*sw2) + sumML2/(2.*cw2*sw2) &
+                 + (4.*nc*sumMQ2Q2*sw2)/cw2 + (4.*sumML2Q2*sw2)/cw2 , &
+                 (2.*cw2)/(3.*sw2)]
 
-        EWctWW=EWctWW+[-(3 + nc)/(2*sw2), &
-                      (2*MW2)/sw2 + (nc*sumMQ2)/(2.*sw2) + sumML2/(2.*sw2),2/(3.*sw2)]
+          EWctWW=EWctWW+[-(3 + nc)/(2*sw2), &
+                        (2*MW2)/sw2 + (nc*sumMQ2)/(2.*sw2) + sumML2/(2.*sw2),2/(3.*sw2)]
 
-        EWctHH=EWctHH+[-1/(12.*sw2) - 1/(24.*cw2*sw2)  &
-               - (nc*sumMQ2)/(6.*MW2*sw2) - sumML2/(6.*MW2*sw2), &
-               (5.*MW2)/(2.*sw2) + (11.*MW2)/(8.*cw4*sw2) - MZ2/(8.*cw2*sw2)  &
-               - (nc*sumMQ4)/(MW2*sw2) - sumML4/(MW2*sw2)]
+          EWctHH=EWctHH+[-1/(12.*sw2) - 1/(24.*cw2*sw2)  &
+                 - (nc*sumMQ2)/(6.*MW2*sw2) - sumML2/(6.*MW2*sw2), &
+                 (5.*MW2)/(2.*sw2) + (11.*MW2)/(8.*cw4*sw2) - MZ2/(8.*cw2*sw2)  &
+                 - (nc*sumMQ4)/(MW2*sw2) - sumML4/(MW2*sw2)]
 
-        EWctXX=EWctXX+[-1./(12.*sw2) - 1./(24.*cw2*sw2)  &
-               - (nc*sumMQ2)/(6.*MW2*sw2) - sumML2/(6.*MW2*sw2), &
-               - MH2/(8.*cw2*sw2) + MW2/(2.*sw2) + (3.*MW2)/(8.*cw4*sw2)  &
-               - (nc*sumMQ4)/(MW2*sw2) - sumML4/(MW2*sw2)]
+          EWctXX=EWctXX+[-1./(12.*sw2) - 1./(24.*cw2*sw2)  &
+                 - (nc*sumMQ2)/(6.*MW2*sw2) - sumML2/(6.*MW2*sw2), &
+                 - MH2/(8.*cw2*sw2) + MW2/(2.*sw2) + (3.*MW2)/(8.*cw4*sw2)  &
+                 - (nc*sumMQ4)/(MW2*sw2) - sumML4/(MW2*sw2)]
 
-        EWctPP=EWctPP+[-1/(12*sw2) - 1/(24*cw2*sw2) &
-               - (sumMQ2*nc)/(6*MW2*sw2) - sumML2/(6*MW2*sw2), &
-               - MH2/(8*sw2) + MW2/(4*sw2) + (3*MW2)/(8*cw4*sw2) + (3*MW2)/(8*cw2*sw2) &
-               - MZ2/(8*sw2) - (nc*sumMUD2)/(2*MW2*sw2) - sumML4/(2*MW2*sw2)]
+          EWctPP=EWctPP+[-1/(12*sw2) - 1/(24*cw2*sw2) &
+                 - (sumMQ2*nc)/(6*MW2*sw2) - sumML2/(6*MW2*sw2), &
+                 - MH2/(8*sw2) + MW2/(4*sw2) + (3*MW2)/(8*cw4*sw2) + (3*MW2)/(8*cw2*sw2) &
+                 - MZ2/(8*sw2) - (nc*sumMUD2)/(2*MW2*sw2) - sumML4/(2*MW2*sw2)]
+        end if
 
-        EWctdd=EWctdd+[1/(9.*cw2),(9. + 18.*cw2 - 8.*sw2)/(36.*cw2*sw2),ZERO,ZERO]*(-1.)
 
-        EWctbb=EWctbb+[1/(9.*cw2),(9 + 18*cw2 - 8*sw2)/(36.*cw2*sw2), &
-               -MB/(9.*cw2),-MB/(9.*cw2)]*(-1)
-
-        EWctuu=EWctuu+[4./(9.*cw2),(9. + 18.*cw2 - 8.*sw2)/(36.*cw2*sw2),ZERO,ZERO]*(-1.)
-
-        EWcttt=EWcttt+[4./(9.*cw2),(9. + 18.*cw2 - 8.*sw2)/(36.*cw2*sw2), &
-               (2.*MT)/(9.*cw2),(2.*MT)/(9.*cw2)]*(-1.)
-
-        EWctee=EWctee+[1./cw2,(1. + 2*cw2)/(4.*cw2*sw2),ZERO,ZERO]*(-1.)
-
-        EWctll=EWctll+[1/cw2,(1. + 2*cw2)/(4.*cw2*sw2),ML/cw2,ML/cw2]*(-1.)
-
-        EWctnn=EWctnn+[ZERO,(1. + 2.*cw2)/(4.*cw2*sw2),ZERO,ZERO]*(-1.)
-
-        EWctnlnl=EWctnlnl+[ZERO,(1. + 2.*cw2)/(4.*cw2*sw2),ZERO,ZERO]*(-1.)
+        if (qed_on) then
+          EWctdd=EWctdd+[Qd2,Qd2,ZERO,ZERO]*(-1.)
+          EWctbb=EWctbb+[Qd2,Qd2,2*Qd2*MB,2*Qd2*MB]*(-1.)
+          EWctuu=EWctuu+[Qu2,Qu2,ZERO,ZERO]*(-1.)
+          EWcttt=EWcttt+[Qu2,Qu2,2*Qu2*MT,2*Qu2*MT]*(-1.)
+          EWctee=EWctee+[Ql2,Ql2,ZERO,ZERO]*(-1.)
+          EWctll=EWctll+[Ql2,Ql2,2*Ql2*ML,2*Ql2*ML]*(-1.)
+        end if
+        if (weak_on) then
+          EWctdd=EWctdd+[-Qd2+Qd2/cw2,-Qd2+(9. + 18.*cw2 - 8.*sw2)/(36.*cw2*sw2),ZERO,ZERO]*(-1.)
+          EWctbb=EWctbb+[-Qd2+Qd2/cw2,-Qd2+(9. + 18.*cw2 - 8.*sw2)/(36.*cw2*sw2),&
+                         -2.*Qd2*MM-MB/(9.*cw2),-2.*Qd2*MB-MB/(9.*cw2)]*(-1.)
+          EWctuu=EWctuu+[-Qu2+Qu2/cw2,-Qu2+(9. + 18.*cw2 - 8.*sw2)/(36.*cw2*sw2),ZERO,ZERO]*(-1.)
+          EWcttt=EWcttt+[-Qu2+Qu2/cw2,-Qu2+(9. + 18.*cw2 - 8.*sw2)/(36.*cw2*sw2),&
+                         -2.*Qu2*MT+(2.*MT)/(9.*cw2),-2.*Qu2*MT+(2.*MT)/(9.*cw2)]*(-1.)
+          EWctee=EWctee+[-Ql2+1./cw2,-Ql2+(1. + 2*cw2)/(4.*cw2*sw2),ZERO,ZERO]*(-1.)
+          EWctll=EWctll+[-Ql2+1/cw2,-Ql2+(1. + 2*cw2)/(4.*cw2*sw2),-2*Ql2*ML+ML/cw2,-2*Ql2*ML+ML/cw2]*(-1.)
+          EWctnn=EWctnn+[ZERO,(1. + 2.*cw2)/(4.*cw2*sw2),ZERO,ZERO]*(-1.)
+          EWctnlnl=EWctnlnl+[ZERO,(1. + 2.*cw2)/(4.*cw2*sw2),ZERO,ZERO]*(-1.)
+        end if
 
 
 ! three-point
@@ -1703,40 +1712,48 @@ subroutine ew_renormalisation
                  (16.*cw2*sw3),(CI*ML*(1 - 16*sw2 + cw2*(2 + 32*sw2) + 32*sw4))/ &
                  (16.*cw2*sw3)]
 
-        EWctPtb=EWctPtb+[(MB*(cw2*(18*MT2 + MW2*(27 - 46*sw2)) +  &
-                    MW2*(39 - 46*sw2)*sw2))/(72.*cw2*MW2*sqrt2*sw3), &
-               (MT*(MW2*sw2*(-87 + 46*sw2) +  &
-                    cw2*(-18*MB2 + MW2*(-27 + 46*sw2))))/(72.*cw2*MW2*sqrt2*sw3)]
+        if (weak_on) then
+          EWctPtb=EWctPtb+[(MB*(cw2*(18*MT2 + MW2*(27 - 46*sw2)) +  &
+                      MW2*(39 - 46*sw2)*sw2))/(72.*cw2*MW2*sqrt2*sw3), &
+                 (MT*(MW2*sw2*(-87 + 46*sw2) +  &
+                      cw2*(-18*MB2 + MW2*(-27 + 46*sw2))))/(72.*cw2*MW2*sqrt2*sw3)]
 
-        EWctPbt=EWctPbt+[(23*MT)/(36.*sqrt2*sw) -  &
-                (29*MT)/(24.*cw2*sqrt2*sw) + (23*MT*sw)/(36.*cw2*sqrt2) -  &
-                (3*MT)/(8.*sqrt2*sw3) - (MB2*MT)/(4.*MW2*sqrt2*sw3), &
-               (-23*MB)/(36.*sqrt2*sw) + (13*MB)/(24.*cw2*sqrt2*sw) -  &
-                (23*MB*sw)/(36.*cw2*sqrt2) + (3*MB)/(8.*sqrt2*sw3) +  &
-                (MB*MT2)/(4.*MW2*sqrt2*sw3)]
+          EWctPbt=EWctPbt+[(23*MT)/(36.*sqrt2*sw) -  &
+                  (29*MT)/(24.*cw2*sqrt2*sw) + (23*MT*sw)/(36.*cw2*sqrt2) -  &
+                  (3*MT)/(8.*sqrt2*sw3) - (MB2*MT)/(4.*MW2*sqrt2*sw3), &
+                 (-23*MB)/(36.*sqrt2*sw) + (13*MB)/(24.*cw2*sqrt2*sw) -  &
+                  (23*MB*sw)/(36.*cw2*sqrt2) + (3*MB)/(8.*sqrt2*sw3) +  &
+                  (MB*MT2)/(4.*MW2*sqrt2*sw3)]
 
-        EWctPnl=EWctPnl+[(ML*(cw2*(3 + 2*sw2) + sw2*(15 + 2*sw2)))/ &
-                 (8.*cw2*sqrt2*sw3),ZERO]
+          EWctPnl=EWctPnl+[(ML*(cw2*(3 + 2*sw2) + sw2*(15 + 2*sw2)))/ &
+                   (8.*cw2*sqrt2*sw3),ZERO]
 
-        EWctPln=EWctPln+[ZERO,ML/(4.*sqrt2*sw) + (15*ML)/(8.*cw2*sqrt2*sw) +  &
-                 (ML*sw)/(4.*cw2*sqrt2) + (3*ML)/(8.*sqrt2*sw3)]
+          EWctPln=EWctPln+[ZERO,ML/(4.*sqrt2*sw) + (15*ML)/(8.*cw2*sqrt2*sw) +  &
+                   (ML*sw)/(4.*cw2*sqrt2) + (3*ML)/(8.*sqrt2*sw3)]
+        end if
 
-        EWctAuu=EWctAuu+[16/(27.*cw2),-8/(27.*cw2) + 2/(3.*sw2) + 1/(3.*cw2*sw2)]
-
-        EWctAdd=EWctAdd+[-2/(27.*cw2),4/(27.*cw2) - 1/(3.*sw2) - 1/(6.*cw2*sw2)]
-
-        EWctAtt=EWctAtt+[16/(27.*cw2) + MT2/(12.*MW2*sw2), &
-               -8/(27.*cw2) + 2/(3.*sw2) + 1/(3.*cw2*sw2) - MB2/(12.*MW2*sw2) +  &
+        if (qed_on) then
+          EWctAuu=EWctAuu+[2.*Qu3,2.*Qu3]
+          EWctAdd=EWctAdd+[2.*Qd3,2.*Qd3]
+          EWctAtt=EWctAtt+[2.*Qu3,2.*Qu3]
+          EWctAbb=EWctAbb+[2.*Qd3,2.*Qd3]
+          EWctAee=EWctAee+[2.*Ql3,2.*Ql3]
+          EWctAll=EWctAll+[2.*Ql3,2.*Ql3]
+        end if
+        if (weak_on) then
+          EWctAuu=EWctAuu+[-2*Qu3+16/(27.*cw2),-2*Qu3-8/(27.*cw2) + 2/(3.*sw2) + 1/(3.*cw2*sw2)]
+          EWctAdd=EWctAdd+[-2*Qd3-2./(27.*cw2),-2*Qd3+4/(27.*cw2) - 1/(3.*sw2) - 1/(6.*cw2*sw2)]
+          EWctAtt=EWctAtt+[-2*Qu3+16/(27.*cw2) + MT2/(12.*MW2*sw2), &
+               -2*Qu3-8/(27.*cw2) + 2/(3.*sw2) + 1/(3.*cw2*sw2) - MB2/(12.*MW2*sw2) +  &
                 MT2/(6.*MW2*sw2)]
+          EWctAbb=EWctAbb+[-2*Qd3-2/(27.*cw2) + MB2/(12.*MW2*sw2), &
+                  -2*Qd3+4/(27.*cw2) - 1/(3.*sw2) - 1/(6.*cw2*sw2) - MB2/(12.*MW2*sw2) +  &
+                  MT2/(6.*MW2*sw2)]
+          EWctAee=EWctAee+[-2.*Ql3 - 2/cw2,-2.*Ql3 - 1/sw2 - 1/(2.*cw2*sw2)]
+          EWctAll=EWctAll+[-2.*Ql3 - 2/cw2 - ML2/(4.*MW2*sw2), &
+                -2.*Ql3 - 1/sw2 - 1/(2.*cw2*sw2) - ML2/(4.*MW2*sw2)]
+        end if
 
-        EWctAbb=EWctAbb+[-2/(27.*cw2) + MB2/(12.*MW2*sw2), &
-               4/(27.*cw2) - 1/(3.*sw2) - 1/(6.*cw2*sw2) - MB2/(12.*MW2*sw2) +  &
-                MT2/(6.*MW2*sw2)]
-
-        EWctAee=EWctAee+[-2/cw2,-(1/sw2) - 1/(2.*cw2*sw2)]
-
-        EWctAll=EWctAll+[-2/cw2 - ML2/(4.*MW2*sw2), &
-                -(1/sw2) - 1/(2.*cw2*sw2) - ML2/(4.*MW2*sw2)]
 
         EWctVuu=EWctVuu+[(16*sw)/(27.*cw3), &
                -7/(9.*cw*sw) + 1/(cw3*sw) + (16*sw)/(27.*cw) - (4*sw)/(3.*cw3) +  &
@@ -1758,222 +1775,244 @@ subroutine ew_renormalisation
                 sw/(3.*cw3) - 1/(2.*cw*sw3) + cw/sw3 + 1/(4.*cw3*sw3) -  &
                 (2*sw3)/(27.*cw3)]
 
-        EWctVee=EWctVee+[(-2*sw)/cw3, &
-               1/(cw*sw) - 3/(2.*cw3*sw) - (2*sw)/cw + (3*sw)/cw3 -  &
-                1/(2.*cw*sw3) + cw/sw3 + 1/(4.*cw3*sw3) - (2*sw3)/cw3]
 
-        EWctVll=EWctVll+[- (2*sw3)/cw3 + (-ML2/(4.*MW2*sw) - 2*sw)/cw, &
-               1/(cw*sw) - 3/(2.*cw3*sw) - ML2/(4*cw*MW2*sw) - (2*sw)/cw &
-               + (3*sw)/cw3 - 1/(2.*cw*sw3) + cw/sw3 + 1/(4.*cw3*sw3) - (2*sw3)/cw3]
+        if (qed_on) then
+          EWctVee=EWctVee+[(-2*sw)/cw,1./(cw*sw) - (2*sw)/cw]
+          EWctVll=EWctVll+[(-2*sw)/cw,1./(cw*sw) - (2*sw)/cw]
+        end if
+        if (weak_on) then
+          EWctVee=EWctVee+[(2*sw)/cw - (2*sw)/cw3, &
+                      -3/(2.*cw3*sw) + (3*sw)/cw3 - 1/(2.*cw*sw3) + cw/sw3 &
+                      + 1/(4.*cw3*sw3) - (2*sw3)/cw3]
+          EWctVll=EWctVll+[- (2*sw3)/cw3 -ML2/(4.*MW2*sw)/cw, &
+                 - 3/(2.*cw3*sw) - ML2/(4*cw*MW2*sw) &
+                 + (3*sw)/cw3 - 1/(2.*cw*sw3) + cw/sw3 + 1/(4.*cw3*sw3) - (2*sw3)/cw3]
+        end if
 
-        EWctVnn=EWctVnn+[ZERO,-(1/(cw*sw)) + 1/(2.*cw*sw3) - cw/sw3 - 1/(4.*cw3*sw3)]
 
-        EWctVnlnl=EWctVnlnl+[ZERO, &
-            -(1/(cw*sw)) - ML2/(4.*cw*MW2*sw) + 1/(2.*cw*sw3) - cw/sw3 -1/(4.*cw3*sw3)]
+        if (weak_on) then
+          EWctVnn=EWctVnn+[ZERO,-(1/(cw*sw)) + 1/(2.*cw*sw3) - cw/sw3 - 1/(4.*cw3*sw3)]
+        end if
 
-        EWctVdu=EWctVdu-5/(9.*cw2) - 2/sw2 + 1/(2.*cw2*sw2)
+        if (weak_on) then
+          EWctVnlnl=EWctVnlnl+[ZERO, &
+              -(1/(cw*sw)) - ML2/(4.*cw*MW2*sw) + 1/(2.*cw*sw3) - cw/sw3 -1/(4.*cw3*sw3)]
+        end if
 
-        EWctVbt=EWctVbt-5/(9.*cw2) - 2/sw2 + 1/(2.*cw2*sw2)
+        if (weak_on) then
+          EWctVdu=EWctVdu-5/(9.*cw2) - 2/sw2 + 1/(2.*cw2*sw2)
 
-        EWctVen=EWctVen-(1/cw2) - 2/sw2 + 1/(2.*cw2*sw2)
+          EWctVbt=EWctVbt-5/(9.*cw2) - 2/sw2 + 1/(2.*cw2*sw2)
 
-        EWctVud=EWctVud-5/(9.*cw2) - 2/sw2 + 1/(2.*cw2*sw2)
+          EWctVen=EWctVen-(1/cw2) - 2/sw2 + 1/(2.*cw2*sw2)
 
-        EWctVtb=EWctVtb-5/(9.*cw2) - 2/sw2 + 1/(2.*cw2*sw2)
+          EWctVud=EWctVud-5/(9.*cw2) - 2/sw2 + 1/(2.*cw2*sw2)
 
-        EWctVne=EWctVne-(1/cw2) - 2/sw2 + 1/(2.*cw2*sw2)
+          EWctVtb=EWctVtb-5/(9.*cw2) - 2/sw2 + 1/(2.*cw2*sw2)
 
-        EWctVnl=EWctVnl-(1/cw2) - 2/sw2 + 1/(2.*cw2*sw2)
+          EWctVne=EWctVne-(1/cw2) - 2/sw2 + 1/(2.*cw2*sw2)
 
-        EWctHHH=EWctHHH-1/(4.*sw2) - 1/(8.*cw2*sw2) + (3*MW2)/(2.*MH2*sw2) +  &
-               (3*MW2)/(4.*cw4*MH2*sw2) - (nc*sumMQ4)/(MH2*MW2*sw2) - sumML4/(MH2*MW2*sw2)
+          EWctVnl=EWctVnl-(1/cw2) - 2/sw2 + 1/(2.*cw2*sw2)
 
-        EWctHXX=EWctHXX-1/(4.*sw2) - 1/(8.*cw2*sw2) + (3*MW2)/(2.*MH2*sw2) +  &
-               (3*MW2)/(4.*cw4*MH2*sw2) - (nc*sumMQ4)/(MH2*MW2*sw2) - sumML4/(MH2*MW2*sw2)
+          EWctHHH=EWctHHH-1/(4.*sw2) - 1/(8.*cw2*sw2) + (3*MW2)/(2.*MH2*sw2) +  &
+                 (3*MW2)/(4.*cw4*MH2*sw2) - (nc*sumMQ4)/(MH2*MW2*sw2) - sumML4/(MH2*MW2*sw2)
 
-        EWctHPP=EWctHPP-0.125 + (7*MW2)/(2.*MH2) - (2*MW2)/(cw2*MH2) -  &
-               3/(8.*sw2) + (9*MW2)/(4.*MH2*sw2) - (nc*sumMQ4)/(MH2*MW2*sw2) - sumML4/(MH2*MW2*sw2) &
-              - sw2/(8.*cw2) + (7*MW2*sw2)/(2.*cw2*MH2) + (3*MW2*sw2)/(4.*cw4*MH2)
+          EWctHXX=EWctHXX-1/(4.*sw2) - 1/(8.*cw2*sw2) + (3*MW2)/(2.*MH2*sw2) +  &
+                 (3*MW2)/(4.*cw4*MH2*sw2) - (nc*sumMQ4)/(MH2*MW2*sw2) - sumML4/(MH2*MW2*sw2)
 
-        EWctAXH=EWctAXH+(-5*CI)/(12.*sw2)
+          EWctHPP=EWctHPP-0.125 + (7*MW2)/(2.*MH2) - (2*MW2)/(cw2*MH2) -  &
+                 3/(8.*sw2) + (9*MW2)/(4.*MH2*sw2) - (nc*sumMQ4)/(MH2*MW2*sw2) - sumML4/(MH2*MW2*sw2) &
+                - sw2/(8.*cw2) + (7*MW2*sw2)/(2.*cw2*MH2) + (3*MW2*sw2)/(4.*cw4*MH2)
 
-        EWctZXH=EWctZXH+(CI*(MW2 + 22*cw4*MW2 &
-              + 2*cw2*(4*nc*sumMQ2 + 4*sumML2 + MW2*sw2)))/(48.*cw3*MW2*sw3)
+          EWctAXH=EWctAXH+(-5*CI)/(12.*sw2)
 
-        EWctAPP=EWctAPP+1/(24.*cw2) + 13/(24.*sw2) + (nc*sumMQ2)/(3.*MW2*sw2) + sumML2/(3.*MW2*sw2)
+          EWctZXH=EWctZXH+(CI*(MW2 + 22*cw4*MW2 &
+                + 2*cw2*(4*nc*sumMQ2 + 4*sumML2 + MW2*sw2)))/(48.*cw3*MW2*sw3)
 
-        EWctZPP=EWctZPP+(nc*sumMQ2)/(3.*cw*MW2*sw) + sumML2/(3.*cw*MW2*sw) &
-              + sw/(48.*cw) + 1/(24.*cw*sw3) - (25*cw)/(48.*sw3) + sw3/(48.*cw3)  &
-              - (nc*sumMQ2)/(6.*cw*MW2*sw3) - sumML2/(6.*cw*MW2*sw3)
+          EWctAPP=EWctAPP+1/(24.*cw2) + 13/(24.*sw2) + (nc*sumMQ2)/(3.*MW2*sw2) + sumML2/(3.*MW2*sw2)
 
-        EWctWPH=EWctWPH+1/(48.*cw2*sw) + 23/(48.*sw3) + (nc*sumMQ2)/(6.*MW2*sw3) + sumML2/(6.*MW2*sw3)
+          EWctZPP=EWctZPP+(nc*sumMQ2)/(3.*cw*MW2*sw) + sumML2/(3.*cw*MW2*sw) &
+                + sw/(48.*cw) + 1/(24.*cw*sw3) - (25*cw)/(48.*sw3) + sw3/(48.*cw3)  &
+                - (nc*sumMQ2)/(6.*cw*MW2*sw3) - sumML2/(6.*cw*MW2*sw3)
 
-        EWctWPX=EWctWPX+CI/(48.*cw2*sw) + (23*CI)/(48.*sw3)  &
-              + (CI*nc*sumMQ2)/(6.*MW2*sw3) + (CI*sumML2)/(6.*MW2*sw3)
+          EWctWPH=EWctWPH+1/(48.*cw2*sw) + 23/(48.*sw3) + (nc*sumMQ2)/(6.*MW2*sw3) + sumML2/(6.*MW2*sw3)
 
-        EWctHAA=EWctHAA-(MW/sw) - (2*nc*sumMQ2Q2)/(MW*sw) - (2*sumML2Q2)/(MW*sw)
+          EWctWPX=EWctWPX+CI/(48.*cw2*sw) + (23*CI)/(48.*sw3)  &
+                + (CI*nc*sumMQ2)/(6.*MW2*sw3) + (CI*sumML2)/(6.*MW2*sw3)
 
-        EWctHZA=EWctHZA+MW/(2.*cw) - (2*nc*sumMQ2Q2)/(cw*MW) - (2*sumML2Q2)/(cw*MW) &
-               + (3*cw*MW)/(2.*sw2) + (nc*sumMQ2QI)/(cw*MW*sw2) + sumML2QI/(cw*MW*sw2)
+          EWctHAA=EWctHAA-(MW/sw) - (2*nc*sumMQ2Q2)/(MW*sw) - (2*sumML2Q2)/(MW*sw)
 
-        EWctHZZ=EWctHZZ+MW/sw + (2*nc*sumMQ2QI)/(cw2*MW*sw) + (2*sumML2QI)/(cw2*MW*sw)  &
-               - (2*nc*sumMQ2Q2*sw)/(cw2*MW) - (2*sumML2Q2*sw)/(cw2*MW) - (2*MW)/sw3   &
-               - (nc*sumMQ2)/(2.*cw2*MW*sw3) - sumML2/(2.*cw2*MW*sw3)
+          EWctHZA=EWctHZA+MW/(2.*cw) - (2*nc*sumMQ2Q2)/(cw*MW) - (2*sumML2Q2)/(cw*MW) &
+                 + (3*cw*MW)/(2.*sw2) + (nc*sumMQ2QI)/(cw*MW*sw2) + sumML2QI/(cw*MW*sw2)
 
-        EWctHWW=EWctHWW+(-2*MW)/sw3 - (nc*sumMQ2)/(2.*MW*sw3) - sumML2/(2.*MW*sw3)
+          EWctHZZ=EWctHZZ+MW/sw + (2*nc*sumMQ2QI)/(cw2*MW*sw) + (2*sumML2QI)/(cw2*MW*sw)  &
+                 - (2*nc*sumMQ2Q2*sw)/(cw2*MW) - (2*sumML2Q2*sw)/(cw2*MW) - (2*MW)/sw3   &
+                 - (nc*sumMQ2)/(2.*cw2*MW*sw3) - sumML2/(2.*cw2*MW*sw3)
 
-        EWctPWA=EWctPWA+MW/(2.*sw2) + (nc*sumMQ2QUD)/(2.*MW*sw2) + sumML2/(2.*MW*sw2)
+          EWctHWW=EWctHWW+(-2*MW)/sw3 - (nc*sumMQ2)/(2.*MW*sw3) - sumML2/(2.*MW*sw3)
 
-        EWctPWZ=EWctPWZ+MW/(2.*cw*sw) + (nc*sumMQ2QUD)/(2.*cw*MW*sw) + sumML2/(2.*cw*MW*sw)
+          EWctPWA=EWctPWA+MW/(2.*sw2) + (nc*sumMQ2QUD)/(2.*MW*sw2) + sumML2/(2.*MW*sw2)
 
-        EWctAWW=EWctAWW - (17+6*nc)/(6.*sw2)
+          EWctPWZ=EWctPWZ+MW/(2.*cw*sw) + (nc*sumMQ2QUD)/(2.*cw*MW*sw) + sumML2/(2.*cw*MW*sw)
 
-        EWctZWW=EWctZWW + cw*(17+6*nc)/(6.*sw3)
+          EWctAWW=EWctAWW - (17+6*nc)/(6.*sw2)
+
+          EWctZWW=EWctZWW + cw*(17+6*nc)/(6.*sw3)
+        end if
 
 ! EWctGff see V2
-        EWctGuu=EWctGuu + [8/(9.*cw2),-4/(9.*cw2) + 1/sw2 + 1/(2.*cw2*sw2)]*(-1.)
+        if (qed_on) then
+          EWctGuu=EWctGuu + [2*Qu2,2*Qu2]*(-1.)
+          EWctGdd=EWctGdd + [2*Qd2,2*Qd2]*(-1.)
+          EWctGtt=EWctGtt + [2*Qu2,2*Qu2]*(-1.)
+          EWctGbb=EWctGbb + [2*Qd2,2*Qd2]*(-1.)
+        end if
 
-        EWctGdd=EWctGdd + [2/(9.*cw2),-4/(9.*cw2) + 1/sw2 + 1/(2.*cw2*sw2)]*(-1.)
-
-        EWctGtt=EWctGtt + [8/(9.*cw2) + MT2/(2.*MW2*sw2), &
-                  -4/(9.*cw2) + 1/sw2 + 1/(2.*cw2*sw2) + MB2/(4.*MW2*sw2) +  &
+        if (weak_on) then
+          EWctGuu=EWctGuu + [-2*Qu2+8/(9.*cw2),2*Qu2-4/(9.*cw2) + 1/sw2 + 1/(2.*cw2*sw2)]*(-1.)
+          EWctGdd=EWctGdd + [-2*Qd2+2/(9.*cw2),-2*Qd2-4/(9.*cw2) + 1/sw2 + 1/(2.*cw2*sw2)]*(-1.)
+          EWctGtt=EWctGtt + [-2*Qu2+8/(9.*cw2) + MT2/(2.*MW2*sw2), &
+                  -2*Qu2-4/(9.*cw2) + 1/sw2 + 1/(2.*cw2*sw2) + MB2/(4.*MW2*sw2) +  &
                   MT2/(4.*MW2*sw2)]*(-1.)
-
-        EWctGbb=EWctGbb + [2/(9.*cw2) + MB2/(2.*MW2*sw2), &
-                  -4/(9.*cw2) + 1/sw2 + 1/(2.*cw2*sw2) + MB2/(4.*MW2*sw2) +  &
-                  MT2/(4.*MW2*sw2)]*(-1.)
+          EWctGbb=EWctGbb + [-2*Qd2+2/(9.*cw2) + MB2/(2.*MW2*sw2), &
+                    -2*Qd2-4/(9.*cw2) + 1/sw2 + 1/(2.*cw2*sw2) + MB2/(4.*MW2*sw2) +  &
+                    MT2/(4.*MW2*sw2)]*(-1.)
+        end if
 
 ! four-point
+        if (qed_on) then
+          EWctR2AAAA=4._/**/REALKIND/3*(2._/**/REALKIND + (17*nc)/27._/**/REALKIND)
 
-        EWctHHHH=EWctHHHH-3/(2.*sw2) - 3/(4.*cw2*sw2) + (11*MW2)/(2.*MH2*sw2) +  &
-               (11*MW2)/(4.*cw4*MH2*sw2) - (5*nc*sumMQ4)/(MH2*MW2*sw2) - (5*sumML4)/(MH2*MW2*sw2)
+          EWctR2AAAZ=-1/(cw*sw) + (4*cw)/(3.*sw) - nc/(3.*cw*sw) + &
+                 (4*sw)/cw + (68*nc*sw)/(81.*cw)
 
-        EWctXXXX=EWctXXXX-3/(2.*sw2) - 3/(4.*cw2*sw2) + (11*MW2)/(2.*MH2*sw2) +  &
-               (11*MW2)/(4.*cw4*MH2*sw2) - (5*nc*sumMQ4)/(MH2*MW2*sw2) - (5*sumML4)/(MH2*MW2*sw2)
+          EWctR2AAZZ=4._/**/REALKIND/3 - 2._/**/REALKIND/cw2 - (2*nc)/(3.*cw2) - &
+                 4._/**/REALKIND/(3.*sw2) + 1._/**/REALKIND/(2.*cw2*sw2) &
+                  + (5*nc)/(18.*cw2*sw2) + (4*sw2)/cw2 + (68*nc*sw2)/(81.*cw2)
 
-        EWctHHXX=EWctHHXX-3/(2.*sw2) - 3/(4.*cw2*sw2) + (11*MW2)/(2.*MH2*sw2) +  &
-               (11*MW2)/(4.*cw4*MH2*sw2) - (5*nc*sumMQ4)/(MH2*MW2*sw2) - (5*sumML4)/(MH2*MW2*sw2)
+          EWctR2AZZZ=(-4*cw)/(3.*sw) + 3._/**/REALKIND/(2.*cw3*sw) + (5*nc)/(6.*cw3*sw) - &
+                 (3*sw)/cw3 - (nc*sw)/cw3 + (4*cw)/(3.*sw3) - 1._/**/REALKIND/(4.*cw3*sw3) - &
+                 nc/(4.*cw3*sw3) + (4*sw3)/cw3 + (68*nc*sw3)/(81.*cw3)
 
-        EWctHHPP=EWctHHPP-3/(2.*sw2) - 3/(4.*cw2*sw2) + (11*MW2)/(2.*MH2*sw2) +  &
-               (11*MW2)/(4.*cw4*MH2*sw2) - (5*nc*sumMQ4)/(MH2*MW2*sw2) - (5*sumML4)/(MH2*MW2*sw2)
+          EWctR2ZZZZ=-4._/**/REALKIND/3. + 3/cw4 + (5*nc)/(3.*cw4) + 8/(3.*sw2) - &
+                     1/(cw4*sw2) - nc/(cw4*sw2) - (4*sw2)/cw4 - &
+                     (4*nc*sw2)/(3.*cw4) - 4/(3.*sw4) + 1/(4.*cw4*sw4) + &
+                     nc/(4.*cw4*sw4) + (4*sw4)/cw4 + (68*nc*sw4)/(81.*cw4)
+        end if
 
-        EWctXXPP=EWctXXPP-0.125 + (41*MW2)/(12.*MH2) - (2*MW2)/(cw2*MH2) -  &
-               5/(8.*sw2) - 1/(8.*cw2*sw2) + (7*MW2)/(3.*MH2*sw2) + (5*MW2)/(12.*cw2*MH2*sw2) &
-              - (5*nc*sumMQ4)/(3.*MH2*MW2*sw2) - (5*sumML4)/(3.*MH2*MW2*sw2) &
-              - sw2/(8.*cw2) + (41*MW2*sw2)/(12.*cw2*MH2) +  &
-               (11*MW2*sw2)/(12.*cw4*MH2)
+        if (weak_on) then
+          EWctHHHH=EWctHHHH-3/(2.*sw2) - 3/(4.*cw2*sw2) + (11*MW2)/(2.*MH2*sw2) +  &
+                 (11*MW2)/(4.*cw4*MH2*sw2) - (5*nc*sumMQ4)/(MH2*MW2*sw2) - (5*sumML4)/(MH2*MW2*sw2)
 
-        EWctPPPP=EWctPPPP-0.5 + (11*MW2)/(3.*MH2) - 3/(2.*sw2) +  &
-               (11*MW2)/(2.*MH2*sw2) - (10*nc*sumMQ4)/(3.*MH2*MW2*sw2) - (10*sumML4)/(3.*MH2*MW2*sw2) &
-              -  sw2/(2.*cw2) + (11*MW2*sw2)/(2.*MH2) +  (22*MW2*sw4)/(3.*cw2*MH2) + (11*MW2*sw6)/(6.*cw4*MH2)
+          EWctXXXX=EWctXXXX-3/(2.*sw2) - 3/(4.*cw2*sw2) + (11*MW2)/(2.*MH2*sw2) +  &
+                 (11*MW2)/(4.*cw4*MH2*sw2) - (5*nc*sumMQ4)/(MH2*MW2*sw2) - (5*sumML4)/(MH2*MW2*sw2)
 
-        EWctAAHH=EWctAAHH+1/(12.*sw2) - (nc*sumMQ2Q2)/(MW2*sw2) - sumML2Q2/(MW2*sw2)
+          EWctHHXX=EWctHHXX-3/(2.*sw2) - 3/(4.*cw2*sw2) + (11*MW2)/(2.*MH2*sw2) +  &
+                 (11*MW2)/(4.*cw4*MH2*sw2) - (5*nc*sumMQ4)/(MH2*MW2*sw2) - (5*sumML4)/(MH2*MW2*sw2)
 
-        EWctAAXX=EWctAAXX+1/(12.*sw2) - (nc*sumMQ2Q2)/(MW2*sw2) - sumML2Q2/(MW2*sw2)
+          EWctHHPP=EWctHHPP-3/(2.*sw2) - 3/(4.*cw2*sw2) + (11*MW2)/(2.*MH2*sw2) +  &
+                 (11*MW2)/(4.*cw4*MH2*sw2) - (5*nc*sumMQ4)/(MH2*MW2*sw2) - (5*sumML4)/(MH2*MW2*sw2)
 
-        EWctZAHH=EWctZAHH+2./(3.*cw*sw) - (nc*sumMQ2Q2)/(cw*MW2*sw) - sumML2Q2/(cw*MW2*sw)&
-              - 1/(2.*sw2) +  cw/(12.*sw3) + (nc*sumMQ2QI)/(2.*cw*MW2*sw3) + sumML2QI/(2.*cw*MW2*sw3)
+          EWctXXPP=EWctXXPP-0.125 + (41*MW2)/(12.*MH2) - (2*MW2)/(cw2*MH2) -  &
+                 5/(8.*sw2) - 1/(8.*cw2*sw2) + (7*MW2)/(3.*MH2*sw2) + (5*MW2)/(12.*cw2*MH2*sw2) &
+                - (5*nc*sumMQ4)/(3.*MH2*MW2*sw2) - (5*sumML4)/(3.*MH2*MW2*sw2) &
+                - sw2/(8.*cw2) + (41*MW2*sw2)/(12.*cw2*MH2) +  &
+                 (11*MW2*sw2)/(12.*cw4*MH2)
 
-        EWctZAXX=2/(3.*cw*sw) - (nc*sumMQ2Q2)/(cw*MW2*sw) - sumML2Q2/(cw*MW2*sw)  &
-              - 1/(2.*sw2) + cw/(12.*sw3) + (nc*sumMQ2QI)/(2.*cw*MW2*sw3) + sumML2QI/(2.*cw*MW2*sw3)
+          EWctPPPP=EWctPPPP-0.5 + (11*MW2)/(3.*MH2) - 3/(2.*sw2) +  &
+                 (11*MW2)/(2.*MH2*sw2) - (10*nc*sumMQ4)/(3.*MH2*MW2*sw2) - (10*sumML4)/(3.*MH2*MW2*sw2) &
+                -  sw2/(2.*cw2) + (11*MW2*sw2)/(2.*MH2) +  (22*MW2*sw4)/(3.*cw2*MH2) + (11*MW2*sw6)/(6.*cw4*MH2)
 
-        EWctZZHH=EWctZZHH-1/(24.*cw2) - (nc*sumMQ2Q2)/(cw2*MW2) - sumML2Q2/(cw2*MW2) &
-               - 1/(8.*sw2) - 19/(24.*sw4) - 1/(48.*cw4*sw4)  &
-               + (nc*sumMQ2QI)/(cw2*MW2*sw2) + sumML2QI/(cw2*MW2*sw2) &
-               - (nc*sumMQ2)/(3.*cw2*MW2*sw4) - sumML2/(3.*cw2*MW2*sw4)
+          EWctAAHH=EWctAAHH+1/(12.*sw2) - (nc*sumMQ2Q2)/(MW2*sw2) - sumML2Q2/(MW2*sw2)
 
-        EWctZZXX=EWctZZXX-1/(24.*cw2) - 1/(8.*sw2) &
-               - (nc*sumMQ2Q2)/(cw2*MW2) - sumML2Q2/(cw2*MW2)  &
-               + (nc*sumMQ2QI)/(cw2*MW2*sw2) + sumML2QI/(cw2*MW2*sw2) &
-               - 19/(24.*sw4) - 1/(48.*cw4*sw4) &
-               -  (nc*sumMQ2)/(3.*cw2*MW2*sw4) - sumML2/(3.*cw2*MW2*sw4)
+          EWctAAXX=EWctAAXX+1/(12.*sw2) - (nc*sumMQ2Q2)/(MW2*sw2) - sumML2Q2/(MW2*sw2)
 
-        EWctWWHH=EWctWWHH-19/(24.*sw4) - 1/(48.*cw2*sw4) &
-               - (nc*sumMQ2)/(3.*MW2*sw4) - sumML2/(3.*MW2*sw4)
+          EWctZAHH=EWctZAHH+2./(3.*cw*sw) - (nc*sumMQ2Q2)/(cw*MW2*sw) - sumML2Q2/(cw*MW2*sw)&
+                - 1/(2.*sw2) +  cw/(12.*sw3) + (nc*sumMQ2QI)/(2.*cw*MW2*sw3) + sumML2QI/(2.*cw*MW2*sw3)
 
-        EWctWWXX=EWctWWXX-19/(24.*sw4) - 1/(48.*cw2*sw4) &
-               - (nc*sumMQ2)/(3.*MW2*sw4) - sumML2/(3.*MW2*sw4)
+          EWctZAXX=2/(3.*cw*sw) - (nc*sumMQ2Q2)/(cw*MW2*sw) - sumML2Q2/(cw*MW2*sw)  &
+                - 1/(2.*sw2) + cw/(12.*sw3) + (nc*sumMQ2QI)/(2.*cw*MW2*sw3) + sumML2QI/(2.*cw*MW2*sw3)
 
-        EWctWAPH=EWctWAPH+1/(2.*sw) + 1/(48.*cw2*sw) - cw/(2.*sw2)  &
-               + 11/(48.*sw3) + (nc*sumMD2)/(4.*MW2*sw3) + sumML2/(12.*MW2*sw3) &
-               + (nc*sumMU2)/(6.*MW2*sw3)
+          EWctZZHH=EWctZZHH-1/(24.*cw2) - (nc*sumMQ2Q2)/(cw2*MW2) - sumML2Q2/(cw2*MW2) &
+                 - 1/(8.*sw2) - 19/(24.*sw4) - 1/(48.*cw4*sw4)  &
+                 + (nc*sumMQ2QI)/(cw2*MW2*sw2) + sumML2QI/(cw2*MW2*sw2) &
+                 - (nc*sumMQ2)/(3.*cw2*MW2*sw4) - sumML2/(3.*cw2*MW2*sw4)
 
-        EWctWAPX=EWctWAPX-CI/(2.*sw) - CI/(48.*cw2*sw) + (CI*cw)/(2.*sw2)  &
-               - (11*CI)/(48.*sw3) - (CI*nc*sumMD2)/(4.*MW2*sw3) - (CI*sumML2)/(12.*MW2*sw3)  &
-               - (CI*nc*sumMU2)/(6.*MW2*sw3)
+          EWctZZXX=EWctZZXX-1/(24.*cw2) - 1/(8.*sw2) &
+                 - (nc*sumMQ2Q2)/(cw2*MW2) - sumML2Q2/(cw2*MW2)  &
+                 + (nc*sumMQ2QI)/(cw2*MW2*sw2) + sumML2QI/(cw2*MW2*sw2) &
+                 - 19/(24.*sw4) - 1/(48.*cw4*sw4) &
+                 -  (nc*sumMQ2)/(3.*cw2*MW2*sw4) - sumML2/(3.*cw2*MW2*sw4)
 
-        EWctWZPH=EWctWZPH+1/(24.*cw3) + 1/(2.*sw) + 5/(48.*cw*sw2) + cw/(2.*sw2) - 1/(48.*cw3*sw2) &
-               + (nc*sumMD2)/(4.*cw*MW2*sw2) + sumML2/(12.*cw*MW2*sw2)   &
-               + (nc*sumMU2)/(6.*cw*MW2*sw2) + 7/(48.*cw*sw4) - (7*cw)/(48.*sw4)
+          EWctWWHH=EWctWWHH-19/(24.*sw4) - 1/(48.*cw2*sw4) &
+                 - (nc*sumMQ2)/(3.*MW2*sw4) - sumML2/(3.*MW2*sw4)
 
-        EWctWZPX=EWctWZPX-CI/(24.*cw3) - CI/(2.*sw) - (5*CI)/(48.*cw*sw2)  &
-              - (CI*cw)/(2.*sw2) + CI/(48.*cw3*sw2)  &
-              - (CI*nc*sumMD2)/(4.*cw*MW2*sw2) - (CI*nc*sumML2)/(12.*cw*MW2*sw2) &
-              - (CI*nc*sumMU2)/(6.*cw*MW2*sw2)  &
-              - (7*CI)/(48.*cw*sw4) + (7*CI*cw)/(48.*sw4)
+          EWctWWXX=EWctWWXX-19/(24.*sw4) - 1/(48.*cw2*sw4) &
+                 - (nc*sumMQ2)/(3.*MW2*sw4) - sumML2/(3.*MW2*sw4)
 
-        EWctAAPP=EWctAAPP-1._/**/REALKIND/12. - 11/(6.*sw2) - sw2/(12.*cw2) &
-              - (10*nc*sumMQ2)/(9.*MW2*sw2) - (4.*nc*sumML2)/(3.*MW2*sw2)
+          EWctWAPH=EWctWAPH+1/(2.*sw) + 1/(48.*cw2*sw) - cw/(2.*sw2)  &
+                 + 11/(48.*sw3) + (nc*sumMD2)/(4.*MW2*sw3) + sumML2/(12.*MW2*sw3) &
+                 + (nc*sumMU2)/(6.*MW2*sw3)
 
-        EWctZAPP=EWctZAPP-0.25 - 1/(2.*cw*sw) &
-              - (10*nc*sumMD2)/(9.*cw*MW2*sw) -  (4.*sumML2)/(3.*cw*MW2*sw) &
-              - (10*nc*sumMU2)/(9.*cw*MW2*sw) + sw/(12.*cw) - 1/(4.*sw2)  &
-              - sw2/(4.*cw2) + (7*cw)/(6.*sw3) &
-              + (7*nc*sumMD2)/(12.*cw*MW2*sw3) +  (5*sumML2)/(12.*cw*MW2*sw3)&
-              + (nc*sumMU2)/(2.*cw*MW2*sw3) + sw3/(12.*cw3)
+          EWctWAPX=EWctWAPX-CI/(2.*sw) - CI/(48.*cw2*sw) + (CI*cw)/(2.*sw2)  &
+                 - (11*CI)/(48.*sw3) - (CI*nc*sumMD2)/(4.*MW2*sw3) - (CI*sumML2)/(12.*MW2*sw3)  &
+                 - (CI*nc*sumMU2)/(6.*MW2*sw3)
 
-        EWctZZPP=EWctZZPP+1._/**/REALKIND/48.  &
-              - (10*nc*sumMD2)/(9.*cw**2*MW**2) - (4.*nc*sumMD2)/(3.*cw**2*MW**2) &
-              - (10*nc*sumMU2)/(9.*cw**2*MW**2) - 37/(48.*sw**4)  &
-              - 1/(24.*cw**2*sw**4) - (nc*sumMD2)/(3.*cw**2*MW**2*sw**4)  &
-              - (nc*sumMU2)/(3.*cw**2*MW**2*sw**4) + 43/(24.*sw**2)   &
-              + (7*nc*sumMD2)/(6.*cw**2*MW2*sw**2) + (5.*sumML2)/(6.*cw**2*MW2*sw**2)  &
-              + (nc*sumMU2)/(cw**2*MW**2*sw**2) - sw**4/(48.*cw**4)
+          EWctWZPH=EWctWZPH+1/(24.*cw3) + 1/(2.*sw) + 5/(48.*cw*sw2) + cw/(2.*sw2) - 1/(48.*cw3*sw2) &
+                 + (nc*sumMD2)/(4.*cw*MW2*sw2) + sumML2/(12.*cw*MW2*sw2)   &
+                 + (nc*sumMU2)/(6.*cw*MW2*sw2) + 7/(48.*cw*sw4) - (7*cw)/(48.*sw4)
 
-        EWctWWPP=EWctWWPP-4 - 1/(48.*cw2) + (4*cw)/sw + 119/(48.*sw2) - &
-                15/(16.*sw4) - (nc*sumMQ2)/(3.*MW2*sw4) - sumML2/(3.*MW2*sw4)
+          EWctWZPX=EWctWZPX-CI/(24.*cw3) - CI/(2.*sw) - (5*CI)/(48.*cw*sw2)  &
+                - (CI*cw)/(2.*sw2) + CI/(48.*cw3*sw2)  &
+                - (CI*nc*sumMD2)/(4.*cw*MW2*sw2) - (CI*nc*sumML2)/(12.*cw*MW2*sw2) &
+                - (CI*nc*sumMU2)/(6.*cw*MW2*sw2)  &
+                - (7*CI)/(48.*cw*sw4) + (7*CI*cw)/(48.*sw4)
 
-        EWctR2AAAA=4._/**/REALKIND/3*(2._/**/REALKIND + (17*nc)/27._/**/REALKIND)
+          EWctAAPP=EWctAAPP-1._/**/REALKIND/12. - 11/(6.*sw2) - sw2/(12.*cw2) &
+                - (10*nc*sumMQ2)/(9.*MW2*sw2) - (4.*nc*sumML2)/(3.*MW2*sw2)
 
-        EWctR2AAAZ=-1/(cw*sw) + (4*cw)/(3.*sw) - nc/(3.*cw*sw) + &
-               (4*sw)/cw + (68*nc*sw)/(81.*cw)
+          EWctZAPP=EWctZAPP-0.25 - 1/(2.*cw*sw) &
+                - (10*nc*sumMD2)/(9.*cw*MW2*sw) -  (4.*sumML2)/(3.*cw*MW2*sw) &
+                - (10*nc*sumMU2)/(9.*cw*MW2*sw) + sw/(12.*cw) - 1/(4.*sw2)  &
+                - sw2/(4.*cw2) + (7*cw)/(6.*sw3) &
+                + (7*nc*sumMD2)/(12.*cw*MW2*sw3) +  (5*sumML2)/(12.*cw*MW2*sw3)&
+                + (nc*sumMU2)/(2.*cw*MW2*sw3) + sw3/(12.*cw3)
 
-        EWctR2AAZZ=4._/**/REALKIND/3 - 2._/**/REALKIND/cw2 - (2*nc)/(3.*cw2) - &
-               4._/**/REALKIND/(3.*sw2) + 1._/**/REALKIND/(2.*cw2*sw2) &
-                + (5*nc)/(18.*cw2*sw2) + (4*sw2)/cw2 + (68*nc*sw2)/(81.*cw2)
+          EWctZZPP=EWctZZPP+1._/**/REALKIND/48.  &
+                - (10*nc*sumMD2)/(9.*cw**2*MW**2) - (4.*nc*sumMD2)/(3.*cw**2*MW**2) &
+                - (10*nc*sumMU2)/(9.*cw**2*MW**2) - 37/(48.*sw**4)  &
+                - 1/(24.*cw**2*sw**4) - (nc*sumMD2)/(3.*cw**2*MW**2*sw**4)  &
+                - (nc*sumMU2)/(3.*cw**2*MW**2*sw**4) + 43/(24.*sw**2)   &
+                + (7*nc*sumMD2)/(6.*cw**2*MW2*sw**2) + (5.*sumML2)/(6.*cw**2*MW2*sw**2)  &
+                + (nc*sumMU2)/(cw**2*MW**2*sw**2) - sw**4/(48.*cw**4)
 
-        EWctR2AZZZ=(-4*cw)/(3.*sw) + 3._/**/REALKIND/(2.*cw3*sw) + (5*nc)/(6.*cw3*sw) - &
-               (3*sw)/cw3 - (nc*sw)/cw3 + (4*cw)/(3.*sw3) - 1._/**/REALKIND/(4.*cw3*sw3) - &
-               nc/(4.*cw3*sw3) + (4*sw3)/cw3 + (68*nc*sw3)/(81.*cw3)
+          EWctWWPP=EWctWWPP-4 - 1/(48.*cw2) + (4*cw)/sw + 119/(48.*sw2) - &
+                  15/(16.*sw4) - (nc*sumMQ2)/(3.*MW2*sw4) - sumML2/(3.*MW2*sw4)
 
-        EWctR2ZZZZ=-4._/**/REALKIND/3. + 3/cw4 + (5*nc)/(3.*cw4) + 8/(3.*sw2) - &
-                   1/(cw4*sw2) - nc/(cw4*sw2) - (4*sw2)/cw4 - &
-                   (4*nc*sw2)/(3.*cw4) - 4/(3.*sw4) + 1/(4.*cw4*sw4) + &
-                   nc/(4.*cw4*sw4) + (4*sw4)/cw4 + (68*nc*sw4)/(81.*cw4)
+          EWctWWAA=EWctWWAA+[23/(3*sw2) + (25*nc)/(9*sw2), &
+                 -4/sw2 - 11*nc/(9*sw2)]
 
-        EWctWWAA=EWctWWAA+[23/(3*sw2) + (25*nc)/(9*sw2), &
-               -4/sw2 - 11*nc/(9*sw2)]
+          EWctWWAZ=EWctWWAZ+[3/(cw*sw) + (25*nc)/(9.*cw*sw) - 11/(4.*cw*sw3) - &
+                   (14*cw)/(3.*sw3) - (11*nc)/(4.*cw*sw3), &
+                    -(1/(cw*sw)) - (11*nc)/(9.*cw*sw) + 5/(4.*cw*sw3) + (3*cw)/sw3 &
+                    + (5*nc)/(4.*cw*sw3)]
 
-        EWctWWAZ=EWctWWAZ+[3/(cw*sw) + (25*nc)/(9.*cw*sw) - 11/(4.*cw*sw3) - &
-                 (14*cw)/(3.*sw3) - (11*nc)/(4.*cw*sw3), &
-                  -(1/(cw*sw)) - (11*nc)/(9.*cw*sw) + 5/(4.*cw*sw3) + (3*cw)/sw3 &
-                  + (5*nc)/(4.*cw*sw3)]
+          EWctWWZZ=EWctWWZZ+[3/cw2 + (25*nc)/(9*cw2) + 14/(3*sw4) + 11*(1+nc)/(4*cw2*sw4) &
+                             - 14/(3*sw2) - 11*(1+nc)/(2*cw2*sw2), &
+                             -1/cw2 - 11*nc/(9*cw2) - 3/(sw4) - 5*(1+nc)/(4*cw2*sw4) &
+                             + 3/sw2 + 5*(1+nc)/(2*cw2*sw2)]
 
-        EWctWWZZ=EWctWWZZ+[3/cw2 + (25*nc)/(9*cw2) + 14/(3*sw4) + 11*(1+nc)/(4*cw2*sw4) &
-                           - 14/(3*sw2) - 11*(1+nc)/(2*cw2*sw2), &
-                           -1/cw2 - 11*nc/(9*cw2) - 3/(sw4) - 5*(1+nc)/(4*cw2*sw4) &
-                           + 3/sw2 + 5*(1+nc)/(2*cw2*sw2)]
+          EWctWWWW=EWctWWWW+[-17/(2.*sw4) - (5*nc)/(2.*sw4), &
+                              19/(6.*sw4) + (3*nc)/(2.*sw4)]
 
-        EWctWWWW=EWctWWWW+[-17/(2.*sw4) - (5*nc)/(2.*sw4), &
-                            19/(6.*sw4) + (3*nc)/(2.*sw4)]
-
+        end if
   end if
 
 
 
 ! add fourpoint-Tadpoles (calculated in D=4)
 
-  if (TP_is_on /= 0 .and. SwB /= 0) then
+  if (TP_is_on /= 0 .and. SwB /= 0 .and. weak_on) then
 
     EWctAA = EWctAA + [ ZERO, 8.*A0W, ZERO ]
 
