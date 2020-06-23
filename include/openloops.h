@@ -48,7 +48,7 @@ extern "C" {
   void ol_evaluate_r2(int id, const double *pp, double *m2l0, double *m2r2);
   void ol_evaluate_pt(int id, const double *pp, double *m2l0, double *m2pt, double *m2l1);
   void ol_evaluate_poles(int id, const double *pp, double *m2l0, double *m2bare, double *m2ct, double *m2ir, double *m2sum);
-  void ol_evaluate_m2schsf(int id, const double *pp, double *m2l0, double *m2schsf);
+  void ol_evaluate_schsf(int id, const double *pp, double *m2l0, int i, int j, double *m2schsf);
 
   void ol_welcome(char *str);
   void ol_version_string(char *str);

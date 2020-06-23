@@ -593,8 +593,8 @@ subroutine ew_renormalisation(select_ew_renorm)
         SiuL=SiuL - (1. + 2.*B100Z)*Qu2               ! Photon(MZ)
         SiuR=SiuR - (1. + 2.*B100Z)*Qu2               ! Photon(MZ)
 
-        SidL=SiuL - (1. + 2.*B100Z)*Qd2               ! Photon(MZ)
-        SidR=SiuR - (1. + 2.*B100Z)*Qd2               ! Photon(MZ)
+        SidL=SidL - (1. + 2.*B100Z)*Qd2               ! Photon(MZ)
+        SidR=SidR - (1. + 2.*B100Z)*Qd2               ! Photon(MZ)
 
         SitL=SitL - (1 + 2*B1TTZ)*Qu2                 ! Photon(MZ)
         SitR=SitR - (1 + 2*B1TTZ)*Qu2                 ! Photon(MZ)
@@ -634,8 +634,8 @@ subroutine ew_renormalisation(select_ew_renorm)
         SiuL=SiuL - (1. + IRrational + 2.*B1000)*Qu2  ! Photon
         SiuR=SiuR - (1. + IRrational + 2.*B1000)*Qu2  ! Photon
 
-        SidL=SiuL - (1. + IRrational + 2.*B1000)*Qd2  ! Photon
-        SidR=SiuR - (1. + IRrational + 2.*B1000)*Qd2  ! Photon
+        SidL=SidL - (1. + IRrational + 2.*B1000)*Qd2  ! Photon
+        SidR=SidR - (1. + IRrational + 2.*B1000)*Qd2  ! Photon
 
         SitL=SitL - (1 + 2*B1TT0)*Qu2                 ! Photon
         SitR=SitR - (1 + 2*B1TT0)*Qu2                 ! Photon
@@ -1869,7 +1869,7 @@ subroutine ew_renormalisation(select_ew_renorm)
         end if
 
         if (weak_on) then
-          EWctGuu=EWctGuu + [-2*Qu2+8/(9.*cw2),2*Qu2-4/(9.*cw2) + 1/sw2 + 1/(2.*cw2*sw2)]*(-1.)
+          EWctGuu=EWctGuu + [-2*Qu2+8/(9.*cw2),-2*Qu2-4/(9.*cw2) + 1/sw2 + 1/(2.*cw2*sw2)]*(-1.)
           EWctGdd=EWctGdd + [-2*Qd2+2/(9.*cw2),-2*Qd2-4/(9.*cw2) + 1/sw2 + 1/(2.*cw2*sw2)]*(-1.)
           EWctGtt=EWctGtt + [-2*Qu2+8/(9.*cw2) + MT2/(2.*MW2*sw2), &
                   -2*Qu2-4/(9.*cw2) + 1/sw2 + 1/(2.*cw2*sw2) + MB2/(4.*MW2*sw2) +  &

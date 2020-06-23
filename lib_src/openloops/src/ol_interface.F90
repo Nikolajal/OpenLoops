@@ -4590,12 +4590,12 @@ module openloops
     m2iop = f_m2iop
   end subroutine evaluate_iop_c
 
-
-  subroutine evaluate_schsf(id, psp, m2l0, m2schsf) bind(c,name="ol_evaluate_schsf")
+  subroutine evaluate_schsf(id, psp, m2l0, pind_1, pind_2, m2schsf)
     use ol_stability
     use ol_generic, only: to_string
     implicit none
     integer, intent(in)  :: id
+    integer, intent(in)  :: pind_1, pind_2
     real(DREALKIND), intent(in)  :: psp(:,:)
     real(DREALKIND), intent(out) :: m2l0, m2schsf
     type(process_handle)  :: subprocess
@@ -4614,9 +4614,28 @@ module openloops
     call subprocess%set_permutation(subprocess%permutation)
     call subprocess%pol_init(subprocess%pol)
     if (any(subprocess%photon_id /= 0)) call subprocess%set_photons(subprocess%photon_id)
-    call subprocess%schsf(psp, m2l0, m2schsf)
+    call subprocess%schsf(psp, m2l0, pind_1, pind_2, m2schsf)
   end subroutine evaluate_schsf
 
+  subroutine evaluate_schsf_c(id, pp, m2l0, pind_1, pind_2, m2schsf) bind(c,name="ol_evaluate_schsf")
+    implicit none
+    integer(c_int), value :: id
+    real(c_double), intent(in) :: pp(5*n_external(id))
+    integer(c_int), value :: pind_1, pind_2
+    real(c_double), intent(out) :: m2l0, m2schsf
+    integer :: f_id, f_pind_1, f_pind_2
+    real(DREALKIND) :: f_pp(0:4,n_external(id))
+    real(DREALKIND) :: f_m2l0, f_m2schsf
+    f_id = id
+    f_pind_1 = pind_1
+    f_pind_2 = pind_2
+    call stop_invalid_id(f_id) ! needed because of reshape
+    if (error > 1) return
+    f_pp = reshape(pp, [5,process_handles(id)%n_particles])
+    call evaluate_schsf(f_id, f_pp(0:3,:), f_m2l0, f_pind_1, f_pind_2, f_m2schsf)
+    m2l0 = f_m2l0
+    m2schsf = f_m2schsf
+  end subroutine evaluate_schsf_c
 
 
   subroutine evaluate_r2(id, psp, m2l0, m2ct)
