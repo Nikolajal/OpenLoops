@@ -355,6 +355,8 @@ module ol_init
         ti_monitor = val
       case ("nf", "n_quarks")
         call set_if_modified(nf, val)
+      case ("nfa")
+        call set_if_modified(nfa, val)
       case ("nq_nondecoupled", "minnf_alphasrun", "nf_alphasrun")
         call set_if_modified(nq_nondecoupl, val)
       case ("nc", "ncolours", "ncolors")
@@ -376,7 +378,6 @@ module ol_init
         coupling_ew(0) = val
       case ("coupling_ew_1", "coupling_ew_l", "coupling_ew_loop")
         coupling_ew(1) = val
-        call set_if_modified(do_ew_renorm, 1)
       case ("add_associated_ew")
         add_associated_ew = val
       case ("order_ew", "oew")
@@ -389,7 +390,6 @@ module ol_init
         coupling_ew(1) = -1
         coupling_qcd(0) = val
         coupling_qcd(1) = 0
-        call set_if_modified(do_ew_renorm, 1)
       case ("loop_order_ew", "loew")
         coupling_ew = -1
         coupling_qcd = -1
@@ -423,10 +423,18 @@ module ol_init
           end if
         end if
       case ("qed")
-        if (val < 0 .or. val > 1) then
+        if (val < 0 .or. val > 3) then
           call ol_error("QED not supported: " // to_string(val))
         else
           QED = val
+        end if
+      case ("photon_selfenergy")
+        if (val == 0) then
+          call set_if_modified(photon_selfenergy, .false.)
+        else if (val == 1) then
+          call set_if_modified(photon_selfenergy, .true.)
+        else
+          call ol_error("photon_selfenergy not supported: " // to_string(val))
         end if
       case ("ioperator_mode")
         call set_if_modified(ioperator_mode, val)
@@ -437,7 +445,6 @@ module ol_init
         else if (val == 2) then
           call set_if_modified(coli_cache_use, 0)
           call set_if_modified(polecheck_is, 1)
-          call set_if_modified(do_ew_renorm, 1)
           call set_if_modified(ir_is_on, 2)
         end if
       case ("fermion_loops")
@@ -477,6 +484,8 @@ module ol_init
         else
           call set_if_modified(bubble_vertex, 0)
         end if
+      case ("debug_ew_renorm")
+        call set_if_modified(debug_ew_renorm, val)
       case ("qcd_renorm")
         call set_if_modified(do_qcd_renorm, val)
       case ("se_integral_switch")
@@ -1623,6 +1632,8 @@ module ol_init
           case ("hpoprodmfv_ufo", "hpoprodmfv_ufo_fixed", "higgspo")
             call set_if_modified(model, "higgspo")
             call set_if_modified(nf, 6)
+          case ("qed_electronic")
+            call set_if_modified(model, "qed_electronic")  
           case default
             call ol_error(1, "unknown model: " // trim(val) // ", model set to: " // trim(model))
           end select
