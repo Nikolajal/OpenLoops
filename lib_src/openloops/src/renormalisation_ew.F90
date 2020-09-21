@@ -1569,11 +1569,11 @@ subroutine ew_renormalisation(select_ew_renorm)
     EWctVdu  = 0.
     EWctVbt  = 0.
     EWctVen  = 0.
-    EWctVLn  = 0.
+    EWctVln  = 0.
     EWctVud  = 0.
     EWctVtb  = 0.
     EWctVne  = 0.
-    EWctVnL  = 0.
+    EWctVnl  = 0.
     EWctGuu  = 0.
     EWctGdd  = 0.
     EWctGtt  = 0.
@@ -1871,7 +1871,6 @@ subroutine ew_renormalisation(select_ew_renorm)
 
           EWctWW=EWctWW+[-(3 + nc)/(2*sw2), &
                         (2*MW2)/sw2 + (nc*sumMQ2)/(2.*sw2) + sumML2/(2.*sw2),2/(3.*sw2)]
-
           EWctHH=EWctHH+[-1/(12.*sw2) - 1/(24.*cw2*sw2)  &
                  - (nc*sumMQ2)/(6.*MW2*sw2) - sumML2/(6.*MW2*sw2), &
                  (5.*MW2)/(2.*sw2) + (11.*MW2)/(8.*cw4*sw2) - MZ2/(8.*cw2*sw2)  &
@@ -2066,6 +2065,8 @@ subroutine ew_renormalisation(select_ew_renorm)
           EWctVbt=EWctVbt-5/(9.*cw2) - 2/sw2 + 1/(2.*cw2*sw2)
 
           EWctVen=EWctVen-(1/cw2) - 2/sw2 + 1/(2.*cw2*sw2)
+
+          EWctVln=EWctVln-(1/cw2) - 2/sw2 + 1/(2.*cw2*sw2)
 
           EWctVud=EWctVud-5/(9.*cw2) - 2/sw2 + 1/(2.*cw2*sw2)
 
