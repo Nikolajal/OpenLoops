@@ -19,8 +19,14 @@ extern "C" {
   void ol_tree_colourflow(int id, int *flowbasis);
   void ol_evaluate_tree_colvect(int id, const double *pp, double *amp, int *nhel);
   void ol_evaluate_tree_colvect2(int id, const double *pp, double *m2arr);
-  void ol_evaluate_associated(int id, const double *pp, int level, double *res);
 
+  void ol_loop_colbasis_dim(int id, int *ncolb, int *colelemsz, int *nhel);
+  void ol_loop_colbasis(int id, int *basis, int *needed);
+  void ol_loop_colourflow(int id, int *flowbasis);
+  void ol_evaluate_loop_colvect(int id, const double *pp, double *amp, int *nhel);
+  void ol_evaluate_loop_colvect2(int id, const double *pp, double *m2arr);
+
+  void ol_evaluate_associated(int id, const double *pp, int level, double *res);
   void ol_evaluate_full(int id, const double *pp, double *m2l0, double *m2l1, double *ir1, double *m2l2, double *ir2, double *acc);
   void ol_evaluate_loop(int id, const double *pp, double *m2l0, double *m2l1, double *acc);
   void ol_evaluate_loop2(int id, const double *pp, double *m2l0, double *acc);
