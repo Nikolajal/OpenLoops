@@ -1086,7 +1086,7 @@ subroutine conv_mom_scatt2in_mexpl(P_scatt, m_ext2, P_in_clean, perm_inv, n)
     m_ext2_perm(perm_inv(k)) = m_ext2(k)
   end do
   P_in(:,1:n_scatt) =   scalefactor * P_scatt(:,1:n_scatt)
-  P_in(:,n_scatt+1:)  = - scalefactor * P_scatt(:,n_scatt+1:)
+  P_in(:,n_scatt+1:n)  = - scalefactor * P_scatt(:,n_scatt+1:n)
   if (n_scatt == 2 .and. n > 2) then
     ! Clean momenta to get full numerical precision.
     ! Do the cleaning in the original permutation where the first two momenta are incoming.

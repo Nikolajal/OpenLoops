@@ -1560,9 +1560,12 @@ module ol_init
 
     call ol_msg(5, "setparameter_string: " // trim(param)  // " " // trim(val))
 
-    if (len(val) > max_parameter_length - 80) then
+    ! TODO (pm): why is max_parameter_length-80 used for all parameters?
+    !   This should only be necessary for install_path,
+    !   where the library name is appended, right?
+    if (len_trim(val) > max_parameter_length - 80) then
       call ol_fatal("ol_setparameter_string: " // trim(param) // " value must not exceed " // &
-             & trim(to_string(max_parameter_length)) // " characters. If necessary, increase " // &
+             & trim(to_string(max_parameter_length-80)) // " characters. If necessary, increase " // &
              & "the limit by setting max_string_length in your openloops.cfg and recompile.")
       return
     end if
@@ -1579,7 +1582,7 @@ module ol_init
       case ("tmp_dir")
         tmp_dir = val
       case ("allowed_libs", "allowed_libraries", "allowedlibs", "allowedlibraries")
-        if (len(val) > max_parameter_length-2) then
+        if (len_trim(val) > max_parameter_length-2) then
           ! needs a leading and a trailing space
           call ol_fatal("ol_setparameter_string: " // trim(param) // " value must not exceed " // &
                  & trim(to_string(max_parameter_length-2)) // " characters")
