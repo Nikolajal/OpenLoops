@@ -1040,6 +1040,13 @@ subroutine qcd_parameters_init(is_loop_in)
   is_loop =.false.
   if (present(is_loop_in)) is_loop = is_loop_in
 
+#ifndef PRECISION_dp
+  alpha_QCD     = alpha_QCD_dp
+#endif
+  !QCD
+  G2_QCD = 4*pi*alpha_QCD
+  gQCD   = sqrt(G2_QCD)
+
   if (is_loop) then
     muren = scalefactor * muren_unscaled
     muren2 = muren**2
@@ -1049,12 +1056,6 @@ subroutine qcd_parameters_init(is_loop_in)
     end if
     call ol_msg(4, "QCD loop parameters initialized")
   else
-#ifndef PRECISION_dp
-    alpha_QCD     = alpha_QCD_dp
-#endif
-    !QCD
-    G2_QCD = 4*pi*alpha_QCD
-    gQCD   = sqrt(G2_QCD)
     call ol_msg(4, "QCD parameters initialized")
   end if
 end subroutine qcd_parameters_init
