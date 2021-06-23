@@ -447,7 +447,7 @@ subroutine qcd_renormalisation
       ! HEFT
       ctHEFTggh   = ctHEFTggh + [ 1, 89, 14, -17, -93 ] * (nc/24._/**/REALKIND)
       ctHEFTgggh  = ctHEFTgggh - 15*nc/8._/**/REALKIND
-      R2HEFTggggh = 0.125_/**/REALKIND
+      R2HEFTggggh = -0.125_/**/REALKIND
       R2HEFThqq   = 0.25_/**/REALKIND*(nc-1._/**/REALKIND/nc)
       R2HEFTghqq  = 0.25_/**/REALKIND*(3._/**/REALKIND/nc-5*nc)
 
