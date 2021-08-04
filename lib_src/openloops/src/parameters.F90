@@ -811,7 +811,7 @@ module ol_loop_parameters_decl_/**/REALKIND
   logical, save :: reset_olo = .true.
 
   integer,        save      :: nc    = 3          ! number of colours
-  integer,        save      :: nf = 6, nf_up = 3, nf_down =3 ! number of quarks (total, up-type, down-type)
+  integer,        save      :: nf = 6, nf_up = 3, nf_down =3, nf_active = 6 ! number of quarks (total, up-type, down-type, active)
   integer,        save      :: nfa= 5             ! fermionic contributions to photon selfenergy
   integer,        save      :: nq_nondecoupl = 0  ! number of quarks which do not decouple above threshold,
                                                   ! i.e. always contribute to the alpha_s running
@@ -949,6 +949,20 @@ module ol_loop_parameters_decl_/**/REALKIND
   complex(REALKIND), save :: ctAGGG(2)
   complex(REALKIND), save :: ctZGGG(2)
   integer,           save :: R2GGGG
+  complex(REALKIND), save :: ctHGGsel
+  complex(REALKIND), save :: ctWWGGqq
+  complex(REALKIND), save :: ctZGGu
+  complex(REALKIND), save :: ctZGGd
+  complex(REALKIND), save :: ctAAGGu
+  complex(REALKIND), save :: ctAZGGu
+  complex(REALKIND), save :: ctZZGGu
+  complex(REALKIND), save :: ctAAGGd
+  complex(REALKIND), save :: ctAZGGd
+  complex(REALKIND), save :: ctZZGGd
+  complex(REALKIND), save :: ctAGGGu(2)
+  complex(REALKIND), save :: ctAGGGd(2)
+  complex(REALKIND), save :: ctZGGGu(2)
+  complex(REALKIND), save :: ctZGGGd(2)
 
   ! Counterterms for HEFT
   real(REALKIND), save :: ctHEFTggh(5)
