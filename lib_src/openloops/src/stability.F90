@@ -927,6 +927,7 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
 
   else if (stability_mode == 31) then
     ! quad precision with a single library
+    call ol_msg(3,"stability system: evaluate point in qp.")
     call vamp2_qp(vamp2qp, P_scatt, M2L0_qp, M2L1_qp, IRL1_qp, M2L2_qp, IRL2_qp, redlib = redlib_qp)
     M2L0 = M2L0_qp
     M2L1 = M2L1_qp
@@ -937,6 +938,7 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
 
   else if (stability_mode == 32) then
     ! quad precision + scaling with a single library
+    call ol_msg(3,"stability system: re-evaluate point in qp.")
     qp_eval = qp_eval + 1
     last_relative_deviation = vamp2_qp_scaled(vamp2qp, P_scatt, M2L0_qp, M2L1_qp, IRL1_qp, M2L2_qp, IRL2_qp, redlib = redlib_qp)
     M2L0 = M2L0_qp

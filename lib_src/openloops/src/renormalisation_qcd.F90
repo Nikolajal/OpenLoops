@@ -60,10 +60,12 @@ subroutine qcd_renormalisation
   logical :: zeromasses(6) ! maximal possible number of quarks; only to determine N_lf
 
   zeromasses = [MU==0,MD==0,MS==0,MC==0,MB==0,MT==0]
-  if (nf > 0) then
+  if (nf > 0 .and. nf < 7) then
     N_lf = count(zeromasses(:nf))
-  else
-    N_lf = count(zeromasses(5:abs(nf)))
+  else if (nf == 56) then
+    N_lf = count(zeromasses(5:6))
+  else if (nf < 0) then
+    N_lf = count(zeromasses(abs(nf):abs(nf)))
   end if
 
   if (N_lf /= 0 .and. N_lf /= 1 .and. N_lf /= 3 .and. N_lf /= 4 .and. N_lf /= 5 .and. N_lf /= 6) then
@@ -144,12 +146,12 @@ subroutine qcd_renormalisation
     nf_up = nf_up + 1
     YC2pair = YC2
   end if
-  if (abs(nf) > 4) then
+  if (nf > 4 .or. nf == -5) then
     MQ2sum = MQ2sum + MB2
     YQD2sum = YQD2sum + YB2
     nf_down = nf_down + 1
   end if
-  if (abs(nf) > 5) then
+  if (nf > 5 .or. nf == -6) then
     MQ2sum = MQ2sum + MT2
     MQ2sumpairs = MQ2sumpairs + YB2 + YT2
     YQU2sum = YQU2sum + YT2
