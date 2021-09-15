@@ -148,6 +148,7 @@ module openloops
     integer :: API
     integer :: LeadingColour
     integer :: NF
+    integer :: NFL
     integer :: NC
     integer :: CKMORDER
     integer :: QED
@@ -1355,7 +1356,7 @@ module openloops
       & leadingcolour, coupling_qcd, coupling_ew, &
       & loop_order_ew, loop_order_qcd, &
       & approximation, CKMORDER, QED, model, allowed_libs, apicheck
-    use ol_loop_parameters_decl_/**/DREALKIND , only: nf, nc
+    use ol_loop_parameters_decl_/**/DREALKIND , only: nf, nfl, nc
     use ol_version, only: process_api
     implicit none
     integer, intent(in) :: p
@@ -1386,6 +1387,7 @@ module openloops
       call check(process_infos(p)%LeadingColour == leadingcolour, found, "LeadingColour OK.")
       call check(process_infos(p)%NC == nc, found, "nc NOT ok.")
       call check(process_infos(p)%NF == nf, found, "nf NOT ok.")
+      call check(process_infos(p)%NFL == nfl, found, "nfl NOT ok.")
       call check(process_infos(p)%CKMorder == CKMORDER, found, "CKM NOT ok.")
       call check(process_infos(p)%QED == QED, found, "QED NOT ok.")
       call check(index(process_infos(p)%MODEL, trim(model)) == 1, found, "model NOT ok.")
@@ -1629,6 +1631,7 @@ module openloops
       call readInfoInt(lineinfo, 'QED', infos%QED)
       call readInfoInt(lineinfo, 'nc', infos%NC)
       call readInfoInt(lineinfo, 'nf', infos%NF)
+      call readInfoInt(lineinfo, 'nfl', infos%NFL, def='3')
       call readInfoInt(lineinfo, 'LeadingColour', infos%LeadingColour)
       call readInfoInt(lineinfo, 'POLSEL', infos%POLSEL)
       call readInfo(lineinfo, 'CC', infos%CC)
@@ -1686,18 +1689,23 @@ module openloops
       end if
     end subroutine readInfoColInt
 
-    subroutine readInfoInt(lineinfo, var, res)
+    subroutine readInfoInt(lineinfo, var, res, def)
       use ol_generic, only: to_int
       implicit none
       character(len=*), intent(in) :: lineinfo
       character(len=*), intent(in) :: var
       character(len=10) :: restemp
+      character(len=*), optional :: def
       integer, intent(out) :: res
       if (index(lineinfo, var//'=') /= 0) then
         restemp = lineinfo(index(lineinfo, var//'=')+len_trim(var)+1: &
             & index(lineinfo, var//'=')+index(lineinfo(index(lineinfo, var//'='):),' ')-1)
       else
-        restemp = "0"
+        if (present(def)) then
+          restemp = trim(def)
+        else
+          restemp = "0"
+        end if
       end if
       res = to_int(restemp)
       if (res == -huge(res)) then

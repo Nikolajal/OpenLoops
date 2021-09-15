@@ -355,8 +355,8 @@ module ol_init
         ti_monitor = val
       case ("nf", "n_quarks")
         call set_if_modified(nf, val)
-      case ("nfa")
-        call set_if_modified(nfa, val)
+      case ("nfl", "n_leptons")
+        call set_if_modified(nfl, val)
       case ("nq_nondecoupled", "minnf_alphasrun", "nf_alphasrun")
         call set_if_modified(nq_nondecoupl, val)
       case ("nc", "ncolours", "ncolors")
