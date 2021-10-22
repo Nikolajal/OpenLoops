@@ -281,6 +281,14 @@ module ol_init
           call set_if_modified(hp_gamma_trig, .true.)
           call set_if_modified(hp_ir_trig, .true.)
           call set_if_modified(hp_irtri_trig, .false.)
+        else if (val == 3) then
+          call set_if_modified(hp_switch, 1)
+          call set_if_modified(hp_gamma_trig, .true.)
+          call set_if_modified(hp_ir_trig, .true.)
+          call set_if_modified(hp_irtri_trig, .false.)
+          call set_if_modified(ir_hacks, .true.)
+        else
+          call ol_error(1,"unrecognised " // trim(param) // "=" // to_string(val))
         end if
       case ("hp_switch")
         if (expert_mode) then
