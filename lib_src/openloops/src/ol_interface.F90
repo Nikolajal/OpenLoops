@@ -203,7 +203,7 @@ module openloops
         rval_size = 1
       case (11) ! Loop
         rval_size = 4
-      case (2) ! ccTreeo
+      case (2) ! ccTree
         rval_size = (n_part*(n_part-1))/2
       case (3) ! scTree
         rval_size = 2*n_part*n_part
@@ -1374,11 +1374,11 @@ module openloops
       if (apicheck) call check(process_infos(p)%API == process_api, found, "API version not ok.")
       if (trim(model) /= "heft") then
         call check(process_infos(p)%EWorder(0) == coupling_EW(0) .or. coupling_EW(0) == -1, found, "EW tree coupling NOT ok.")
-        call check(amptype == 1 .or. process_infos(p)%eworder(1) == coupling_ew(1) &
+        call check(amptype < 10 .or. process_infos(p)%eworder(1) == coupling_ew(1) &
                   .or. coupling_ew(1) == -1, found, "EW loop not ok.")
       end if
       call check(process_infos(p)%qcdorder(0) == coupling_qcd(0) .or. coupling_qcd(0) == -1, found, "qcd tree coupling not ok.")
-      call check(amptype == 1  .or. process_infos(p)%qcdorder(1) == coupling_qcd(1) &
+      call check(amptype < 10  .or. process_infos(p)%qcdorder(1) == coupling_qcd(1) &
                   .or. coupling_qcd(1) == -1, found, "qcd loop not ok.")
       call check(loop_order_ew == -1 .or. process_infos(p)%eworder(0)+process_infos(p)%eworder(1) == loop_order_ew, &
                      found, "absolute ew loop not ok.")

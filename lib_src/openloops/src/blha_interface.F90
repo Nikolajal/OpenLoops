@@ -87,7 +87,7 @@ module openloops_blha
         call ol_fatal("[OpenLoops] Error: spin correlations in BLHA notation are not implemented")
         return
       case (4) ! scTree_polvect
-        call evaluate_sc2(id, psp, corr%emitter, corr%mom, rval(1:rval_size(n_external(id),4)))
+        call evaluate_sc(id, psp, corr%emitter, corr%mom, rval(1:rval_size(n_external(id),4)))
       case (11) ! Loop
         call evaluate_loop(id, psp, m2l0, m2l1, acc)
         rval(1:4) = [m2l1(2), m2l1(1), m2l1(0), m2l0]

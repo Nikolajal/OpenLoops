@@ -315,7 +315,7 @@ module ol_parameters_decl_/**/REALKIND
   ! flag for hybrid preset mode
   ! - 0: hp mode disabled
   ! - 1: hp mode for hard regions (default)
-  ! - 2: hp mode for hard regions (default)
+  ! - 2: hp mode for soft regions
   integer, save :: hp_mode = 1
 
   ! flag of hybrid baseline mode

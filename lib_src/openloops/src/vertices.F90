@@ -3049,7 +3049,7 @@ subroutine vert_VS_T_mids(ntry, V, mom1, S, mom2, S_out, n, t)
   complex(REALKIND) :: P122(4)
   integer :: h
 
-  P122 = get_LC_4(mom1 + mom2) + get_LC_4(mom2)
+  P122 = get_LC_4(mom1)+2*get_LC_4(mom2)
   do h = 1, n(3)
     S_out(h)%j(1) = cont_PP(P122, V(t(1,h))%j) * S(t(2,h))%j(1)
   end do
@@ -3115,7 +3115,7 @@ subroutine vert_TV_S_mids(ntry, S, mom1, V, mom2, S_out, n, t)
   complex(REALKIND) :: P112(4)
   integer :: h
 
-  P112 = get_LC_4(mom1) + get_LC_4(mom1 + mom2)
+  P112 = 2*get_LC_4(mom1) + get_LC_4(mom2)
   do h = 1, n(3)
     S_out(h)%j(1) = - cont_PP(P112, V(t(2,h))%j) * S(t(1,h))%j(1)
   end do
@@ -3174,7 +3174,7 @@ subroutine vert_ST_V_mids(ntry, S1, mom1, S2, mom2, V_out, n, t)
   complex(REALKIND) :: P12(4)
   integer :: h
 
-  P12 = get_LC_4(mom1 - mom2)
+  P12 = get_LC_4(mom1) - get_LC_4(mom2)
   do h = 1, n(3)
     V_out(h)%j = (S1(t(1,h))%j(1) * S2(t(2,h))%j(1)) * P12
   end do
@@ -3699,7 +3699,7 @@ subroutine vert_VC_D_mids(ntry, V, mom1, C, mom2, C_out, n, t)
   complex(REALKIND) :: P12(4)
   integer :: h
 
-  P12 = get_LC_4(mom1 + mom2)
+  P12 = get_LC_4(mom1) + get_LC_4(mom2)
   do h = 1, n(3)
     C_out(h)%j(1) = C(t(2,h))%j(1) * cont_PP(P12, V(t(1,h))%j)
   end do
