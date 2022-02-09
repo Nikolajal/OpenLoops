@@ -1404,7 +1404,7 @@ subroutine vert_loop_GH_G(rank_in, rank_out, Gin_V, pi, J_S, Gout_V, po)
   pi2 = s2 * pi
   po2 = s2 * po
   poS = J_S(1) * po
-  pio2(1) = - (pi2(2)+po2(2)) ! -S/2*(pi+pi)_rho, covariant
+  pio2(1) = - (pi2(2)+po2(2)) ! -S/2*(pi+po)_rho, covariant
   pio2(2) = - (pi2(1)+po2(1))
   pio2(3) =   (pi2(4)+po2(4))
   pio2(4) =   (pi2(3)+po2(3))
@@ -1469,6 +1469,50 @@ subroutine vert_loop_GH_G(rank_in, rank_out, Gin_V, pi, J_S, Gout_V, po)
     Gout_V(4,HR(4,HR(4,l))) = Gout_V(4,HR(4,HR(4,l))) + Gin2(4)
   end do
 end subroutine vert_loop_GH_G
+
+
+! ***************************************
+subroutine vert_loop_GG_H(rank_in, rank_out, Gin_V, pi, J_Vex, pex, Gout_S)
+  ! Effective gluon gluon -> Higgs vertex.
+  ! Sout = [ -(pi+l)^nu*(pex)_mu + (pi+l).(pex)*g_mu^nu ] * Gin^mu * J^nu
+  ! loop momentum l, pex ingoing
+  use KIND_TYPES, only: REALKIND
+  use ol_tensor_bookkeeping, only: HR
+  use ol_contractions_/**/REALKIND, only: cont_VV
+  implicit none
+  integer,           intent(in)  :: rank_in, rank_out
+  complex(REALKIND), intent(in)  :: Gin_V(4,rank_in), J_Vex(4), pi(4), pex(4)
+  complex(REALKIND), intent(out) :: Gout_S(rank_out)
+  integer :: l
+
+  complex(REALKIND) :: pipex, Vexpi, Ginpex, GinVex, piex2(4), pi2(4), pex2(4)
+
+  Gout_S = 0
+
+  pi2 = (0.5_/**/REALKIND * pi)
+  pex2 = (0.5_/**/REALKIND * pex)
+  piex2(1) = - (pi2(2)+pex2(2)) ! -1/2*(pi+po)_rho, covariant
+  piex2(2) = - (pi2(1)+pex2(1))
+  piex2(3) =   (pi2(4)+pex2(4))
+  piex2(4) =   (pi2(3)+pex2(3))
+
+  pipex = cont_VV(pi,pex)
+  Vexpi = cont_VV(pi,J_Vex)
+
+  do l = 1, rank_in
+    Ginpex = cont_VV(Gin_V(:,l),pex(:))
+    GinVex = cont_VV(Gin_V(:,l),J_Vex(:))
+    ! Gout_S(rank+0)= -(pi*J_Vex)*(pex*Gin_V(l)) - (pi*pex)*(Gin_V(l)*J_Vex)
+    Gout_S(l) = Gout_S(l) - Vexpi * Ginpex - pipex * GinVex
+    ! Gout_S(rank+1) = [ -Vex_rho*(pex.Gin) - (pi+pex)_rho*(Gin*Jex) ] * l^rho
+    ! rho=1,2,3,4
+    Gout_S(HR(1,l)) = Gout_S(HR(1,l)) - Ginpex * J_Vex(2)  - GinVex * piex2(1)
+    Gout_S(HR(2,l)) = Gout_S(HR(2,l)) - Ginpex * J_Vex(1)  - GinVex * piex2(2)
+    Gout_S(HR(3,l)) = Gout_S(HR(3,l)) + Ginpex * J_Vex(4)  - GinVex * piex2(3)
+    Gout_S(HR(4,l)) = Gout_S(HR(4,l)) + Ginpex * J_Vex(3)  - GinVex * piex2(4)
+  end do
+end subroutine vert_loop_GG_H
+
 
 
 ! *****************************************
@@ -3067,6 +3111,21 @@ subroutine loop_GH_G(G_V, plin, J_S, Gout_V, plout)
   call vert_loop_GH_G(rank_in, rank_out, G_V(:,:,3), plin, J_S, Gout_V(:,:,3), plout)
   call vert_loop_GH_G(rank_in, rank_out, G_V(:,:,4), plin, J_S, Gout_V(:,:,4), plout)
 end subroutine loop_GH_G
+
+
+subroutine loop_GG_H(G_V, plin1, J_Vex, pex, Gout_S)
+  use KIND_TYPES, only: REALKIND
+  implicit none
+  complex(REALKIND), intent(in)  :: G_V(:,:,:), plin1(4), J_Vex(4), pex(4)
+  complex(REALKIND), intent(out) :: Gout_S(:,:,:)
+  integer :: rank_in, rank_out
+  rank_in  = size(G_V,2)
+  rank_out = size(Gout_S,2)
+  call vert_loop_GG_H(rank_in, rank_out, G_V(:,:,1), plin1, J_Vex, pex, Gout_S(1,:,1))
+  call vert_loop_GG_H(rank_in, rank_out, G_V(:,:,2), plin1, J_Vex, pex, Gout_S(1,:,2))
+  call vert_loop_GG_H(rank_in, rank_out, G_V(:,:,3), plin1, J_Vex, pex, Gout_S(1,:,3))
+  call vert_loop_GG_H(rank_in, rank_out, G_V(:,:,4), plin1, J_Vex, pex, Gout_S(1,:,4))
+end subroutine loop_GG_H
 
 
 ! *****************************************
