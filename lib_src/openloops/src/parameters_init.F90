@@ -660,6 +660,7 @@ subroutine init_kin_arrays(Npart)
 end subroutine init_kin_arrays
 
 
+#ifdef USE_qp
 subroutine init_kin_arrays_quad(Npart)
   use ol_momenta_decl_/**/QREALKIND, only: Q_qp, L_qp, QInvariantsMatrix_qp
   use ol_external_decl_/**/QREALKIND, only: P_ex, binom2, crossing, inverse_crossing, gf_array, Ward_array
@@ -695,20 +696,25 @@ subroutine init_kin_arrays_quad(Npart)
     allocatedNpart = Npart
   end if
 end subroutine init_kin_arrays_quad
-
+#endif
 
 
 subroutine clean_kin_arrays
   use ol_external_decl_/**/REALKIND, only: allocatedNpart
-  use ol_momenta_decl_/**/REALKIND, only: Q, L, QInvariantsMatrix, Q_qp, QInvariantsMatrix_qp, L_qp
+  use ol_momenta_decl_/**/REALKIND, only: Q, L, QInvariantsMatrix
+#ifdef USE_qp
+  use ol_momenta_decl_/**/REALKIND, only: Q_qp, QInvariantsMatrix_qp, L_qp
+#endif
   use ol_external_decl_/**/REALKIND, only: P_ex, M_ex, binom2, crossing, inverse_crossing, gf_array, Ward_array
   implicit none
   if (allocated(Q)) deallocate(Q)
   if (allocated(L)) deallocate(L)
   if (allocated(QInvariantsMatrix)) deallocate(QInvariantsMatrix)
+#ifdef USE_qp
   if (allocated(Q_qp)) deallocate(Q_qp)
   if (allocated(L_qp)) deallocate(L_qp)
   if (allocated(QInvariantsMatrix_qp)) deallocate(QInvariantsMatrix_qp)
+#endif
   if (allocated(binom2)) deallocate(binom2)
   if (allocated(P_ex)) deallocate(P_ex)
   if (allocated(M_ex)) deallocate(M_ex)
@@ -1080,6 +1086,7 @@ subroutine ensure_mp_loop_init()
   call qcd_parameters_init(.true.)
 #else
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch
+#ifdef USE_qp
   use ol_parameters_decl_/**/QREALKIND, only: parameters_status
   use ol_parameters_init_/**/QREALKIND, only: &
     parameters_init_qp=>parameters_init, &
@@ -1102,6 +1109,7 @@ subroutine ensure_mp_loop_init()
     call qcd_parameters_init_qp(.true.)
   end if
 
+#endif
 #endif
 end subroutine ensure_mp_loop_init
 

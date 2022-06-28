@@ -49,7 +49,7 @@ subroutine qcd_renormalisation
 #ifndef PRECISION_dp
   use ol_parameters_decl_/**/DREALKIND, only: LeadingColour, model
   use ol_loop_parameters_decl_/**/DREALKIND, only: &
-    & nc, nf, nf_up, nf_down, N_lf, nq_nondecoupl, CT_is_on, R2_is_on, SwF, SwB, &
+    & nc, nf, nf_up, nf_down, nf_active, N_lf, nq_nondecoupl, CT_is_on, R2_is_on, SwF, SwB, &
     bubble_vertex
 #endif
   implicit none
@@ -60,9 +60,15 @@ subroutine qcd_renormalisation
   logical :: zeromasses(6) ! maximal possible number of quarks; only to determine N_lf
 
   zeromasses = [MU==0,MD==0,MS==0,MC==0,MB==0,MT==0]
-  N_lf = count(zeromasses(:nf))
+  if (nf > 0 .and. nf < 7) then
+    N_lf = count(zeromasses(:nf))
+  else if (nf == 56) then
+    N_lf = count(zeromasses(5:6))
+  else if (nf < 0) then
+    N_lf = count(zeromasses(abs(nf):abs(nf)))
+  end if
 
-  if (N_lf /= 0 .and. N_lf /= 3 .and. N_lf /= 4 .and. N_lf /= 5) then
+  if (N_lf /= 0 .and. N_lf /= 1 .and. N_lf /= 3 .and. N_lf /= 4 .and. N_lf /= 5 .and. N_lf /= 6) then
     call ol_error(2, 'in qcd_renormalisation:')
     call ol_msg( 'N_lf = ' // to_string(N_lf) // 'is not supported.')
     call ol_fatal()
@@ -88,8 +94,10 @@ subroutine qcd_renormalisation
     deB_UV = de1_UV + real(log(mu2_UV/MB2))
     deB_IR = de1_IR + real(log(mu2_IR/MB2))
   end if
-  deT_UV   = de1_UV + real(log(mu2_UV/MT2))
-  deT_IR   = de1_IR + real(log(mu2_IR/MT2))
+  if (MT /= 0) then
+    deT_UV = de1_UV + real(log(mu2_UV/MT2))
+    deT_IR = de1_IR + real(log(mu2_IR/MT2))
+  end if
 
   dZq   = 0
   dZc   = 0
@@ -103,6 +111,58 @@ subroutine qcd_renormalisation
   dZYT  = 0
   dZg   = 0
   dgQCD = 0
+
+  ! Sum of squared quark masses
+  MQ2sum = 0
+  MQ2sumpairs = 0
+  YQD2sum = 0
+  YQU2sum = 0
+  YQD2sumpairs = 0
+  YQU2sumpairs = 0
+  nf_up = 0
+  nf_down = 0
+  YC2pair = 0
+  YB2pair = 0
+  YT2pair = 0
+  if (nf > 0) then
+    MQ2sum = MU2 + MD2 + MS2
+    MQ2sumpairs = YU2 + YD2
+    YQD2sum = YD2 + YS2
+    YQU2sum = YU2
+    YQD2sumpairs = YD2
+    YQU2sumpairs = YU2
+    nf_up = 1
+    nf_down = 2
+    YC2pair = 0
+    YB2pair = 0
+    YT2pair = 0
+  end if
+  if (nf > 3) then
+    MQ2sum = MQ2sum + MC2
+    MQ2sumpairs = MQ2sumpairs + YS2 + YC2
+    YQU2sum = YQU2sum + YC2
+    YQD2sumpairs = YQD2sumpairs + YS2
+    YQU2sumpairs = YQU2sumpairs + YC2
+    nf_up = nf_up + 1
+    YC2pair = YC2
+  end if
+  if (nf > 4 .or. nf == -5) then
+    MQ2sum = MQ2sum + MB2
+    YQD2sum = YQD2sum + YB2
+    nf_down = nf_down + 1
+  end if
+  if (nf > 5 .or. nf == -6) then
+    MQ2sum = MQ2sum + MT2
+    MQ2sumpairs = MQ2sumpairs + YB2 + YT2
+    YQU2sum = YQU2sum + YT2
+    YQD2sumpairs = YQD2sumpairs + YB2
+    YQU2sumpairs = YQU2sumpairs + YT2
+    nf_up = nf_up + 1
+    YB2pair = YB2
+    YT2pair = YT2
+  end if
+  nf_active = nf_up + nf_down
+
 
   if (SwB /= 0) then
     ! non-fermionic
@@ -128,7 +188,7 @@ subroutine qcd_renormalisation
         dZYC = -cf * 3*(de1_UV+log(mu2_UV/LambdaYC2)) ! MSbar
       end if
     end if
-    if (nf > 4 .and. MB /= 0) then
+    if (abs(nf) > 4 .and. MB /= 0) then
       dZb  = -cf * (deB_UV + 2*deB_IR + 4) ! massive bottom-quark
       if (LambdaMB2 == 0) then
         dZMB = -cf * (4 + 3*(de1_UV+log(mu2_UV/MB2))) ! on-shell
@@ -136,7 +196,7 @@ subroutine qcd_renormalisation
         dZMB = -cf * 3*(de1_UV+log(mu2_UV/LambdaMB2)) ! MSbar
       end if
     end if
-    if (nf > 4 .and. YB /=0) then
+    if (abs(nf) > 4 .and. YB /=0) then
       if (LambdaYB2 == 0) then
         dZYB = -cf * (4 + 3*(de1_UV+log(mu2_UV/YB2))) ! on-shell
       else
@@ -146,7 +206,7 @@ subroutine qcd_renormalisation
     ! top-mass renormalisation
     ! on-shell at complex pole p^2 = MT^2: dMT = MT * (-cf * (4 + 3*(de1_UV+log(mu2_UV/MT2))) + dZt)
     ! MSbar:                               dMT = MT * (-cf * (3*(de1_UV+log(mu2_UV/LambdaMT2))) + dZt)
-    if (nf > 5 .and. MT /= 0) then
+    if (abs(nf) > 5 .and. MT /= 0) then
       dZt   = -cf * (deT_UV + 2*deT_IR + 4) ! massive top-quark
       if (LambdaMT2 == 0) then
         dZMT = -cf * (4 + 3*(de1_UV+log(mu2_UV/MT2))) ! on-shell
@@ -154,10 +214,12 @@ subroutine qcd_renormalisation
         dZMT = -cf * 3*(de1_UV+log(mu2_UV/LambdaMT2)) ! MSbar
       end if
     end if
-    if (nf > 5 .and. LambdaYT2 == 0) then
-      dZYT = -cf * (4 + 3*(de1_UV+log(mu2_UV/YT2))) ! on-shell
-    else
-      dZYT = -cf * 3*(de1_UV+log(mu2_UV/LambdaYT2)) ! MSbar
+    if (abs(nf) > 5 .and. YT /= 0) then
+      if (LambdaYT2 == 0) then
+        dZYT = -cf * (4 + 3*(de1_UV+log(mu2_UV/YT2))) ! on-shell
+      else
+        dZYT = -cf * 3*(de1_UV+log(mu2_UV/LambdaYT2)) ! MSbar
+      end if
     end if
     ! MS-bar renormalization constant for gQCD, YM-contribution
     dgQCD = -(11*ca)/6 * (de1_UV + log(mu2_UV/muren2))
@@ -165,8 +227,8 @@ subroutine qcd_renormalisation
   if (SwF /= 0) then
     ! fermionic
     dZg   = dZg - (4*tf)/3 * N_lf * (deT_UV - deT_IR)
-    ! MS-bar renormalization constant for gQCD; contribution for nf quarks
-    dgQCD = dgQCD + (2*tf*nf)/3 * (de1_UV + log(mu2_UV/muren2))
+    ! MS-bar renormalization constant for gQCD; contribution for nf_active quarks
+    dgQCD = dgQCD + (2*tf*nf_active)/3 * (de1_UV + log(mu2_UV/muren2))
     if (nf > 3) then
       if (MC /= 0) then
         dZg = dZg - (4*tf)/3 * deC_UV
@@ -175,7 +237,7 @@ subroutine qcd_renormalisation
         end if
       end if
     end if
-    if (nf > 4) then
+    if (abs(nf) > 4) then
       if (MB /= 0) then
         dZg = dZg - (4*tf)/3 * deB_UV
         if (nq_nondecoupl < 5 .or. muren <= rMB) then
@@ -183,7 +245,7 @@ subroutine qcd_renormalisation
         end if
       end if
     end if
-    if (nf > 5) then
+    if (abs(nf) > 5) then
       if (MT /= 0) then
         dZg = dZg - (4*tf)/3 * deT_UV
         ! top-quark decoupling term
@@ -209,43 +271,6 @@ subroutine qcd_renormalisation
 !     dgQCD = dgQCD + nf * (de1_UV/3)
 !     dZg   = dZg - 2*nf * (de1_UV/3)
 !   end if
-
-  ! Sum of squared quark masses
-  MQ2sum = MU2 + MD2 + MS2
-  MQ2sumpairs = YU2 + YD2
-  YQD2sum = YD2 + YS2
-  YQU2sum = YU2
-  YQD2sumpairs = YD2
-  YQU2sumpairs = YU2
-  nf_up = 1
-  nf_down = 2
-  YC2pair = 0
-  YB2pair = 0
-  YT2pair = 0
-  if (nf > 3) then
-    MQ2sum = MQ2sum + MC2
-    MQ2sumpairs = MQ2sumpairs + YS2 + YC2
-    YQU2sum = YQU2sum + YC2
-    YQD2sumpairs = YQD2sumpairs + YS2
-    YQU2sumpairs = YQU2sumpairs + YC2
-    nf_up = nf_up + 1
-    YC2pair = YC2
-  end if
-  if (nf > 4) then
-    MQ2sum = MQ2sum + MB2
-    YQD2sum = YQD2sum + YB2
-    nf_down = nf_down + 1
-  end if
-  if (nf > 5) then
-    MQ2sum = MQ2sum + MT2
-    MQ2sumpairs = MQ2sumpairs + YB2 + YT2
-    YQU2sum = YQU2sum + YT2
-    YQD2sumpairs = YQD2sumpairs + YB2
-    YQU2sumpairs = YQU2sumpairs + YT2
-    nf_up = nf_up + 1
-    YB2pair = YB2
-    YT2pair = YT2
-  end if
 
   ! set all counterterms to zero
   ctqq   = 0
@@ -305,6 +330,20 @@ subroutine qcd_renormalisation
   ctAGGG = [ 0, 0 ]
   ctZGGG = [ 0, 0 ]
   R2GGGG = 0
+  ctZGGu  = 0
+  ctZGGd  = 0
+  ctHGGsel  = 0
+  ctAAGGu = 0
+  ctAZGGu = 0
+  ctZZGGu = 0
+  ctAAGGd = 0
+  ctAZGGd = 0
+  ctZZGGd = 0
+  ctWWGGqq = 0
+  ctAGGGu = [ 0, 0 ]
+  ctAGGGd = [ 0, 0 ]
+  ctZGGGu = [ 0, 0 ]
+  ctZGGGd = [ 0, 0 ]
   ctHEFTggh   = [0,0,0,0,0]
   ctHEFTgggh  = 0
   ctHEFTggggh = 0
@@ -391,7 +430,7 @@ subroutine qcd_renormalisation
   if (R2_is_on /= 0) then
     ! Add R2 contribution
     ! ctff = [ dZf - cf , mf * (dZmf + dZf - 2*cf) ]
-    ! ctVV = [ dZV - (ca/3*(1/2+LHV) + 2*tf*nf/3) , - m2*(dZm2+dZV) + 4*tf*MQ2sum , LHV ]
+    ! ctVV = [ dZV - (ca/3*(1/2+LHV) + 2*tf*nf_active/3) , - m2*(dZm2+dZV) + 4*tf*MQ2sum , LHV ]
     if (SwB /= 0) then
       ! non-fermionic
       dummy_complex = -cf
@@ -447,7 +486,7 @@ subroutine qcd_renormalisation
       ! HEFT
       ctHEFTggh   = ctHEFTggh + [ 1, 89, 14, -17, -93 ] * (nc/24._/**/REALKIND)
       ctHEFTgggh  = ctHEFTgggh - 15*nc/8._/**/REALKIND
-      R2HEFTggggh = 0.125_/**/REALKIND
+      R2HEFTggggh = -0.125_/**/REALKIND
       R2HEFThqq   = 0.25_/**/REALKIND*(nc-1._/**/REALKIND/nc)
       R2HEFTghqq  = 0.25_/**/REALKIND*(3._/**/REALKIND/nc-5*nc)
 
@@ -461,21 +500,33 @@ subroutine qcd_renormalisation
     end if
     if (SwF /= 0) then
       ! fermionic
-      dummy_complex = -(2*tf*nf)/3
+      dummy_complex = -(2*tf*nf_active)/3
       if (bubble_vertex .eq. 0) then
         ctGG   = ctGG + [ dummy_complex, 4*tf*MQ2sum , ZERO ]
       end if
-      ctVVV  = ctVVV - (4*tf*nf)/3
+      ctVVV  = ctVVV - (4*tf*nf_active)/3
       ! pure R2 terms
       ! ZGG R2 coupling: 4/3*sum_q(a_q)
       ctZGG = (nf_down-nf_up)*(-2*tf)/(3*cw*sw)
+      ctZGGu = -1*(-2*tf)/(3*cw*sw)
+      ctZGGd = 1*(-2*tf)/(3*cw*sw)
       ! HGG R2 coupling: 2*sum_q(m_q*v_q)
       ctHGG = -2*tf*MQ2sum/(sw*MW) ! *MQ*YQ/MQ2sum in Feynman rule
+      ctHGGsel = -2*tf/(sw*MW) ! *MQ*YQ in Feynman rule
       ! VVGG R2 coupling: 2/3*sum(v1*v2+a1*a2)
       ctAAGG = (nf_up*4+nf_down)*(tf*4)/27
       ctAZGG = (nf_up*(-6+16*sw2)+nf_down*(-3+4*sw2)) * tf/(27*cw*sw)
       ctZZGG = (nf_up*(9-24*sw2+32*sw2**2)+nf_down*(9-12*sw2+ 8*sw2**2)) * tf/(54*cw2*sw2)
-      ctWWGG = int(nf/2)*tf/(3*sw2) ! tf/(3*sw2) per SU(2) doublet
+      ctWWGG = int(nf_active/2)*tf/(3*sw2) ! tf/(3*sw2) per SU(2) doublet
+      ctAAGGd = (tf*4)/27
+      ctAZGGd = (-3+4*sw2) * tf/(27*cw*sw)
+      ctZZGGd = (9-12*sw2+ 8*sw2**2) * tf/(54*cw2*sw2)
+      ctAAGGu = (1.*4)*(tf*4)/27
+      ctAZGGu = (1.*(-6+16*sw2)) * tf/(27*cw*sw)
+      ctZZGGu = (1.*(9-24*sw2+32*sw2**2)) * tf/(54*cw2*sw2)
+      ctWWGGqq = tf/(3*sw2) ! tf/(3*sw2) per SU(2) doublet
+
+
       ! SSGG R2 coupling: 2*sum(v1*v2-a1*a2)
       ctHHGG = tf*MQ2sum/(sw2*MW2) ! *YQ2/MQ2sum in Feynman rule
       ctHXGG = 0
@@ -484,7 +535,13 @@ subroutine qcd_renormalisation
       ! VGGG R2 coupling: [ 4/3*tf*sum_q(v_q), -12*tf*CI*sum_q(a_q) ]
       dummy_complex = -(4*tf)/9*(2*nf_up-nf_down)
       ctAGGG = [ dummy_complex, ZERO ]
+      dummy_complex = -(4*tf)/9*(2*1)
+      ctAGGGu = [ dummy_complex, ZERO ]
+      dummy_complex = -(4*tf)/9*(-1)
+      ctAGGGd = [ dummy_complex, ZERO ]
       ctZGGG = [ (nf_up*(3-8*sw2)+nf_down*(-3+4*sw2)) * tf/(9*cw*sw) , (nf_up-nf_down)*3*tf*CI/(sw*cw) ]
+      ctZGGGu = [ (1*(3-8*sw2)) * tf/(9*cw*sw) , 1*3*tf*CI/(sw*cw) ]
+      ctZGGGd = [ (1*(-3+4*sw2)) * tf/(9*cw*sw) , -1*3*tf*CI/(sw*cw) ]
       R2GGGG = int(2*tf) ! switch on the 4-gluon R2
       ! 2HDM
       if (trim(model) == "2hdm") then
@@ -532,7 +589,7 @@ function gluon_ofsse(p2,pid)
   use ol_loop_parameters_decl_/**/REALKIND
 #ifndef PRECISION_dp
   use ol_loop_parameters_decl_/**/DREALKIND, only: &
-    & nc, nf, N_lf, bubble_vertex, CT_is_on, R2_is_on
+    & nc, nf, nf_active, N_lf, bubble_vertex, CT_is_on, R2_is_on
 #endif
   complex(REALKIND), intent(in) :: p2
   integer,           intent(in) :: pid
@@ -540,7 +597,7 @@ function gluon_ofsse(p2,pid)
   complex(REALKIND) :: cc1R1,dZ
 
   !complex(REALKIND) :: B0_1,B0_2,B1_1,B1_2,B11_1,B11_2,B00_1,B00_2
-  real(REALKIND) :: ncc,nlf
+  real(REALKIND) :: ncc,nlf,nfactive
   integer :: i
 
   if (pid .ne. 21) then
@@ -550,35 +607,35 @@ function gluon_ofsse(p2,pid)
 
   ncc = real(nc,kind=REALKIND)
   nlf = real(N_lf,kind=REALKIND)
+  nfactive = real(nf_active,kind=REALKIND)
   ! gs**2/(16*pi**2) stripped, assert(Nf == 6)
 
   call init_ol_self_energy_integrals(.true.)
   B01 = calcB0(p2,ZERO,ZERO)
   cc1 = +(5*ncc-2*nlf)*(B01)/real(3,kind=REALKIND)
 
-  do i = N_lf, nf-1
-    select case (i)
-    case (5)
-      B02 = calcB0(ZERO,MT2,MT2)
-      B03 = calcB0(p2,MT2,MT2)
-      cc1 = cc1 + 4*MT2*(B02-B03)/(3*p2) &
-                - 2*B03/3
-    case (4)
-      B02 = calcB0(ZERO,MB2,MB2)
-      B03 = calcB0(p2,MB2,MB2)
-      cc1 = cc1 + 4*MB2*(B02-B03)/(3*p2) &
-                - 2*B03/3
-    case (3)
+  if (N_lf < 4 .and. nf > 3) then
       B02 = calcB0(ZERO,MC2,MC2)
       B03 = calcB0(p2,MC2,MC2)
       cc1 = cc1 + 4*MC2*(B02-B03)/(3*p2) &
                 - 2*B03/3
-    case default
-      call ol_fatal('Flavor scheme N_lf=' // trim(to_string(N_lf)) // ' not implemented for bubble_vertex.')
-  end select
-  end do
-  call init_ol_self_energy_integrals(.false.)
+  end if
 
+  if (N_lf < 5 .and. abs(nf) > 4) then
+      B02 = calcB0(ZERO,MB2,MB2)
+      B03 = calcB0(p2,MB2,MB2)
+      cc1 = cc1 + 4*MB2*(B02-B03)/(3*p2) &
+                - 2*B03/3
+  end if
+
+  if (N_lf < 6 .and. abs(nf) > 5) then
+      B02 = calcB0(ZERO,MT2,MT2)
+      B03 = calcB0(p2,MT2,MT2)
+      cc1 = cc1 + 4*MT2*(B02-B03)/(3*p2) &
+                - 2*B03/3
+  end if
+
+  call init_ol_self_energy_integrals(.false.)
 
   if (CT_is_on .eq. 0) then
     dZ = 0
@@ -587,13 +644,13 @@ function gluon_ofsse(p2,pid)
   end if
 
   ! only R1
-  cc1R1 = (nf*2 + ncc)/real(9,kind=REALKIND)
+  cc1R1 = (nfactive*2 + ncc)/real(9,kind=REALKIND)
   gluon_ofsse(1) =  (dZ - cc1 - cc1R1)  ! w^\mu_out = p^2 w^\mu_in
   gluon_ofsse(2) =  0                   ! w^\mu_out = w^\mu_in
   gluon_ofsse(3) = -(-cc1 + cc1R1)      ! w^\mu_out = (w_in.p) p^\mu
 
   if (R2_is_on .eq. 0) then
-    gluon_ofsse(1) = gluon_ofsse(1) + ca/2 + (2*tf*nf)/3
+    gluon_ofsse(1) = gluon_ofsse(1) + ca/2 + (2*tf*nfactive)/3
     gluon_ofsse(2) = gluon_ofsse(2) - 4*tf*MQ2sum
     gluon_ofsse(3) = gluon_ofsse(3) - cONE
   end if

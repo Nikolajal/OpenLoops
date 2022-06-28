@@ -525,7 +525,7 @@ function vamp2_dp_scaled(vamp2, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, redlib)
 end function vamp2_dp_scaled
 
 
-
+#ifdef USE_qp
 subroutine vamp2_qp(vamp2, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, redlib, mode)
   use KIND_TYPES, only: DREALKIND, QREALKIND
   use ol_init, only: set_parameter, parameters_flush
@@ -645,7 +645,7 @@ function vamp2_qp_scaled(vamp2, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, redlib)
     end if
   end if
 end function vamp2_qp_scaled
-
+#endif
 
 
 subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, &
@@ -667,7 +667,11 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
   character(*), intent(in) :: processname
   real(DREALKIND), intent(in)  :: P_scatt(:,:)
   real(DREALKIND), intent(out) :: M2L0, M2L1(0:2), IRL1(0:2), M2L2(0:4), IRL2(0:4)
+#ifdef USE_qp
   real(QREALKIND) :: M2L0_qp, M2L1_qp(0:2), IRL1_qp(0:2), M2L2_qp(0:4), IRL2_qp(0:4)
+#else
+  real(DREALKIND) :: M2L0_qp, M2L1_qp(0:2), IRL1_qp(0:2), M2L2_qp(0:4), IRL2_qp(0:4)
+#endif
   real(DREALKIND), intent(inout) :: abs_kfactor_threshold, trigeff_local, sum_M2tree
   integer, intent(inout) :: npoints(8), qp_eval, killed
   integer, intent(inout) :: stability_histogram(20), stability_histogram_qp(20)
@@ -686,6 +690,7 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
     end subroutine vamp2dp
   end interface
   interface
+#ifdef USE_qp
     subroutine vamp2qp(P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, mode)
       use KIND_TYPES, only: DREALKIND, QREALKIND
       implicit none
@@ -693,6 +698,15 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
       real(QREALKIND), intent(out) :: M2L0, M2L1(0:2), IRL1(0:2), M2L2(0:4), IRL2(0:4)
       integer, intent(in), optional :: mode
     end subroutine vamp2qp
+#else
+    subroutine vamp2qp(P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2, mode)
+      use KIND_TYPES, only: DREALKIND
+      implicit none
+      real(DREALKIND), intent(in)  :: P_scatt(:,:)
+      real(DREALKIND), intent(out) :: M2L0, M2L1(0:2), IRL1(0:2), M2L2(0:4), IRL2(0:4)
+      integer, intent(in), optional :: mode
+    end subroutine vamp2qp
+#endif
   end interface
 
   current_processname = processname
@@ -759,6 +773,7 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
     last_relative_deviation = vamp2_dp_scaled(vamp2dp, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2)
     if (last_relative_deviation > abscorr_unst) then
         call ol_msg(3,"stability system: qp rescue invoked.")
+#ifdef USE_qp
       qp_eval = qp_eval + 1
       call vamp2_qp(vamp2qp, P_scatt, M2L0_qp, M2L1_qp, IRL1_qp, M2L2_qp, IRL2_qp, redlib_qp)
       M2L0 = M2L0_qp
@@ -766,6 +781,9 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
       IRL1 = IRL1_qp
       M2L2 = M2L2_qp
       IRL2 = IRL2_qp
+#else
+        call ol_fatal("stability system: qp rescue not available.")
+#endif
     end if
     call update_stability_histogram(processname, stability_histogram, last_relative_deviation, qp_eval, killed)
 
@@ -777,6 +795,7 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
     call update_stability_histogram(processname, stability_histogram, last_relative_deviation, qp_eval, killed)
     if (last_relative_deviation > abscorr_unst) then
       call ol_msg(3,"stability system: qp rescue invoked.")
+#if USE_qp
       qp_eval = qp_eval + 1
       last_relative_deviation = vamp2_qp_scaled(vamp2qp, P_scatt, M2L0_qp, M2L1_qp, IRL1_qp, M2L2_qp, IRL2_qp, redlib_qp)
       M2L0 = M2L0_qp
@@ -791,6 +810,9 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
         M2L1(0) = 0
         M2L2(0) = 0
       end if
+#else
+        call ol_fatal("stability system: qp rescue not available.")
+#endif
     end if
     call update_stability_histogram(trim(processname) // "_qp", stability_histogram_qp, &
       & last_relative_deviation, qp_eval, killed)
@@ -801,6 +823,7 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
     ! log dp and qp results, return qp
     last_relative_deviation = vamp2_dp_scaled(vamp2dp, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2)
     call last_scaling_result(M2L2_rescue(1), M2L2_rescue(2), last_relative_deviation)
+#ifdef USE_qp
     call vamp2_qp(vamp2qp, P_scatt, M2L0_qp, M2L1_qp, IRL1_qp, M2L2_qp, IRL2_qp, redlib_qp)
     M2L0 = M2L0_qp
     M2L1 = M2L1_qp
@@ -813,6 +836,9 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
     else
       M2L2_rescue(3) = M2L1(0)
     end if
+#else
+        call ol_fatal("stability system: qp rescue not available.")
+#endif
     ! data: tree, loop, loop_scaled, qp
     call write_result(processname, M2L2_rescue(0:3))
 
@@ -822,6 +848,7 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
     ! log dp and qp results, return qp
     last_relative_deviation = vamp2_dp_scaled(vamp2dp, P_scatt, M2L0, M2L1, IRL1, M2L2, IRL2)
     call last_scaling_result(M2L2_rescue(1), M2L2_rescue(2), last_relative_deviation)
+#ifdef USE_qp
     last_relative_deviation = vamp2_qp_scaled(vamp2qp, P_scatt, M2L0_qp, M2L1_qp, IRL1_qp, M2L2_qp, IRL2_qp, redlib_qp)
     M2L0 = M2L0_qp
     M2L1 = M2L1_qp
@@ -829,6 +856,9 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
     M2L2 = M2L2_qp
     IRL2 = IRL2_qp
     M2L2_rescue(0) = M2L0
+#else
+        call ol_fatal("stability system: qp rescue not available.")
+#endif
     call last_scaling_result(M2L2_rescue(3), M2L2_rescue(4), last_relative_deviation)
     ! data: tree, loop, loop_scaled, qp, qp_scaled
     call write_result(processname, M2L2_rescue)
@@ -894,6 +924,7 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
         ! quad precision rescue
         call ol_msg(3,"stability system: qp rescue invoked.")
         qp_eval = qp_eval + 1
+#ifdef USE_qp
         call vamp2_qp(vamp2qp, P_scatt, M2L0_qp, M2L1_qp, IRL1_qp, M2L2_qp, IRL2_qp, redlib = redlib_qp)
         M2L0 = M2L0_qp
         M2L1 = M2L1_qp
@@ -901,12 +932,16 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
         M2L2 = M2L2_qp
         IRL2 = IRL2_qp
         last_relative_deviation = 0
+#else
+        call ol_fatal("stability system: qp rescue not available.")
+#endif
         call update_stability_histogram(trim(processname) // "_qp", stability_histogram_qp, &
           & last_relative_deviation, qp_eval, killed)
       else if (stability_mode == 23) then
         ! quad precision rescue + scaling
         call ol_msg(3,"stability system: qp rescue invoked.")
         qp_eval = qp_eval + 1
+#ifdef USE_qp
         last_relative_deviation = vamp2_qp_scaled(vamp2qp, P_scatt, M2L0_qp, M2L1_qp, IRL1_qp, M2L2_qp, IRL2_qp, redlib = redlib_qp)
         M2L0 = M2L0_qp
         M2L1 = M2L1_qp
@@ -920,6 +955,9 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
           M2L1(0) = 0
           M2L2(0) = 0
         end if
+#else
+        call ol_fatal("stability system: qp rescue not available.")
+#endif
         call update_stability_histogram(trim(processname) // "_qp", stability_histogram_qp, &
           & last_relative_deviation, qp_eval, killed)
       end if
@@ -927,23 +965,32 @@ subroutine vamp2generic(vamp2dp, vamp2qp, processname, P_scatt, M2L0, M2L1, IRL1
 
   else if (stability_mode == 31) then
     ! quad precision with a single library
+    call ol_msg(3,"stability system: evaluate point in qp.")
+#ifdef USE_qp
     call vamp2_qp(vamp2qp, P_scatt, M2L0_qp, M2L1_qp, IRL1_qp, M2L2_qp, IRL2_qp, redlib = redlib_qp)
     M2L0 = M2L0_qp
     M2L1 = M2L1_qp
     IRL1 = IRL1_qp
     M2L2 = M2L2_qp
     IRL2 = IRL2_qp
-
+#else
+        call ol_fatal("stability system: qp not available.")
+#endif
 
   else if (stability_mode == 32) then
     ! quad precision + scaling with a single library
+    call ol_msg(3,"stability system: re-evaluate point in qp.")
     qp_eval = qp_eval + 1
+#ifdef USE_qp
     last_relative_deviation = vamp2_qp_scaled(vamp2qp, P_scatt, M2L0_qp, M2L1_qp, IRL1_qp, M2L2_qp, IRL2_qp, redlib = redlib_qp)
     M2L0 = M2L0_qp
     M2L1 = M2L1_qp
     IRL1 = IRL1_qp
     M2L2 = M2L2_qp
     IRL2 = IRL2_qp
+#else
+        call ol_fatal("stability system: qp not available.")
+#endif
     if (last_relative_deviation > ratcorr_bad) then
       ! kill point
       call ol_msg(3, "stability system: point killed after qp scaling.")

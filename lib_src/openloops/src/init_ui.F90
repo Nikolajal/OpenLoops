@@ -44,12 +44,20 @@ module ol_init
   type(cleanup_routine), allocatable, save :: cleanup_routines(:)
   integer, save :: n_cleanup_routines = 0
 
+#ifdef USE_qp
   interface set_if_modified
     module procedure set_if_modified_bool, set_if_modified_int, set_if_modified_double, &
                      set_if_modified_cmplx, set_if_modified_cmplxcmplx, &
                      set_if_modified_string, set_if_modified_quad, set_if_modified_quadcmplx, &
                      set_if_modified_quadcmplxcmplx
   end interface set_if_modified
+#else
+  interface set_if_modified
+    module procedure set_if_modified_bool, set_if_modified_int, set_if_modified_double, &
+                     set_if_modified_cmplx, set_if_modified_cmplxcmplx, &
+                     set_if_modified_string
+  end interface set_if_modified
+#endif
 
   interface set_parameter
     module procedure setparameter_int, setparameter_string,    &
@@ -281,6 +289,14 @@ module ol_init
           call set_if_modified(hp_gamma_trig, .true.)
           call set_if_modified(hp_ir_trig, .true.)
           call set_if_modified(hp_irtri_trig, .false.)
+        else if (val == 3) then
+          call set_if_modified(hp_switch, 1)
+          call set_if_modified(hp_gamma_trig, .true.)
+          call set_if_modified(hp_ir_trig, .true.)
+          call set_if_modified(hp_irtri_trig, .false.)
+          call set_if_modified(ir_hacks, .true.)
+        else
+          call ol_error(1,"unrecognised " // trim(param) // "=" // to_string(val))
         end if
       case ("hp_switch")
         if (expert_mode) then
@@ -355,8 +371,8 @@ module ol_init
         ti_monitor = val
       case ("nf", "n_quarks")
         call set_if_modified(nf, val)
-      case ("nfa")
-        call set_if_modified(nfa, val)
+      case ("nfl", "n_leptons")
+        call set_if_modified(nfl, val)
       case ("nq_nondecoupled", "minnf_alphasrun", "nf_alphasrun")
         call set_if_modified(nq_nondecoupl, val)
       case ("nc", "ncolours", "ncolors")
@@ -1695,8 +1711,10 @@ module ol_init
 
   subroutine parameters_flush() bind(c,name="ol_parameters_flush")
     use ol_parameters_init_/**/DREALKIND, only: parameters_init, loop_parameters_init
+#ifdef USE_qp
     use ol_parameters_init_/**/QREALKIND, only: parameters_init_qp=>parameters_init, &
                                                 loop_parameters_init_qp=>loop_parameters_init
+#endif
     use ol_parameters_init_/**/REALKIND, only: qcd_parameters_init
     implicit none
     if (setparameter_tree_was_called .or. setparameter_loop_was_called) then

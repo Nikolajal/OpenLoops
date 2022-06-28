@@ -1,5 +1,6 @@
 
 from __future__ import print_function
+import platform
 
 help_message = """
 OpenLoops build system
@@ -116,6 +117,16 @@ commandline_options = list(filter(lambda el: el[0] not in
                                   OLBaseConfig.loops_specifications, ARGLIST))
 
 config = OLBaseConfig.get_config(commandline_options)
+
+if platform.processor().startswith("arm"):
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    print("You are using OpenLoops on an ARM platform.")
+    print("Currently this does not support quad precision.")
+    print("Note: Numerical stability might be severely reduced,")
+    print("and your setup should *NOT* be used for production runs.")
+    config['precision'] = ['dp']
+    config['process_qp_rescue'] = 0
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
 if config['print_python_version']:
     print('SConstruct uses Python', sys.version)

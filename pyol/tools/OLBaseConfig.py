@@ -25,6 +25,7 @@ if sys.version_info.major == 2:
 else:
     import configparser
 import re
+import platform
 
 # prefix for default_config_file and user_config_file
 prefix = globals().get('__file__', '')
@@ -221,6 +222,13 @@ def get_config(args=[]):
 
     config['compile_libraries'].extend(['olcommon', 'openloops', 'trred'])
     config['link_libraries'].extend(['olcommon', 'openloops', 'trred'])
+
+    if platform.processor().startswith("arm"):
+      if ('cuttools' in config['compile_libraries']):
+        config['compile_libraries'].remove('cuttools')
+      if ('cuttools' in config['link_libraries']):
+        config['link_libraries'].remove('cuttools')
+
     if ('cuttools' in config['compile_libraries']):
         for lib in config['scalar_integral_libraries']:
             if lib not in config['compile_libraries']:

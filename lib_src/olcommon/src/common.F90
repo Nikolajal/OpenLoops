@@ -47,7 +47,11 @@ module ol_generic
   end interface to_int
 
   interface relative_deviation
+#ifdef USE_qp
     module procedure relative_deviation_dp, relative_deviation_qp
+#else
+    module procedure relative_deviation_dp
+#endif
   end interface relative_deviation
 
   contains
@@ -507,6 +511,7 @@ module ol_generic
   end function relative_deviation_dp
 
 
+#ifdef USE_qp
   function relative_deviation_qp(a, b) result (relative_deviation)
     use KIND_TYPES, only: QREALKIND
     implicit none
@@ -520,7 +525,7 @@ module ol_generic
       relative_deviation = max(abs(a/b-1), abs(b/a-1))
     end if
   end function relative_deviation_qp
-
+#endif
 
   function digit_agreement(a, b)
     use KIND_TYPES, only: DREALKIND

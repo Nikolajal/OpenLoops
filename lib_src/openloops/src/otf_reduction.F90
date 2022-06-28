@@ -122,9 +122,17 @@ subroutine construct_l1l2_1(mom1,mom2,alpha,gamma,l1,l2,r1,r2)
     if (signp1p2*signp1xp2 .eq. 1) then
       alpha(1) = L(2,mom1)/L(2,mom2)
       alpha(2) = L(1,mom2)/L(1,mom1)
+      l1 = L(1:4,mom1) - alpha(1)*L(1:4,mom2)
+      l2 = L(1:4,mom2) - alpha(2)*L(1:4,mom1)
+      l1(2) = 0._/**/REALKIND                      ! This is important in order to have exact zeros for the cases in the redset construction
+      l2(1) = 0._/**/REALKIND
     else
       alpha(1) = L(1,mom1)/L(1,mom2)
       alpha(2) = L(2,mom2)/L(2,mom1)
+      l1 = L(1:4,mom1) - alpha(1)*L(1:4,mom2)
+      l2 = L(1:4,mom2) - alpha(2)*L(1:4,mom1)
+      l1(1) = 0._/**/REALKIND
+      l2(2) = 0._/**/REALKIND
     end if
 
     delta = p1xp2**2/p1p2**2/4
@@ -135,9 +143,6 @@ subroutine construct_l1l2_1(mom1,mom2,alpha,gamma,l1,l2,r1,r2)
     end if
 
     one_sqrt_delta = cone + sqrt_delta
-
-    l1 = L(1:4,mom1) - alpha(1)*L(1:4,mom2)
-    l2 = L(1:4,mom2) - alpha(2)*L(1:4,mom1)
 
   ! Case (p_1-p_2)^2 = 0
   else if ((L(5,mom2-mom1) + L(6,mom2-mom1)) .eq. 0) then
@@ -780,6 +785,7 @@ subroutine construct_redset4(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,Red
   use ol_data_types_/**/REALKIND, only: basis, redset4
   use ol_parameters_decl_/**/REALKIND, only: hp_switch,hp_err_thres,hp_redset_gd3_thres
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_data_types_/**/QREALKIND, only: basis_qp=>basis, redset4_qp=>redset4
   use ofred_basis_construction_/**/QREALKIND, only: &
       construct_RedBasis_qp=>construct_RedBasis, &
@@ -787,6 +793,7 @@ subroutine construct_redset4(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,Red
   use ol_external_decl_/**/DREALKIND, only: init_qp
   use ol_kinematics_/**/DREALKIND, only: init_qp_kinematics
   use ol_parameters_decl_/**/REALKIND, only: hp_qp_kinematics_init_mode
+#endif
 #endif
   implicit none
   integer, intent(in)  :: mom1, mom2, mom3
@@ -797,10 +804,12 @@ subroutine construct_redset4(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,Red
   logical :: b1, b2, b3
   integer :: perm(3)
 #ifdef PRECISION_dp
+#ifdef USE_qp
   type(redset4_qp)   :: RedSet_qp
   type(basis_qp)     :: Redbasis_qp
   real(QREALKIND)    :: gd2_qp,gd3_qp
   complex(QREALKIND) :: scalars_qp(0:4)
+#endif
 #endif
 
   !! Selection criterion
@@ -825,7 +834,9 @@ subroutine construct_redset4(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,Red
     RedSet%gd2=gd2
     RedSet%gd3=gd3
 #ifdef PRECISION_dp
+#ifdef USE_qp
     RedSet%qp_computed=.false.
+#endif
 #endif
   else if (b2) then
     call construct_p3scalars(mom2,RedBasis13,scalars,gd2,gd3)
@@ -837,7 +848,9 @@ subroutine construct_redset4(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,Red
     RedSet%gd2=gd2
     RedSet%gd3=gd3
 #ifdef PRECISION_dp
+#ifdef USE_qp
     RedSet%qp_computed=.false.
+#endif
 #endif
   else if (b1) then
     call construct_p3scalars(mom3,RedBasis12,scalars,gd2,gd3)
@@ -849,11 +862,14 @@ subroutine construct_redset4(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,Red
     RedSet%gd2=gd2
     RedSet%gd3=gd3
 #ifdef PRECISION_dp
+#ifdef USE_qp
     RedSet%qp_computed=.false.
+#endif
 #endif
   end if
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (hp_switch .eq. 1 .and. sqrt(abs(gd3)) .lt. hp_redset_gd3_thres) then
     if (hp_qp_kinematics_init_mode .gt. 0 .and. .not. init_qp) call init_qp_kinematics
     call construct_RedBasis_qp(RedSet%redbasis%mom1,RedSet%redbasis%mom2,Redbasis_qp)
@@ -866,6 +882,7 @@ subroutine construct_redset4(mom1,mom2,mom3,RedBasis12,RedBasis13,RedBasis23,Red
     RedSet%qp_computed=.true.
     RedSet%rsqp=RedSet_qp
   end if
+#endif
 #endif
 
 end subroutine construct_redset4
@@ -894,12 +911,15 @@ subroutine reconstruct_redset4(RedSet,RedSet_rec)
   RedSet_rec%gd2=gd2
   RedSet_rec%gd3=gd3
 #ifdef PRECISION_dp
+#ifdef USE_qp
   RedSet_rec%qp_computed=.false.
+#endif
 #endif
 
 end subroutine reconstruct_redset4
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
 subroutine upgrade_redset4(RedSet,RedSet_rec)
 ! ------------------------------------------------------------------------------
 ! RedBasis = input reduction basis
@@ -957,6 +977,7 @@ subroutine upgrade_redset5(RedSet,RedSet_rec)
                           gd2=gd2,gd3=gd3)
 
 end subroutine upgrade_redset5
+#endif
 #endif
 
 subroutine reconstruct_redset5(RedSet,RedSet_rec)
@@ -4677,11 +4698,13 @@ subroutine Hotf_4pt_red(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   use ofred_basis_construction_/**/REALKIND, only: reconstruct_redset4
   use ol_kinematics_/**/REALKIND, only: get_mass2
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_data_types_/**/QREALKIND, only: redset4_qp=>redset4
   use ofred_basis_construction_/**/REALKIND, only: upgrade_redset4
   use ofred_reduction_/**/QREALKIND, only: otf_4pt_red_qp=>otf_4pt_red
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hol_dealloc_hybrid
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
 #endif
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode, &
                                               hp_alloc_mode
@@ -4692,7 +4715,9 @@ subroutine Hotf_4pt_red(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   type(hol),     intent(inout) :: Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3
   integer           :: h, mode_in, phys_hel
 #ifdef PRECISION_dp
+#ifdef USE_qp
   type(redset4_qp) :: RedSet_4_qp
+#endif
 #endif
 
   mode_in = Gin_A%mode
@@ -4729,6 +4754,7 @@ subroutine Hotf_4pt_red(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
 
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gout_A)) then
 
     call upgrade_redset4(RedSet_4, RedSet_4_qp)
@@ -4757,6 +4783,7 @@ subroutine Hotf_4pt_red(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   end if
 
 #endif
+#endif
 
 
 end subroutine Hotf_4pt_red
@@ -4772,11 +4799,13 @@ subroutine Hotf_4pt_red_R1(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   use ol_data_types_/**/REALKIND, only: redset4,hol
   use ol_kinematics_/**/REALKIND, only: get_mass2
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_data_types_/**/QREALKIND, only: redset4_qp=>redset4
   use ofred_basis_construction_/**/REALKIND, only: upgrade_redset4
   use ofred_reduction_/**/QREALKIND, only: otf_4pt_red_qp=>otf_4pt_red
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hol_dealloc_hybrid
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
 #endif
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode, &
                                               hp_alloc_mode
@@ -4788,7 +4817,9 @@ subroutine Hotf_4pt_red_R1(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   integer,       intent(in)    :: nhel
   integer :: h, mode_in, phys_hel
 #ifdef PRECISION_dp
+#ifdef USE_qp
   type(redset4_qp) :: RedSet_4_qp
+#endif
 #endif
 
   mode_in = Gin_A%mode
@@ -4825,6 +4856,7 @@ subroutine Hotf_4pt_red_R1(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
 
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gout_A)) then
     call upgrade_redset4(RedSet_4, RedSet_4_qp)
     do h = 1, phys_hel
@@ -4854,6 +4886,7 @@ subroutine Hotf_4pt_red_R1(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   end if
 
 #endif
+#endif
 
 
 end subroutine Hotf_4pt_red_R1
@@ -4870,11 +4903,13 @@ subroutine Hotf_5pt_red(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   use ol_parameters_decl_/**/REALKIND, only: rzero
   use ol_kinematics_/**/REALKIND, only: get_mass2
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_data_types_/**/QREALKIND, only: redset5_qp=>redset5
   use ofred_basis_construction_/**/REALKIND, only: upgrade_redset5
   use ofred_reduction_/**/QREALKIND, only: otf_5pt_red_qp=>otf_5pt_red
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hol_dealloc_hybrid
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
 #endif
   use ol_loop_handling_/**/REALKIND, only: hybrid_zero_mode
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode, &
@@ -4887,7 +4922,9 @@ subroutine Hotf_5pt_red(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
   integer,       intent(in)    :: nhel
   integer :: h, mode_in, phys_hel
 #ifdef PRECISION_dp
+#ifdef USE_qp
   type(redset5_qp) :: RedSet_5_qp
+#endif
 #endif
 
   mode_in = Gin_A%mode
@@ -4962,6 +4999,7 @@ subroutine Hotf_5pt_red(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
 
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gout_A)) then
     call upgrade_redset5(RedSet_5,RedSet_5_qp)
     do h = 1, phys_hel
@@ -4990,6 +5028,7 @@ subroutine Hotf_5pt_red(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1,Gout_A2, &
     end if
   end if
 #endif
+#endif
 
 end subroutine Hotf_5pt_red
 
@@ -5005,11 +5044,13 @@ subroutine Hotf_5pt_red_R1(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
   use ol_parameters_decl_/**/REALKIND, only: rzero
   use ol_kinematics_/**/REALKIND, only: get_mass2
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_data_types_/**/QREALKIND, only: redset5_qp=>redset5
   use ofred_basis_construction_/**/REALKIND, only: upgrade_redset5
   use ofred_reduction_/**/QREALKIND, only: otf_5pt_red_qp=>otf_5pt_red
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hol_dealloc_hybrid
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
 #endif
   use ol_loop_handling_/**/REALKIND, only: hybrid_zero_mode
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode, &
@@ -5022,7 +5063,9 @@ subroutine Hotf_5pt_red_R1(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
   integer,       intent(in)    :: nhel
   integer :: h, mode_in, phys_hel
 #ifdef PRECISION_dp
+#ifdef USE_qp
   type(redset5_qp) :: RedSet_5_qp
+#endif
 #endif
 
   mode_in = Gin_A%mode
@@ -5097,7 +5140,8 @@ subroutine Hotf_5pt_red_R1(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
 #endif
   end if
 
-#ifdef PRECISION_dp
+#ifdef PRECISION_d
+#ifdef USE_qp
   if (req_qp_cmp(Gout_A)) then
     call upgrade_redset5(RedSet_5, RedSet_5_qp)
     do h = 1, phys_hel
@@ -5128,6 +5172,7 @@ subroutine Hotf_5pt_red_R1(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
     end if
   end if
 #endif
+#endif
 
 end subroutine Hotf_5pt_red_R1
 
@@ -5147,11 +5192,13 @@ subroutine Hotf_4pt_red_last(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1, &
   use ol_data_types_/**/REALKIND, only: redset4, hcl
   use ol_kinematics_/**/REALKIND, only: get_mass2
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_data_types_/**/QREALKIND, only: redset4_qp=>redset4
   use ofred_basis_construction_/**/REALKIND, only: upgrade_redset4
   use ofred_reduction_/**/QREALKIND, only: otf_4pt_reduction_last_qp=>otf_4pt_reduction_last
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hcl_dealloc_hybrid
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
 #endif
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode, &
                                               hp_alloc_mode
@@ -5161,7 +5208,9 @@ subroutine Hotf_4pt_red_last(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1, &
   type(hcl),       intent(inout) :: Gin_A,Gout_A,Gout_A0,Gout_A1,Gout_A2,Gout_A3
   integer :: mode_in
 #ifdef PRECISION_dp
+#ifdef USE_qp
   type(redset4_qp) :: RedSet_4_qp
+#endif
 #endif
 
   mode_in = Gin_A%mode
@@ -5192,6 +5241,7 @@ subroutine Hotf_4pt_red_last(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1, &
 
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gout_A)) then
     call upgrade_redset4(RedSet_4,RedSet_4_qp)
     call otf_4pt_reduction_last_qp(Gin_A%cmp_qp,      &
@@ -5214,6 +5264,7 @@ subroutine Hotf_4pt_red_last(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1, &
     end if
   end if
 #endif
+#endif
 
 end subroutine Hotf_4pt_red_last
 
@@ -5225,12 +5276,14 @@ subroutine Hotf_4pt_red_last_R1(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1, &
   use ol_data_types_/**/REALKIND, only: redset4, hcl
   use ol_kinematics_/**/REALKIND, only: get_mass2
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_data_types_/**/QREALKIND, only: redset4_qp=>redset4
   use ofred_basis_construction_/**/REALKIND, only: upgrade_redset4
   use ofred_reduction_/**/QREALKIND, only:  &
     otf_4pt_reduction_last_qp=>otf_4pt_reduction_last
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hcl_dealloc_hybrid
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
 #endif
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode, &
                                               hp_alloc_mode
@@ -5241,7 +5294,9 @@ subroutine Hotf_4pt_red_last_R1(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1, &
                                   Gout_A3,Gout_R1
   integer :: mode_in
 #ifdef PRECISION_dp
+#ifdef USE_qp
   type(redset4_qp) :: RedSet_4_qp
+#endif
 #endif
 
   mode_in = Gin_A%mode
@@ -5274,6 +5329,7 @@ subroutine Hotf_4pt_red_last_R1(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1, &
 
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gout_A)) then
     call upgrade_redset4(RedSet_4,RedSet_4_qp)
     call otf_4pt_reduction_last_qp(Gin_A%cmp_qp,      &
@@ -5298,6 +5354,7 @@ subroutine Hotf_4pt_red_last_R1(Gin_A,RedSet_4,msq,Gout_A,Gout_A0,Gout_A1, &
     end if
   end if
 #endif
+#endif
 
 end subroutine Hotf_4pt_red_last_R1
 
@@ -5311,12 +5368,14 @@ subroutine Hotf_5pt_red_last(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
   use ol_parameters_decl_/**/REALKIND, only: rzero
   use ol_kinematics_/**/REALKIND, only: get_mass2
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_data_types_/**/QREALKIND, only: redset5_qp=>redset5
   use ofred_basis_construction_/**/REALKIND, only: upgrade_redset5
   use ofred_reduction_/**/QREALKIND, only: &
     otf_5pt_reduction_last_qp=>otf_5pt_reduction_last
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hcl_dealloc_hybrid
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
 #endif
   use ol_loop_handling_/**/REALKIND, only: hybrid_zero_mode
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode, &
@@ -5328,7 +5387,9 @@ subroutine Hotf_5pt_red_last(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
                                   Gout_A3,Gout_A4
   integer :: mode_in
 #ifdef PRECISION_dp
+#ifdef USE_qp
   type(redset5_qp) :: RedSet_5_qp
+#endif
 #endif
 
   mode_in = Gin_A%mode
@@ -5366,8 +5427,10 @@ subroutine Hotf_5pt_red_last(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
     Gout_A1%ndrs = 0
     Gout_A1%nred = 0
 #ifdef PRECISION_dp
+#ifdef USE_qp
     Gout_A1%ndrs_qp = 0
     Gout_A1%nred_qp = 0
+#endif
 #endif
   else if (RedSet_5%perm(4) .eq. 2) then
     Gout_A2%mode = hybrid_zero_mode
@@ -5375,8 +5438,10 @@ subroutine Hotf_5pt_red_last(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
     Gout_A2%ndrs = 0
     Gout_A2%nred = 0
 #ifdef PRECISION_dp
+#ifdef USE_qp
     Gout_A2%ndrs_qp = 0
     Gout_A2%nred_qp = 0
+#endif
 #endif
   else if (RedSet_5%perm(4) .eq. 3) then
     Gout_A3%mode = hybrid_zero_mode
@@ -5384,8 +5449,10 @@ subroutine Hotf_5pt_red_last(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
     Gout_A3%ndrs = 0
     Gout_A3%nred = 0
 #ifdef PRECISION_dp
+#ifdef USE_qp
     Gout_A3%ndrs_qp = 0
     Gout_A3%nred_qp = 0
+#endif
 #endif
   else if (RedSet_5%perm(4) .eq. 4) then
     Gout_A4%mode = hybrid_zero_mode
@@ -5393,12 +5460,15 @@ subroutine Hotf_5pt_red_last(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
     Gout_A4%ndrs = 0
     Gout_A4%nred = 0
 #ifdef PRECISION_dp
+#ifdef USE_qp
     Gout_A4%ndrs_qp = 0
     Gout_A4%nred_qp = 0
+#endif
 #endif
   end if
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gout_A)) then
     call upgrade_redset5(RedSet_5,RedSet_5_qp)
     call otf_5pt_reduction_last_qp(       &
@@ -5424,6 +5494,7 @@ subroutine Hotf_5pt_red_last(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
     end if
   end if
 #endif
+#endif
 
 end subroutine Hotf_5pt_red_last
 
@@ -5436,12 +5507,14 @@ subroutine Hotf_5pt_red_last_R1(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
   use ol_parameters_decl_/**/REALKIND, only: rzero
   use ol_kinematics_/**/REALKIND, only: get_mass2
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_data_types_/**/QREALKIND, only: redset5_qp=>redset5
   use ofred_basis_construction_/**/REALKIND, only: upgrade_redset5
   use ofred_reduction_/**/QREALKIND, only: &
     otf_5pt_reduction_last_qp=>otf_5pt_reduction_last
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hcl_dealloc_hybrid
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+#endif
 #endif
   use ol_loop_handling_/**/REALKIND, only: hybrid_zero_mode
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode, &
@@ -5453,7 +5526,9 @@ subroutine Hotf_5pt_red_last_R1(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
                                   Gout_A3,Gout_A4,Gout_R1
   integer :: mode_in
 #ifdef PRECISION_dp
+#ifdef USE_qp
   type(redset5_qp) :: RedSet_5_qp
+#endif
 #endif
 
   mode_in = Gin_A%mode
@@ -5526,6 +5601,7 @@ subroutine Hotf_5pt_red_last_R1(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
   end if
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gout_A)) then
     call upgrade_redset5(RedSet_5,RedSet_5_qp)
     call otf_5pt_reduction_last_qp(Gin_A%cmp_qp,     &
@@ -5551,6 +5627,7 @@ subroutine Hotf_5pt_red_last_R1(Gin_A,RedSet_5,msq,Gout_A,Gout_A0,Gout_A1, &
       Gout_R1%cmp_qp = 0
     end if
   end if
+#endif
 #endif
 
 end subroutine Hotf_5pt_red_last_R1

@@ -148,6 +148,7 @@ module openloops
     integer :: API
     integer :: LeadingColour
     integer :: NF
+    integer :: NFL
     integer :: NC
     integer :: CKMORDER
     integer :: QED
@@ -202,7 +203,7 @@ module openloops
         rval_size = 1
       case (11) ! Loop
         rval_size = 4
-      case (2) ! ccTreeo
+      case (2) ! ccTree
         rval_size = (n_part*(n_part-1))/2
       case (3) ! scTree
         rval_size = 2*n_part*n_part
@@ -217,7 +218,7 @@ module openloops
   end function rval_size
 
 
-  function get_process_handle(lib, libname, proc, content, amptype, n_in, perm, pol, extid, photon_id, qcd_powers)
+  function get_process_handle(lib, libname, proc, content, amptype, n_in, perm, pol, extid, photon_id, qcd_powers, replace_loop)
     ! [in] lib: a shared library handle
     ! [in] proc: a full process name, '<lib>_<subproc>_<id>'
     ! [in] perm: integer array with the crossing
@@ -239,6 +240,7 @@ module openloops
     integer, intent(in), optional :: extid(:)
     integer, intent(in), optional :: photon_id(:)
     integer, intent(in), optional :: qcd_powers(2)
+    integer, intent(in), optional :: replace_loop
     type(process_handle) :: get_process_handle
     integer :: k
     procedure(), pointer :: tmp_fun
@@ -313,6 +315,9 @@ module openloops
       get_process_handle%extid = 0
     end if
     allocate(get_process_handle%photon_id(get_process_handle%n_particles))
+    if (present(replace_loop)) then
+      get_process_handle%replace_loop = replace_loop
+    end if
     if (present(photon_id)) then
       ! check correct size of the photon_id vector
       if (get_process_handle%n_particles /= size(photon_id)) then
@@ -366,7 +371,7 @@ module openloops
     end if
   end function get_process_handle
 
-  function register_process_lib(libname, proc, content, amptype, n_in, pol, perm, extid, photon_id, qcd_powers)
+  function register_process_lib(libname, proc, content, amptype, n_in, pol, perm, extid, photon_id, qcd_powers, replace_loop)
     ! [in] libname: name of the process library
     ! [in] proc: a full process name, '<lib>_<subproc>_<id>'
     ! [in] perm: integer array with the crossing
@@ -385,8 +390,9 @@ module openloops
     integer, intent(in), optional :: extid(:)
     integer, intent(in), optional :: photon_id(:)
     integer, intent(in), optional :: qcd_powers(2)
+    integer, intent(in), optional :: replace_loop
     type(c_ptr) :: lib
-    logical :: same_perm, same_pol, same_photon_id
+    logical :: same_perm, same_pol, same_photon_id, same_replace_loop
     integer :: register_process_lib
     integer :: j, k
     type(process_handle) :: prochandle
@@ -394,7 +400,8 @@ module openloops
 
     lib = dlopen(libname, RTLD_LAZY, 2)
     prochandle = get_process_handle(lib, libname, proc, content, amptype, n_in, perm=perm, pol=pol, &
-                                                   & extid=extid, photon_id=photon_id, qcd_powers=qcd_powers)
+                                     extid=extid, photon_id=photon_id, &
+                                     qcd_powers=qcd_powers, replace_loop=replace_loop)
 
     if (error > 1) return
     ! Check if the process was registered before with the same permutation, polarization and amptype.
@@ -420,9 +427,16 @@ module openloops
       else
         same_photon_id = all(process_handles(k)%photon_id == 0)
       end if
+      same_replace_loop = .true.
+      if (present(replace_loop)) then
+        if (replace_loop .ne. -1) then
+          same_replace_loop = (process_handles(k)%replace_loop == replace_loop)
+        end if
+      end if
       if (same_perm .and. &
         & same_pol .and. &
         & same_photon_id .and. &
+        & same_replace_loop .and. &
         & (amptype == process_handles(k)%amplitude_type) ) then
         register_process_lib = k
         return
@@ -592,6 +606,8 @@ module openloops
         coupling_qcd_bak  = coupling_qcd
         loop_order_ew_bak = loop_order_ew
         loop_order_qcd_bak = loop_order_qcd
+        check_collection_bak = check_collection
+
 
         ! for >4q processes: if not found directly try to load tree and loop
         ! amplitudes from different libraries.
@@ -599,7 +615,7 @@ module openloops
          if (amptype > 10 .and. coupling_ew(0) /= -1 &
                           .and. (coupling_ew(1) == -1 .or. coupling_ew(1) == 0) &
                           .and. (coupling_qcd(1) == -1  .or. coupling_qcd(1) == 1)) then
-            replace_loop = loop_over_libraries(proc, 1, n_in, perm, pol, extid, process_in, photon_id)
+            replace_loop = loop_over_libraries(proc, 1, n_in, perm, pol, extid, process_in, photon_id, replace_loop=-1)
             if (replace_loop > 0) then
               loop_order_ew = coupling_ew(0)
               coupling_ew = -1
@@ -608,7 +624,7 @@ module openloops
           else if (amptype > 10 .and. coupling_qcd(0) /= -1 &
                                 .and. (coupling_qcd(1) == -1 .or. coupling_qcd(1) == 0) &
                                 .and. (coupling_ew(1) == -1  .or. coupling_ew(1) == 1)) then
-            replace_loop = loop_over_libraries(proc, 1, n_in, perm, pol, extid, process_in, photon_id)
+            replace_loop = loop_over_libraries(proc, 1, n_in, perm, pol, extid, process_in, photon_id, replace_loop=-1)
             if (replace_loop > 0) then
               loop_order_qcd = coupling_qcd(0)
               coupling_ew = -1
@@ -618,10 +634,15 @@ module openloops
 
           ! interference born -> squared born (for 4q processes)
           if (replace_loop > 0) then
-            register_process_string = loop_over_libraries(proc, amptype, n_in, perm, pol, extid, process_in, photon_id)
-            if (register_process_string /= -1) then
-              process_handles(replace_loop)%replace_loop=register_process_string
-              register_process_string = replace_loop
+            replace_loop = loop_over_libraries(proc, amptype, n_in, perm, pol, extid, &
+                                                          process_in, photon_id)
+            if (replace_loop /= -1) then
+              coupling_ew  = coupling_ew_bak
+              coupling_qcd  = coupling_qcd_bak
+              loop_order_ew = loop_order_ew_bak
+              loop_order_qcd = loop_order_qcd_bak
+              register_process_string = loop_over_libraries(proc, 1, n_in, perm, pol, extid, &
+                                         process_in, photon_id, replace_loop=replace_loop)
             end if
           end if
         end if
@@ -636,7 +657,6 @@ module openloops
 
         ! register associate qcd-ew born amplitudes
         if (register_process_string > 0 .and. abs(add_associated_ew) > 1) then
-          check_collection_bak = check_collection
           check_collection=.false.
           if (coupling_ew_bak(0) > -1) then
             coupling_ew(0) = coupling_ew_bak(0)+1
@@ -866,7 +886,7 @@ module openloops
 
   end subroutine normal_order
 
-  function loop_over_libraries(proc, amptype, n_in, perm, pol, extid, process_in, photon_id)
+  function loop_over_libraries(proc, amptype, n_in, perm, pol, extid, process_in, photon_id, replace_loop)
   use ol_parameters_decl_/**/DREALKIND, only: check_collection
   ! loop over library types
     use KIND_TYPES, only: DREALKIND
@@ -879,6 +899,7 @@ module openloops
     integer, intent(in), optional :: extid(:)
     character(len=*), intent(in), optional :: process_in
     integer, intent(in), optional :: photon_id(:)
+    integer, intent(in), optional :: replace_loop
     integer loop_over_libraries
     integer librarytype, loop_olmode, check
 
@@ -888,13 +909,15 @@ module openloops
       if (OLMode == -1) then
         LoopOLMode: do loop_olmode = 3, 0, -1
           check = check_process(proc, amptype, librarytype, n_in, &
-                  olmode=loop_olmode, perm_in=perm, pol=pol, extid=extid, process_string=process_in, photon_id=photon_id)
+                  olmode=loop_olmode, perm_in=perm, pol=pol, extid=extid, &
+                  process_string=process_in, photon_id=photon_id, replace_loop=replace_loop)
           if (error > 1) return
           if (check > 0) exit LoopOLMode
         end do LoopOLMode
       else
         check = check_process(proc, amptype, librarytype, n_in, &
-                olmode=OLMode, perm_in=perm, pol=pol, extid=extid, process_string=process_in, photon_id=photon_id)
+                olmode=OLMode, perm_in=perm, pol=pol, extid=extid, &
+                process_string=process_in, photon_id=photon_id, replace_loop=replace_loop)
         if (error > 1) return
       end if
       if (check > 0) then ! found & registered
@@ -941,7 +964,7 @@ module openloops
   end function register_process_id
 
 
-  function check_process(proc_in, amptype, librarytype, n_in, olmode, perm_in, pol, extid, process_string, photon_id)
+  function check_process(proc_in, amptype, librarytype, n_in, olmode, perm_in, pol, extid, process_string, photon_id, replace_loop)
   ! 1: found, 0: not found, -1: abort
     use KIND_TYPES, only: DREALKIND
     use ol_parameters_decl_/**/DREALKIND, only: &
@@ -960,6 +983,7 @@ module openloops
     integer, intent(in), optional :: extid(:)
     character(len=*), intent(in), optional :: process_string
     integer, intent(in), optional :: photon_id(:)
+    integer, intent(in), optional :: replace_loop
     integer, allocatable :: perm(:)
     integer, allocatable :: select_pol(:)
     integer check_process
@@ -1261,7 +1285,7 @@ module openloops
         !register
         check_process = register_process_lib(libfilename, libhandle, lib_content, amptype, &
                               & n_in, perm=perm, pol=select_pol, extid=extid, photon_id=photon_id, &
-                              & qcd_powers=process_infos(p)%qcdorder)
+                              & qcd_powers=process_infos(p)%qcdorder, replace_loop=replace_loop)
         if (error > 1) then
           call ol_error("register_process_lib failed")
           check_process = -2
@@ -1355,7 +1379,7 @@ module openloops
       & leadingcolour, coupling_qcd, coupling_ew, &
       & loop_order_ew, loop_order_qcd, &
       & approximation, CKMORDER, QED, model, allowed_libs, apicheck
-    use ol_loop_parameters_decl_/**/DREALKIND , only: nf, nc
+    use ol_loop_parameters_decl_/**/DREALKIND , only: nf, nfl, nc
     use ol_version, only: process_api
     implicit none
     integer, intent(in) :: p
@@ -1373,11 +1397,11 @@ module openloops
       if (apicheck) call check(process_infos(p)%API == process_api, found, "API version not ok.")
       if (trim(model) /= "heft") then
         call check(process_infos(p)%EWorder(0) == coupling_EW(0) .or. coupling_EW(0) == -1, found, "EW tree coupling NOT ok.")
-        call check(amptype == 1 .or. process_infos(p)%eworder(1) == coupling_ew(1) &
+        call check(amptype < 10 .or. process_infos(p)%eworder(1) == coupling_ew(1) &
                   .or. coupling_ew(1) == -1, found, "EW loop not ok.")
       end if
       call check(process_infos(p)%qcdorder(0) == coupling_qcd(0) .or. coupling_qcd(0) == -1, found, "qcd tree coupling not ok.")
-      call check(amptype == 1  .or. process_infos(p)%qcdorder(1) == coupling_qcd(1) &
+      call check(amptype < 10  .or. process_infos(p)%qcdorder(1) == coupling_qcd(1) &
                   .or. coupling_qcd(1) == -1, found, "qcd loop not ok.")
       call check(loop_order_ew == -1 .or. process_infos(p)%eworder(0)+process_infos(p)%eworder(1) == loop_order_ew, &
                      found, "absolute ew loop not ok.")
@@ -1386,6 +1410,7 @@ module openloops
       call check(process_infos(p)%LeadingColour == leadingcolour, found, "LeadingColour OK.")
       call check(process_infos(p)%NC == nc, found, "nc NOT ok.")
       call check(process_infos(p)%NF == nf, found, "nf NOT ok.")
+      call check(process_infos(p)%NFL == nfl, found, "nfl NOT ok.")
       call check(process_infos(p)%CKMorder == CKMORDER, found, "CKM NOT ok.")
       call check(process_infos(p)%QED == QED, found, "QED NOT ok.")
       call check(index(process_infos(p)%MODEL, trim(model)) == 1, found, "model NOT ok.")
@@ -1629,6 +1654,7 @@ module openloops
       call readInfoInt(lineinfo, 'QED', infos%QED)
       call readInfoInt(lineinfo, 'nc', infos%NC)
       call readInfoInt(lineinfo, 'nf', infos%NF)
+      call readInfoInt(lineinfo, 'nfl', infos%NFL, def='3')
       call readInfoInt(lineinfo, 'LeadingColour', infos%LeadingColour)
       call readInfoInt(lineinfo, 'POLSEL', infos%POLSEL)
       call readInfo(lineinfo, 'CC', infos%CC)
@@ -1686,18 +1712,23 @@ module openloops
       end if
     end subroutine readInfoColInt
 
-    subroutine readInfoInt(lineinfo, var, res)
+    subroutine readInfoInt(lineinfo, var, res, def)
       use ol_generic, only: to_int
       implicit none
       character(len=*), intent(in) :: lineinfo
       character(len=*), intent(in) :: var
       character(len=10) :: restemp
+      character(len=*), optional :: def
       integer, intent(out) :: res
       if (index(lineinfo, var//'=') /= 0) then
         restemp = lineinfo(index(lineinfo, var//'=')+len_trim(var)+1: &
             & index(lineinfo, var//'=')+index(lineinfo(index(lineinfo, var//'='):),' ')-1)
       else
-        restemp = "0"
+        if (present(def)) then
+          restemp = trim(def)
+        else
+          restemp = "0"
+        end if
       end if
       res = to_int(restemp)
       if (res == -huge(res)) then
@@ -2374,7 +2405,11 @@ module openloops
     if (id <= 0 .or. id > last_process_id) then
       amplitudetype = 0
     else
-      amplitudetype = process_handles(id)%amplitude_type
+      if (process_handles(id)%replace_loop > 0) then
+        amplitudetype = 11
+      else
+        amplitudetype = process_handles(id)%amplitude_type
+      end if
     end if
   end function amplitudetype
 
@@ -4532,7 +4567,7 @@ module openloops
       call evaluate_full(id, psp, m2l0, m2l1, ir1, m2l2, ir2, acc)  ! fill colour/helicity vector cache
       use_me_cache = use_me_cache_bak
       if (m2l1(0) == 0 .and. m2l2(0) == 0) then
-        cr%rescc = 0
+        if (allocated(cr%rescc)) cr%rescc = 0
         cr%resmunu = 0
         return
       end if
@@ -4541,7 +4576,7 @@ module openloops
                  &  // trim(to_string(subprocess%permutation,.true.)) // ' available in cache' )
       call evaluate_full(id, psp, m2l0, m2l1, ir1, m2l2, ir2, acc)  ! retrieve from cache
       if (subprocess%last_zero) then
-        cr%rescc = 0
+        if (allocated(cr%rescc)) cr%rescc = 0
         cr%resmunu = 0
         return ! return for unstable points
       end if

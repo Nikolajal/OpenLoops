@@ -135,11 +135,15 @@ module ol_loop_handling_/**/REALKIND
     use KIND_TYPES, only:  QREALKIND
     use ol_parameters_decl_/**/REALKIND, only: ZERO
     use ol_external_decl_/**/DREALKIND, only: init_qp
+#ifdef USE_qp
     use ol_kinematics_/**/DREALKIND, only: init_qp_kinematics
     use ol_parameters_decl_/**/REALKIND, only: hp_qp_kinematics_init_mode
+#endif
     type(hcl), intent(inout) :: Gin
 
+#ifdef USE_qp
     if (hp_qp_kinematics_init_mode .gt. 0 .and. .not. init_qp) call init_qp_kinematics
+#endif
 
     if (Gin%mode .eq. hybrid_dp_mode) then
       Gin%mode = hybrid_qp_mode
@@ -172,11 +176,15 @@ module ol_loop_handling_/**/REALKIND
     use KIND_TYPES, only:  QREALKIND
     use ol_parameters_decl_/**/REALKIND, only: ZERO
     use ol_external_decl_/**/DREALKIND, only: init_qp
+#ifdef USE_qp
     use ol_kinematics_/**/DREALKIND, only: init_qp_kinematics
+#endif
     use ol_parameters_decl_/**/REALKIND, only: hp_qp_kinematics_init_mode
     type(hol), intent(inout) :: Gin
 
+#ifdef USE_qp
     if (hp_qp_kinematics_init_mode .gt. 0 .and. .not. init_qp) call init_qp_kinematics
+#endif
 
     ! pure dp mode -> pure qp
     if (Gin%mode .eq. hybrid_dp_mode) then
@@ -823,7 +831,9 @@ subroutine HG1shiftOLR(HG1in,dQid,htot)
   use ol_kinematics_/**/REALKIND, only: get_LC_4
   use ol_data_types_/**/REALKIND, only: hol
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_kinematics_/**/DREALKIND, only: get_LC_4_qp
+#endif
 #endif
   integer,   intent(in)    :: htot
   integer,   intent(in)    :: dQid
@@ -843,6 +853,7 @@ subroutine HG1shiftOLR(HG1in,dQid,htot)
   HG1in%j(:,1,:,:) = HG1in%j(:,1,:,:) + G1shift(:,1,:,:)
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(HG1in)) then
     dQ_qp = get_LC_4_qp(dQid)
     G1shift_qp(:,1,:,:) = HG1in%j_qp(:,2,:,:)*dQ_qp(1) + HG1in%j_qp(:,3,:,:)*dQ_qp(2) &
@@ -850,6 +861,7 @@ subroutine HG1shiftOLR(HG1in,dQid,htot)
 
     HG1in%j_qp(:,1,:,:) = HG1in%j_qp(:,1,:,:) + G1shift_qp(:,1,:,:)
   end if
+#endif
 #endif
 
 end subroutine HG1shiftOLR
@@ -865,11 +877,13 @@ subroutine G_TensorShift(Gin,dQid)
   use ol_data_types_/**/REALKIND, only: hcl
   use ol_kinematics_/**/REALKIND, only: get_LC_4
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_loop_handling_/**/QREALKIND, only: &
               G1tensorshiftOLR_qp => G1tensorshiftOLR, &
               G2tensorshiftOLR_qp => G2tensorshiftOLR, &
               G3tensorshiftOLR_qp => G3tensorshiftOLR
   use ol_kinematics_/**/DREALKIND, only: get_LC_4_qp
+#endif
 #endif
   integer,   intent(in)    :: dQid
   type(hcl), intent(inout) :: Gin
@@ -883,6 +897,7 @@ subroutine G_TensorShift(Gin,dQid)
   end if
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin)) then
     if (size(Gin%cmp) == 5) then
       call G1tensorshiftOLR_qp(Gin%cmp_qp,get_LC_4_qp(dQid))
@@ -892,6 +907,7 @@ subroutine G_TensorShift(Gin,dQid)
       call G3tensorshiftOLR_qp(Gin%cmp_qp,get_LC_4_qp(dQid))
     end if
   end if
+#endif
 #endif
 
 end subroutine G_TensorShift

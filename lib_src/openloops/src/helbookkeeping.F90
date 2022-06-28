@@ -1015,7 +1015,9 @@ subroutine merge_map(ntry, nth_mism, merge_tabs, merge_hels, Gin_0, Gin_1)
   use KIND_TYPES, only: REALKIND, QREALKIND, intkind1, intkind2
   use ol_data_types_/**/REALKIND, only: hol
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_parameters_decl_/**/QREALKIND, only: zero
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)  :: ntry

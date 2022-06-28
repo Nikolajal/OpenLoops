@@ -113,6 +113,7 @@ function get_LC_5(mom) result(P)
 end function get_LC_5
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
 function get_LC_5_qp(mom) result(P)
   use KIND_TYPES, only: QREALKIND
   use ol_momenta_decl_/**/QREALKIND, only: L_qp=>L
@@ -130,6 +131,7 @@ function get_LC_5_qp(mom) result(P)
   end if
 
 end function get_LC_5_qp
+#endif
 #endif
 
 
@@ -153,6 +155,7 @@ function get_LC_4(mom) result(P)
 end function get_LC_4
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
 function get_LC_4_qp(mom) result(P)
   use KIND_TYPES, only: QREALKIND
   use ol_momenta_decl_/**/QREALKIND, only: L_qp=>L
@@ -168,6 +171,7 @@ function get_LC_4_qp(mom) result(P)
   end if
 
 end function get_LC_4_qp
+#endif
 #endif
 
 
@@ -997,7 +1001,9 @@ subroutine init_kinematics_mids(P_scatt, m_ext2, P_in_clean, perm_inv, n, qp_kin
   use ol_parameters_decl_/**/REALKIND, only: hp_switch,hp_qp_kinematics_init_mode,&
                                              hp_nsi,hp_nsi_qp,hp_ndrs,hp_ndrs_qp, &
                                              hp_nred,hp_nred_qp,hp_max_err
+#ifdef USE_qp
   use ol_kinematics_/**/QREALKIND, only: init_kinematics_mids_qp=>init_kinematics_mids
+#endif
 #endif
   use ol_external_decl_/**/DREALKIND, only: init_qp
   integer,         intent(in)  :: n
@@ -1017,6 +1023,7 @@ subroutine init_kinematics_mids(P_scatt, m_ext2, P_in_clean, perm_inv, n, qp_kin
 
   call conv_mom_scatt2in_mids(P_scatt, m_ext2, P_in_clean, perm_inv, n)
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (hp_switch .eq. 1) then
     hp_nsi = 0
     hp_nsi_qp = 0
@@ -1032,6 +1039,7 @@ subroutine init_kinematics_mids(P_scatt, m_ext2, P_in_clean, perm_inv, n, qp_kin
     call init_kinematics_mids_qp(P_scatt, m_ext2, P_qp, perm_inv, n, &
       (hp_qp_kinematics_init_mode .eq. 0 .and. qp_kinematics))
   end if
+#endif
   call internal_momenta_six(P_in_clean, n, m_ext2, &
        (hp_qp_kinematics_init_mode .eq. 0 .and. qp_kinematics))
 #else
@@ -1041,6 +1049,7 @@ subroutine init_kinematics_mids(P_scatt, m_ext2, P_in_clean, perm_inv, n, qp_kin
 end subroutine init_kinematics_mids
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
 subroutine init_qp_kinematics()
   use ol_external_decl_/**/REALKIND, only: nParticles,M_ex,init_qp
   use KIND_TYPES, only: QREALKIND
@@ -1053,6 +1062,7 @@ subroutine init_qp_kinematics()
   init_qp = .true.
   call internal_momenta_six(real(P_in_clean_qp,kind=REALKIND), nParticles, M_ex, .true.)
 end subroutine init_qp_kinematics
+#endif
 #endif
 
 ! **********************************************************************
@@ -1316,7 +1326,9 @@ subroutine internal_momenta_six(P, Npart, ext_masses, use_qp_kinematics)
   use ol_momenta_decl_/**/REALKIND, only: L, collconf, softconf
 #ifdef PRECISION_dp
   use ol_parameters_decl_/**/REALKIND, only: hp_switch, hp_mode, sync_qp_kinematics
+#ifdef USE_qp
   use ol_momenta_decl_/**/QREALKIND, only: L_qp=>L
+#endif
 #endif
   implicit none
 
@@ -1343,7 +1355,9 @@ subroutine internal_momenta_six(P, Npart, ext_masses, use_qp_kinematics)
   if (Npart == 2) then
 #ifdef PRECISION_dp
     if (use_qp_kinematics .and. hp_switch .eq. 1 .and. sync_qp_kinematics .eq. 1) then
+#ifdef USE_qp
       L(1:4,1) = L_qp(1:4,1)
+#endif
     else
       call Std2LC_Rep(P(:,1),L(1:4,1))
     end if
@@ -1356,7 +1370,9 @@ subroutine internal_momenta_six(P, Npart, ext_masses, use_qp_kinematics)
   else if (Npart == 3) then
 #ifdef PRECISION_dp
     if (use_qp_kinematics .and. hp_switch .eq. 1 .and. sync_qp_kinematics .eq. 1) then
+#ifdef USE_qp
       L(1:4,1:6) = L_qp(1:4,1:6)
+#endif
     else
       call Std2LC_Rep(P(:,1),L(1:4,1))
       call Std2LC_Rep(P(:,2),L(1:4,2))
@@ -1381,7 +1397,9 @@ subroutine internal_momenta_six(P, Npart, ext_masses, use_qp_kinematics)
 #ifdef PRECISION_dp
     ! overwrite dp invariants by qp ones
     if (use_qp_kinematics .and. hp_switch .eq. 1 .and. sync_qp_kinematics .eq. 1) then
+#ifdef USE_qp
       L(6,3) = L_qp(6,3)
+#endif
     else
       L(6,3) = 2*cont_LC_cntrv(L(1:4,1),L(1:4,2))
     end if
@@ -1522,8 +1540,10 @@ recursive subroutine intmom_rec_six(Npart, Jmax, i1, s1, x, use_qp_kinematics)
   use ol_momenta_decl_/**/REALKIND, only: L,collconf,softconf
 #ifdef PRECISION_dp
   use ol_parameters_decl_/**/REALKIND, only: hp_mode, hp_switch, sync_qp_kinematics
+#ifdef USE_qp
   use ol_momenta_decl_/**/QREALKIND, only: L_qp=>L
   use ol_kinematics_/**/QREALKIND, only: cont_LC_cntrv_qp=>cont_LC_cntrv
+#endif
 #endif
   implicit none
   integer,    intent(in) :: Npart, Jmax, i1, s1, x
@@ -1549,11 +1569,13 @@ recursive subroutine intmom_rec_six(Npart, Jmax, i1, s1, x, use_qp_kinematics)
 #ifdef PRECISION_dp
       ! overwrite dp invariants by qp ones (not the masses squared terms though)
       if (use_qp_kinematics .and. hp_switch .eq. 1 .and. sync_qp_kinematics .eq. 1) then
+#ifdef USE_qp
         L(1:5,sx) = L_qp(1:5,sx)
         L(1:4,rx) = L_qp(1:4,rx)
         sp = 2*cont_LC_cntrv_qp(L_qp(1:4,s1),L_qp(1:4,lx))
         L(6,sx) = sp + L(6,s1)
         L(6,3) = L_qp(6,3)
+#endif
       else
         L(1:5,sx) = L(1:5,s1) + L(1:5,lx)
         L(1:4,rx) = -L(1:4,sx)
@@ -1694,3 +1716,5 @@ end function collier_invariants
 
 
 end module ol_kinematics_/**/REALKIND
+
+

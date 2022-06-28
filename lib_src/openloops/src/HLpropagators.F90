@@ -22,7 +22,9 @@ module ol_h_prop_interface_/**/REALKIND
   use ol_h_vert_interface_/**/REALKIND, only: valid_hol
   use ol_parameters_decl_/**/REALKIND, only: hp_switch
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp
+#endif
 #endif
   implicit none
   contains
@@ -45,9 +47,11 @@ subroutine Hloop_A_Q(ntry, G_Q, momid, M, Gout_Q, n)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_prop
   use ol_kinematics_/**/REALKIND, only: get_LC_5,get_mass
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_prop_interface_/**/QREALKIND, only: loop_A_Q_qp => loop_A_Q
   use ol_kinematics_/**/QREALKIND, only: get_LC_5_qp=>get_LC_5, &
                                          get_mass_qp=>get_mass
+#endif
 #endif
   implicit none
 
@@ -68,6 +72,7 @@ subroutine Hloop_A_Q(ntry, G_Q, momid, M, Gout_Q, n)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_Q)) then
     Gout_Q%j_qp = 0
     do h = 1, n  ! recursion step
@@ -76,7 +81,7 @@ subroutine Hloop_A_Q(ntry, G_Q, momid, M, Gout_Q, n)
     end do
   end if
 #endif
-
+#endif
 
 end subroutine Hloop_A_Q
 
@@ -98,9 +103,11 @@ subroutine Hloop_Q_A(ntry, G_Q, momid, M, Gout_Q, n)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_prop
   use ol_kinematics_/**/REALKIND, only: get_LC_5,get_mass
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_prop_interface_/**/QREALKIND, only: loop_Q_A_qp => loop_Q_A
   use ol_kinematics_/**/QREALKIND, only: get_LC_5_qp=>get_LC_5, &
                                          get_mass_qp=>get_mass
+#endif
 #endif
   implicit none
 
@@ -121,6 +128,7 @@ subroutine Hloop_Q_A(ntry, G_Q, momid, M, Gout_Q, n)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_Q)) then
     Gout_Q%j_qp = 0
     do h = 1, n  ! recursion step
@@ -128,6 +136,7 @@ subroutine Hloop_Q_A(ntry, G_Q, momid, M, Gout_Q, n)
                        Gout_Q%j_qp(:,:,:,h))
     end do
   end if
+#endif
 #endif
 
 end subroutine Hloop_Q_A

@@ -60,14 +60,18 @@ subroutine TI_bubble_red(Gin_A,momid,msq,Gout_A,M2R1,A0_0,A0_1)
 ! ******************************************************************************
   use KIND_TYPES, only: REALKIND, QREALKIND
   use ofred_reduction_/**/REALKIND, only: twopoint_reduction
+#ifdef USE_qp
   use ofred_reduction_/**/QREALKIND, only: twopoint_reduction_qp=>twopoint_reduction
+#endif
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hybrid_qp_mode,hp_alloc_mode
   use ol_data_types_/**/REALKIND, only: hcl, met
   use ol_kinematics_/**/REALKIND, only: get_mass2,get_LC_5
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,hcl_alloc_hybrid
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
   use ol_kinematics_/**/DREALKIND, only: get_LC_5_qp
+#endif
 #endif
   type(hcl),           intent(in)    :: Gin_A
   integer,             intent(in)    :: momid
@@ -120,13 +124,17 @@ subroutine TI_bubble_red(Gin_A,momid,msq,Gout_A,M2R1,A0_0,A0_1)
 #ifdef PRECISION_dp
   Gout_A%ndrs = Gin_A%ndrs
   Gout_A%nred = Gin_A%nred
+#ifdef USE_qp
   Gout_A%ndrs_qp = Gin_A%ndrs_qp
   Gout_A%nred_qp = Gin_A%nred_qp
   if (req_qp_cmp(Gin_A)) then
     Gout_A%nred_qp = Gout_A%nred_qp + 1
   else
+#endif
     Gout_A%nred = Gout_A%nred + 1
+#ifdef USE_qp
   end if
+#endif
 #else
   Gout_A%ndrs = Gin_A%ndrs
   Gout_A%nred = Gin_A%nred + 1
@@ -170,6 +178,7 @@ subroutine TI_bubble_red(Gin_A,momid,msq,Gout_A,M2R1,A0_0,A0_1)
 #endif
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_A)) then
 
     p_qp = get_LC_5_qp(momid)
@@ -208,6 +217,7 @@ subroutine TI_bubble_red(Gin_A,momid,msq,Gout_A,M2R1,A0_0,A0_1)
     end if
   end if
 #endif
+#endif
 
 end subroutine TI_bubble_red
 
@@ -237,6 +247,7 @@ subroutine TI_triangle_red(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1, &
   use ol_data_types_/**/REALKIND, only: hcl,met
   use ol_kinematics_/**/REALKIND, only: get_mass2
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_loop_handling_/**/REALKIND, only: req_qp_cmp,upgrade_qp,hcl_alloc_hybrid
   use ol_loop_reduction_/**/QREALKIND, only: &
       tch_triangle_check_qp=>tch_triangle_check, &
@@ -249,6 +260,7 @@ subroutine TI_triangle_red(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1, &
     construct_RedBasis_qp => construct_RedBasis
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
 #endif
+#endif
   implicit none
   type(hcl),           intent(inout) :: Gin_A
   type(basis),         intent(in)    :: RedBasis
@@ -259,7 +271,9 @@ subroutine TI_triangle_red(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1, &
   type(hcl), optional, intent(inout) :: A0_0, A0_1, A0_2
   logical :: unstable
 #ifdef PRECISION_dp
+#ifdef USE_qp
   type(basis_qp)  :: Redbasis_qp
+#endif
 #endif
 
   complex(REALKIND) :: Gout_R1, momenta(5,3),p(0:3)
@@ -273,23 +287,29 @@ subroutine TI_triangle_red(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1, &
   call tch_triangle_check(RedBasis%mom1, RedBasis%mom2, tch_top, perm, sdlt, momenta)
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   unstable = .false.
   if (hp_switch .eq. 1 .and. .not. req_qp_cmp(Gin_A)) then
     if (hp_metri_trig) call tri_check_me(unstable)
     if (hp_irtri_trig .and. .not. unstable) call triangle_check_ir(RedBasis%mom1, RedBasis%mom2, unstable)
   end if
 #endif
+#endif
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (hp_switch .eq. 1 .and. unstable) then
     call upgrade_qp(Gin_A)
   end if
 #endif
+#endif
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_A)) then
     call tch_triangle_check_qp(RedBasis%mom1, RedBasis%mom2, tch_top, perm, sdlt_qp, momenta_qp)
   end if
+#endif
 #endif
 
   Gout_A%mode = Gin_A%mode
@@ -340,14 +360,15 @@ subroutine TI_triangle_red(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1, &
   Gout_A0%ndrs = 0
   Gout_A1%ndrs = 0
   Gout_A2%ndrs = 0
-  Gout_A%ndrs_qp = Gin_A%ndrs_qp
-  Gout_A0%ndrs_qp = 0
-  Gout_A1%ndrs_qp = 0
-  Gout_A2%ndrs_qp = 0
   Gout_A%nred = Gin_A%nred
   Gout_A0%nred = 0
   Gout_A1%nred = 0
   Gout_A2%nred = 0
+#ifdef USE_qp
+  Gout_A%ndrs_qp = Gin_A%ndrs_qp
+  Gout_A0%ndrs_qp = 0
+  Gout_A1%ndrs_qp = 0
+  Gout_A2%ndrs_qp = 0
   Gout_A%nred_qp = Gin_A%nred_qp
   Gout_A0%nred_qp = 0
   Gout_A1%nred_qp = 0
@@ -357,6 +378,7 @@ subroutine TI_triangle_red(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1, &
   else
     Gout_A%nred = Gout_A%nred + 1
   end if
+#endif
 #else
   Gout_A%ndrs = Gin_A%ndrs
   Gout_A0%ndrs = 0
@@ -443,6 +465,7 @@ subroutine TI_triangle_red(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1, &
 #endif
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_A)) then
 
   if (hp_alloc_mode .gt. 1) then
@@ -545,6 +568,7 @@ subroutine TI_triangle_red(Gin_A,RedBasis,msq,Gout_A,Gout_A0,Gout_A1, &
     if (present(A0_1)) A0_1%cmp_qp = 0
     if (present(A0_0)) A0_0%cmp_qp = 0
   end if
+#endif
 #endif
 
   contains
@@ -2823,11 +2847,13 @@ subroutine scalar_MIs(momenta, masses2, Gsum, M2)
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_err_thres,hp_step_thres,coli_cache_use
 #ifdef PRECISION_dp
   use ol_parameters_decl_/**/DREALKIND, only: a_switch, coli_cache_use
-  use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
-  use ol_loop_handling_/**/REALKIND, only: req_qp_cmp, upgrade_qp, downgrade_dp
   use ol_parameters_decl_/**/REALKIND, only: hybrid_zero_mode,hp_step_thres, &
                                              hp_err_thres,hp_switch,hybrid_dp_mode
+#ifdef USE_qp
+  use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
+  use ol_loop_handling_/**/REALKIND, only: req_qp_cmp, upgrade_qp, downgrade_dp
   use ol_loop_reduction_/**/QREALKIND, only: avh_olo_interface_qp=>avh_olo_interface
+#endif
 #endif
   implicit none
   integer,           intent(in)    :: momenta(:),masses2(:)
@@ -2844,19 +2870,25 @@ subroutine scalar_MIs(momenta, masses2, Gsum, M2)
 
     if (iand(Gsum%mode, hybrid_dp_mode) .ne. 0 .or. coli_cache_use .eq. 1) then
       call collier_scalars_interface(momenta, get_mass2(masses2), Gsum%cmp, M2add, error)
+#ifdef USE_qp
       if (hp_switch .eq. 1 .and. error > hp_step_thres .and. Gsum%error + error > hp_err_thres) then
         call upgrade_qp(Gsum)
       else
+#endif
         M2%cmp = M2%cmp + real(M2add,kind=REALKIND)
         M2%sicount = M2%sicount + 1
+#ifdef USE_qp
       end if
+#endif
     end if
 
+#ifdef USE_qp
     if (req_qp_cmp(Gsum)) then
       call avh_olo_interface_qp(momenta, get_mass2_qp(masses2), Gsum%cmp_qp, M2add_qp)
       M2%cmp_qp = M2%cmp_qp + real(M2add_qp,kind=QREALKIND)
       M2%sicount_qp = M2%sicount_qp + 1
     end if
+#endif
 
   else if(a_switch==5) then
 
@@ -2866,11 +2898,13 @@ subroutine scalar_MIs(momenta, masses2, Gsum, M2)
       M2%sicount = M2%sicount + 1
     end if
 
+#ifdef USE_qp
     if (req_qp_cmp(Gsum)) then
       call avh_olo_interface_qp(momenta, get_mass2_qp(masses2), Gsum%cmp_qp, M2add_qp)
       M2%cmp_qp = M2%cmp_qp + real(M2add_qp,kind=QREALKIND)
       M2%sicount_qp = M2%sicount_qp + 1
     end if
+#endif
 
   end if
 #else
@@ -2939,7 +2973,9 @@ subroutine avh_olo_interface(momenta, masses2, Gsum, M2add)
 !************************************************************************************
   use KIND_TYPES, only: REALKIND, DREALKIND
   use ol_momenta_decl_/**/REALKIND, only: L
+#ifdef USE_CUTTOOLS
   use avh_olo, only: olo_scale_prec, olo
+#endif
   use ol_loop_parameters_decl_/**/REALKIND, only: mureg
   use ol_loop_parameters_decl_/**/DREALKIND, only: de1_UV, de1_IR, de2_i_IR
   implicit none
@@ -2951,6 +2987,7 @@ subroutine avh_olo_interface(momenta, masses2, Gsum, M2add)
   complex(REALKIND) :: rslt(0:2), zero = 0._/**/REALKIND
   integer :: i, j, k
 
+#ifdef USE_CUTTOOLS
   tadpole_check = .FALSE.
   call olo_scale_prec(mureg)
 
@@ -3018,7 +3055,7 @@ subroutine avh_olo_interface(momenta, masses2, Gsum, M2add)
   else
     M2add = Gsum(1)*(rslt(0) + rslt(1)*de1_UV)
   end if
-
+#endif
 end subroutine avh_olo_interface
 
 
@@ -3066,8 +3103,10 @@ subroutine avh_olo_box(momenta, masses2, rslt)
 !************************************************************************************
   use KIND_TYPES, only: REALKIND, DREALKIND
   use ol_momenta_decl_/**/REALKIND, only: L
+#ifdef CUTTOOLS
   use avh_olo, only: olo_scale_prec, olo
   use ol_loop_parameters_decl_/**/REALKIND, only: mureg
+#endif
   implicit none
   complex(REALKIND), intent(in)  :: masses2(4)
   integer,           intent(in)  :: momenta(3)
@@ -3075,6 +3114,7 @@ subroutine avh_olo_box(momenta, masses2, rslt)
   complex(REALKIND) :: p1_2, p2_2, p3_2, p4_2, p12_2, p23_2
   integer :: i, j, k
 
+#ifdef CUTTOOLS
   call olo_scale_prec(mureg)
 
   ! -- BOXES
@@ -3090,6 +3130,7 @@ subroutine avh_olo_box(momenta, masses2, rslt)
   call olo(rslt, p1_2,p2_2,p3_2,p4_2,p12_2,p23_2,&
   masses2(1),masses2(2),masses2(3),masses2(4))
 
+#endif
 end subroutine avh_olo_box
 
 
@@ -3111,9 +3152,11 @@ subroutine compute_scalar_box(mom_ind, masses2in, RedSet, box)
   use collier, only: tnten_cll
   use ol_parameters_decl_/**/DREALKIND, only: a_switch
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_loop_reduction_/**/QREALKIND, only: box_onshell_cut_qp=>box_onshell_cut
   use ol_kinematics_/**/QREALKIND, only: get_mass2_qp=>get_mass2
   use ol_kinematics_/**/DREALKIND, only: get_LC_5_qp
+#endif
 #endif
   implicit none
   integer,         intent(in)    :: mom_ind(3)
@@ -3135,6 +3178,7 @@ subroutine compute_scalar_box(mom_ind, masses2in, RedSet, box)
   p(1:5,3) = get_LC_5(mom_ind(3))
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (RedSet%qp_computed) then
     p_qp(1:5,1) = get_LC_5_qp(mom_ind(1))
     p_qp(1:5,2) = get_LC_5_qp(mom_ind(2))
@@ -3144,10 +3188,13 @@ subroutine compute_scalar_box(mom_ind, masses2in, RedSet, box)
     q0_cuts(1,:) = q0_p_qp(:)
     q0_cuts(2,:) = q0_m_qp(:)
   else
+#endif
     call box_onshell_cut(p,masses2,RedSet,q0_p,q0_m,cut_error)
     q0_cuts(1,:) = q0_p(:)
     q0_cuts(2,:) = q0_m(:)
+#ifdef USE_qp
   end if
+#endif
 #else
   call box_onshell_cut(p,masses2,RedSet,q0_p,q0_m,cut_error)
   q0_cuts(1,:) = q0_p(:)
@@ -3185,7 +3232,9 @@ subroutine compute_scalar_box(mom_ind, masses2in, RedSet, box)
         poles_qp=0,                &
         onshell_cuts_qp=0)
 
+#ifdef USE_qp
   if (a_switch == 1 .or. a_switch == 7) call check_box
+#endif
 
 #else
   !!! OneLoop used for the scalar boxes
@@ -3197,6 +3246,7 @@ subroutine compute_scalar_box(mom_ind, masses2in, RedSet, box)
 #endif
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
 contains
   subroutine check_box()
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_check_box,hp_err_thres,hp_qp_kinematics_init_mode
@@ -3238,6 +3288,7 @@ contains
   end if
 
   end subroutine check_box
+#endif
 #endif
 
 end subroutine compute_scalar_box
@@ -3464,6 +3515,7 @@ end subroutine TI_reduction_1
 
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
 subroutine upgrade_scalar_box(scbox)
   use KIND_TYPES, only: REALKIND, QREALKIND
   use ol_data_types_/**/REALKIND, only: scalarbox
@@ -3502,6 +3554,7 @@ subroutine upgrade_scalar_box(scbox)
 
 end subroutine upgrade_scalar_box
 #endif
+#endif
 
 ! --- PENTAGONS ---
 ! ********************************************************************
@@ -3514,11 +3567,13 @@ subroutine reduction_5points_ofr(rank, momenta, masses, Gtensor, M2, &
   use ol_kinematics_/**/REALKIND, only: get_LC_5,get_mass2
   use ol_loop_parameters_decl_/**/DREALKIND, only: de1_IR, de2_i_IR
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_loop_handling_/**/QREALKIND, only: G_TensorShift_otf_qp=>G_TensorShift_otf
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_err_thres,hp_step_thres
   use ol_loop_handling_/**/REALKIND, only: req_dp_cmp, req_qp_cmp, upgrade_qp_hcl, downgrade_dp
   use ol_loop_reduction_/**/QREALKIND, only: box_coefficient_qp=>box_coefficient
   use ol_kinematics_/**/QREALKIND, only: get_LC_5_qp=>get_LC_5,get_mass2_qp=>get_mass2
+#endif
 #endif
   implicit none
   integer,   intent(in) :: rank
@@ -3545,12 +3600,14 @@ subroutine reduction_5points_ofr(rank, momenta, masses, Gtensor, M2, &
   max_error_opp = 0
   do k = 1, 5
 #ifdef PRECISION_dp
+#ifdef USE_qp
     error_step = all_scboxes(scboxes(k))%box_error + all_scboxes(scboxes(k))%cut_error
     max_error_opp = max(error_step, max_error_opp)
     error = Gtensor%error + error_step
 
     if (hp_switch .eq. 1 .and. error_step > hp_step_thres .and. error > hp_err_thres) call upgrade_qp_hcl(Gtensor)
     if (req_dp_cmp(Gtensor)) then
+#endif
 #endif
     q0p_q0m = all_scboxes(scboxes(k))%onshell_cuts
     scalar_box = all_scboxes(scboxes(k))%poles
@@ -3569,6 +3626,7 @@ subroutine reduction_5points_ofr(rank, momenta, masses, Gtensor, M2, &
     box = box_coeff*(scalar_box(0) + scalar_box(1)*de1_IR + scalar_box(2)*de2_i_IR)
     M2%cmp = M2%cmp + box
 #ifdef PRECISION_dp
+#ifdef USE_qp
     end if
     if (req_qp_cmp(Gtensor)) then
       call upgrade_scalar_box(all_scboxes(scboxes(k)))
@@ -3591,6 +3649,7 @@ subroutine reduction_5points_ofr(rank, momenta, masses, Gtensor, M2, &
       M2%cmp_qp = M2%cmp_qp + box_qp
     end if
 #endif
+#endif
   end do
   Gtensor%error = Gtensor%error + max_error_opp
 
@@ -3608,11 +3667,13 @@ subroutine reduction_6points_ofr(rank, momenta, masses, Gtensor, M2, &
   use ol_kinematics_/**/REALKIND, only: get_LC_4,get_LC_5,get_mass2
   use ol_loop_parameters_decl_/**/DREALKIND, only: de1_IR, de2_i_IR
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_loop_handling_/**/QREALKIND, only: G_TensorShift_otf_qp=>G_TensorShift_otf
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_err_thres,hp_step_thres
   use ol_loop_handling_/**/REALKIND, only: req_dp_cmp, req_qp_cmp, upgrade_qp_hcl, downgrade_dp
   use ol_loop_reduction_/**/QREALKIND, only: box_coefficient_qp=>box_coefficient
   use ol_kinematics_/**/QREALKIND, only: get_LC_4_qp=>get_LC_4,get_LC_5_qp=>get_LC_5,get_mass2_qp=>get_mass2
+#endif
 #endif
   implicit none
   integer,   intent(in) :: rank
@@ -3641,11 +3702,13 @@ subroutine reduction_6points_ofr(rank, momenta, masses, Gtensor, M2, &
     do j = i, 5
       k = k + 1
 #ifdef PRECISION_dp
+#ifdef USE_qp
     error_step = all_scboxes(scboxes(k))%box_error + all_scboxes(scboxes(k))%cut_error
     max_error_opp = max(error_step, max_error_opp)
     error = Gtensor%error + error_step
     if (hp_switch .eq. 1 .and. error_step > hp_step_thres .and. error > hp_err_thres) call upgrade_qp_hcl(Gtensor)
     if (req_dp_cmp(Gtensor)) then
+#endif
 #endif
     q0p_q0m = all_scboxes(scboxes(k))%onshell_cuts
     scalar_box = all_scboxes(scboxes(k))%poles
@@ -3681,6 +3744,7 @@ subroutine reduction_6points_ofr(rank, momenta, masses, Gtensor, M2, &
     box = box_coeff*(scalar_box(0) + scalar_box(1)*de1_IR + scalar_box(2)*de2_i_IR)
     M2%cmp = M2%cmp + box
 #ifdef PRECISION_dp
+#ifdef USE_qp
     end if
     if (req_qp_cmp(Gtensor)) then
       Gsum_qp = Gtensor%cmp_qp
@@ -3718,6 +3782,7 @@ subroutine reduction_6points_ofr(rank, momenta, masses, Gtensor, M2, &
       M2%cmp_qp = M2%cmp_qp + box_qp
     end if
 #endif
+#endif
 
     end do
   end do
@@ -3736,6 +3801,7 @@ subroutine reduction_7points_ofr(rank, momenta, masses, Gtensor, M2, &
   use ol_kinematics_/**/REALKIND, only: get_LC_4,get_LC_5,get_mass2
   use ol_loop_parameters_decl_/**/DREALKIND, only: de1_IR, de2_i_IR
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_loop_handling_/**/QREALKIND, only: G_TensorShift_otf_qp=>G_TensorShift_otf
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_err_thres,hp_step_thres
   use ol_loop_handling_/**/REALKIND, only: req_dp_cmp,req_qp_cmp, &
@@ -3744,6 +3810,7 @@ subroutine reduction_7points_ofr(rank, momenta, masses, Gtensor, M2, &
   use ol_kinematics_/**/QREALKIND, only: get_LC_4_qp=>get_LC_4, &
                                          get_LC_5_qp=>get_LC_5, &
                                          get_mass2_qp=>get_mass2
+#endif
 #endif
   implicit none
   integer,   intent(in) :: rank
@@ -3758,9 +3825,11 @@ subroutine reduction_7points_ofr(rank, momenta, masses, Gtensor, M2, &
   complex(REALKIND) :: Gsum(size(Gtensor%cmp))
   complex(REALKIND) :: box_coeff, box, scalar_box(0:2), q0p_q0m(2,5)
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND) :: offshell_p_qp(1:5,3), offshell_m2_qp(3)
   complex(QREALKIND) :: Gsum_qp(size(Gtensor%cmp))
   complex(QREALKIND) :: box_coeff_qp, box_qp, scalar_box_qp(0:2), q0p_q0m_qp(2,5)
+#endif
 #endif
   integer :: i1,i2,i3,k,momshift
 
@@ -3773,11 +3842,13 @@ subroutine reduction_7points_ofr(rank, momenta, masses, Gtensor, M2, &
     do i3 = i2, 5
       k = k + 1
 #ifdef PRECISION_dp
+#ifdef USE_qp
     error_step = all_scboxes(scboxes(k))%box_error + all_scboxes(scboxes(k))%cut_error
     max_error_opp = max(error_step, max_error_opp)
     error = Gtensor%error + error_step
     if (hp_switch .eq. 1 .and. error_step > hp_step_thres .and. error > hp_err_thres) call upgrade_qp_hcl(Gtensor)
     if (req_dp_cmp(Gtensor)) then
+#endif
 #endif
     q0p_q0m = all_scboxes(scboxes(k))%onshell_cuts
     scalar_box = all_scboxes(scboxes(k))%poles
@@ -3817,6 +3888,7 @@ subroutine reduction_7points_ofr(rank, momenta, masses, Gtensor, M2, &
     box = box_coeff*(scalar_box(0) + scalar_box(1)*de1_IR + scalar_box(2)*de2_i_IR)
     M2%cmp = M2%cmp + box
 #ifdef PRECISION_dp
+#ifdef USE_qp
     end if
     if (req_qp_cmp(Gtensor)) then
       Gsum_qp = Gtensor%cmp_qp
@@ -3859,6 +3931,7 @@ subroutine reduction_7points_ofr(rank, momenta, masses, Gtensor, M2, &
       M2%cmp_qp = M2%cmp_qp + box_qp
     end if
 #endif
+#endif
 
     end do
     end do
@@ -3879,6 +3952,7 @@ subroutine reduction_8points_ofr(rank, momenta, masses, Gtensor, M2, &
   use ol_kinematics_/**/REALKIND, only: get_LC_4,get_LC_5,get_mass2
   use ol_loop_parameters_decl_/**/DREALKIND, only: de1_IR, de2_i_IR
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_loop_handling_/**/QREALKIND, only: G_TensorShift_otf_qp=>G_TensorShift_otf
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_err_thres,hp_step_thres
   use ol_loop_handling_/**/REALKIND, only: req_dp_cmp,req_qp_cmp, &
@@ -3887,6 +3961,7 @@ subroutine reduction_8points_ofr(rank, momenta, masses, Gtensor, M2, &
   use ol_kinematics_/**/QREALKIND, only: get_LC_4_qp=>get_LC_4, &
                                          get_LC_5_qp=>get_LC_5, &
                                          get_mass2_qp=>get_mass2
+#endif
 #endif
   implicit none
   integer,   intent(in) :: rank
@@ -3918,11 +3993,13 @@ subroutine reduction_8points_ofr(rank, momenta, masses, Gtensor, M2, &
       k = k + 1
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
     error_step = all_scboxes(scboxes(k))%box_error + all_scboxes(scboxes(k))%cut_error
     max_error_opp = max(error_step, max_error_opp)
     error = Gtensor%error + error_step
     if (hp_switch .eq. 1 .and. error_step > hp_step_thres .and. error > hp_err_thres) call upgrade_qp_hcl(Gtensor)
     if (req_dp_cmp(Gtensor)) then
+#endif
 #endif
     q0p_q0m = all_scboxes(scboxes(k))%onshell_cuts
     scalar_box = all_scboxes(scboxes(k))%poles
@@ -3970,6 +4047,7 @@ subroutine reduction_8points_ofr(rank, momenta, masses, Gtensor, M2, &
     box = box_coeff*(scalar_box(0) + scalar_box(1)*de1_IR + scalar_box(2)*de2_i_IR)
     M2%cmp = M2%cmp + box
 #ifdef PRECISION_dp
+#ifdef USE_qp
     end if
     if (req_qp_cmp(Gtensor)) then
       Gsum_qp = Gtensor%cmp_qp
@@ -4020,6 +4098,7 @@ subroutine reduction_8points_ofr(rank, momenta, masses, Gtensor, M2, &
       M2%cmp_qp = M2%cmp_qp + box_qp
     end if
 #endif
+#endif
 
     end do
     end do
@@ -4042,6 +4121,7 @@ subroutine reduction_9points_ofr(rank, momenta, masses, Gtensor, M2, &
   use ol_kinematics_/**/REALKIND, only: get_LC_4,get_LC_5,get_mass2
   use ol_loop_parameters_decl_/**/DREALKIND, only: de1_IR, de2_i_IR
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_loop_handling_/**/QREALKIND, only: G_TensorShift_otf_qp=>G_TensorShift_otf
   use ol_parameters_decl_/**/DREALKIND, only: hp_switch,hp_err_thres,hp_step_thres
   use ol_loop_handling_/**/REALKIND, only: req_dp_cmp,req_qp_cmp, &
@@ -4050,6 +4130,7 @@ subroutine reduction_9points_ofr(rank, momenta, masses, Gtensor, M2, &
   use ol_kinematics_/**/QREALKIND, only: get_LC_4_qp=>get_LC_4, &
                                          get_LC_5_qp=>get_LC_5, &
                                          get_mass2_qp=>get_mass2
+#endif
 #endif
   implicit none
   integer,   intent(in) :: rank
@@ -4082,11 +4163,13 @@ subroutine reduction_9points_ofr(rank, momenta, masses, Gtensor, M2, &
       k = k + 1
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
     error_step = all_scboxes(scboxes(k))%box_error + all_scboxes(scboxes(k))%cut_error
     max_error_opp = max(error_step, max_error_opp)
     error = Gtensor%error + error_step
     if (hp_switch .eq. 1 .and. error_step > hp_step_thres .and. error > hp_err_thres) call upgrade_qp_hcl(Gtensor)
     if (req_dp_cmp(Gtensor)) then
+#endif
 #endif
     q0p_q0m = all_scboxes(scboxes(k))%onshell_cuts
     scalar_box = all_scboxes(scboxes(k))%poles
@@ -4142,6 +4225,7 @@ subroutine reduction_9points_ofr(rank, momenta, masses, Gtensor, M2, &
     box = box_coeff*(scalar_box(0) + scalar_box(1)*de1_IR + scalar_box(2)*de2_i_IR)
     M2%cmp = M2%cmp + box
 #ifdef PRECISION_dp
+#ifdef USE_qp
     end if
     if (req_qp_cmp(Gtensor)) then
       Gsum_qp = Gtensor%cmp_qp
@@ -4199,6 +4283,7 @@ subroutine reduction_9points_ofr(rank, momenta, masses, Gtensor, M2, &
       box_qp = box_coeff_qp*(scalar_box_qp(0) + scalar_box_qp(1)*de1_IR + scalar_box_qp(2)*de2_i_IR)
       M2%cmp_qp = M2%cmp_qp + box_qp
     end if
+#endif
 #endif
 
     end do

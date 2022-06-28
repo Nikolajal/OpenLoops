@@ -56,6 +56,7 @@ subroutine hol_allocation(alpha,rank,beta,hel_states,ol_coeff,m)
     ol_coeff(i)%ndrs = 0
     ol_coeff(i)%nred = 0
 #ifdef PRECISION_dp
+#ifdef USE_qp
     ol_coeff(i)%ndrs_qp = 0
     ol_coeff(i)%nred_qp = 0
     if (hp_switch .eq. 1) then
@@ -66,6 +67,7 @@ subroutine hol_allocation(alpha,rank,beta,hel_states,ol_coeff,m)
         allocate(ol_coeff(i)%j_qp(alpha, rank, beta, hel_states))
       end if
     end if
+#endif
 #endif
   end do
 
@@ -103,12 +105,14 @@ subroutine hol_deallocation(ol_coeff, m, dmode)
     endif
     ol_coeff(i)%error = 0
 #ifdef PRECISION_dp
+#ifdef USE_qp
     if (hp_switch .eq. 1) then
       if (hp_alloc_mode .ne. 2 .and. dmode .eq. 1) cycle
       if (allocated(ol_coeff(i)%j_qp)) then
         deallocate(ol_coeff(i)%j_qp)
       end if
     end if
+#endif
 #endif
   end do
 
@@ -144,6 +148,7 @@ subroutine hcl_allocation(rank,ol_coeff, m)
     ol_coeff(i)%ndrs = 0
     ol_coeff(i)%nred = 0
 #ifdef PRECISION_dp
+#ifdef USE_qp
     ol_coeff(i)%ndrs_qp = 0
     ol_coeff(i)%nred_qp = 0
     if (hp_switch .eq. 1) then
@@ -154,6 +159,7 @@ subroutine hcl_allocation(rank,ol_coeff, m)
         allocate(ol_coeff(i)%cmp_qp(rank))
       end if
     end if
+#endif
 #endif
   end do
 
@@ -765,9 +771,11 @@ subroutine Hloop_AZ_Q(ntry, G_A, J_Z, Gout_A, ng_RL, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_parameters_init_/**/REALKIND, only: get_coupling
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_AZ_Q_qp => loop_AZ_Q
   use ol_parameters_init_/**/QREALKIND, only: get_coupling_qp=>get_coupling
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -794,6 +802,7 @@ subroutine Hloop_AZ_Q(ntry, G_A, J_Z, Gout_A, ng_RL, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_A)) then
     Gout_A%j_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
@@ -803,6 +812,7 @@ subroutine Hloop_AZ_Q(ntry, G_A, J_Z, Gout_A, ng_RL, n, t)
     end do
     call hol_dealloc_hybrid(G_A)
   end if
+#endif
 #endif
 
 end subroutine Hloop_AZ_Q
@@ -819,9 +829,11 @@ subroutine Hloop_AQ_Z(ntry, G_A, J_Q, Gout_Z, ng_RL, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_AQ_Z
   use ol_parameters_init_/**/REALKIND, only: get_coupling
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_AQ_Z_qp => loop_AQ_Z
   use ol_parameters_init_/**/QREALKIND, only: get_coupling_qp=>get_coupling
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -848,6 +860,7 @@ subroutine Hloop_AQ_Z(ntry, G_A, J_Q, Gout_Z, ng_RL, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_A)) then
     Gout_Z%j_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
@@ -857,6 +870,7 @@ subroutine Hloop_AQ_Z(ntry, G_A, J_Q, Gout_Z, ng_RL, n, t)
     end do
     call hol_dealloc_hybrid(G_A)
   end if
+#endif
 #endif
 
 end subroutine Hloop_AQ_Z
@@ -873,9 +887,11 @@ subroutine Hloop_ZA_Q(ntry, G_Z, J_A, Gout_A, ng_RL, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_ZA_Q
   use ol_parameters_init_/**/REALKIND, only: get_coupling
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_ZA_Q_qp => loop_ZA_Q
   use ol_parameters_init_/**/QREALKIND, only: get_coupling_qp=>get_coupling
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -902,6 +918,7 @@ subroutine Hloop_ZA_Q(ntry, G_Z, J_A, Gout_A, ng_RL, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_Z)) then
     Gout_A%j_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
@@ -911,6 +928,7 @@ subroutine Hloop_ZA_Q(ntry, G_Z, J_A, Gout_A, ng_RL, n, t)
     end do
     call hol_dealloc_hybrid(G_Z)
   end if
+#endif
 #endif
 
 end subroutine Hloop_ZA_Q
@@ -927,9 +945,11 @@ subroutine Hloop_QZ_A(ntry, G_Q, J_Z, Gout_Q, ng_RL, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_QZ_A
   use ol_parameters_init_/**/REALKIND, only: get_coupling
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_QZ_A_qp => loop_QZ_A
   use ol_parameters_init_/**/QREALKIND, only: get_coupling_qp=>get_coupling
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -956,6 +976,7 @@ subroutine Hloop_QZ_A(ntry, G_Q, J_Z, Gout_Q, ng_RL, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_Q)) then
     Gout_Q%j_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
@@ -965,6 +986,7 @@ subroutine Hloop_QZ_A(ntry, G_Q, J_Z, Gout_Q, ng_RL, n, t)
     end do
     call hol_dealloc_hybrid(G_Q)
   end if
+#endif
 #endif
 
 end subroutine Hloop_QZ_A
@@ -981,9 +1003,11 @@ subroutine Hloop_QA_Z(ntry, G_Q, J_A, Gout_Z, ng_RL, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_QA_Z
   use ol_parameters_init_/**/REALKIND, only: get_coupling
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_QA_Z_qp => loop_QA_Z
   use ol_parameters_init_/**/QREALKIND, only: get_coupling_qp=>get_coupling
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -995,8 +1019,10 @@ subroutine Hloop_QA_Z(ntry, G_Q, J_A, Gout_Z, ng_RL, n, t)
   complex(REALKIND) :: g_RL(2)
   integer(intkind2) :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND) :: G_add_qp(size(Gout_Z%j,1),size(Gout_Z%j,2),size(Gout_Z%j,3))
   complex(QREALKIND) :: g_RL_qp(2)
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_A, G_Q, Gout_Z, n, t)
@@ -1010,6 +1036,7 @@ subroutine Hloop_QA_Z(ntry, G_Q, J_A, Gout_Z, ng_RL, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_Q)) then
     Gout_Z%j_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
@@ -1019,6 +1046,7 @@ subroutine Hloop_QA_Z(ntry, G_Q, J_A, Gout_Z, ng_RL, n, t)
     end do
     call hol_dealloc_hybrid(G_Q)
   end if
+#endif
 #endif
 
 end subroutine Hloop_QA_Z
@@ -1035,9 +1063,11 @@ subroutine Hloop_ZQ_A(ntry, G_Z, J_Q, Gout_Q, ng_RL, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_ZQ_A
   use ol_parameters_init_/**/REALKIND, only: get_coupling
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_ZQ_A_qp => loop_ZQ_A
   use ol_parameters_init_/**/QREALKIND, only: get_coupling_qp=>get_coupling
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1049,8 +1079,10 @@ subroutine Hloop_ZQ_A(ntry, G_Z, J_Q, Gout_Q, ng_RL, n, t)
   complex(REALKIND) :: g_RL(2)
   integer(intkind2) :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND) :: G_add_qp(size(Gout_Q%j,1),size(Gout_Q%j,2),size(Gout_Q%j,3))
   complex(QREALKIND) :: g_RL_qp(2)
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_Q, G_Z, Gout_Q, n, t)
@@ -1064,6 +1096,7 @@ subroutine Hloop_ZQ_A(ntry, G_Z, J_Q, Gout_Q, ng_RL, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_Z)) then
     Gout_Q%j_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
@@ -1073,6 +1106,7 @@ subroutine Hloop_ZQ_A(ntry, G_Z, J_Q, Gout_Q, ng_RL, n, t)
     end do
     call hol_dealloc_hybrid(G_Z)
   end if
+#endif
 #endif
 
 end subroutine Hloop_ZQ_A
@@ -1088,8 +1122,10 @@ subroutine Hloop_AW_Q(ntry, G_A, J_W, Gout_A, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_vert_interface_/**/REALKIND, only: loop_AW_Q
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_AW_Q_qp => loop_AW_Q
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1100,7 +1136,9 @@ subroutine Hloop_AW_Q(ntry, G_A, J_W, Gout_A, n, t)
   complex(REALKIND)  :: G_add(size(Gout_A%j,1),size(Gout_A%j,2),size(Gout_A%j,3))
   integer :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_A%j,1),size(Gout_A%j,2),size(Gout_A%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_W, G_A, Gout_A, n, t)
@@ -1113,6 +1151,7 @@ subroutine Hloop_AW_Q(ntry, G_A, J_W, Gout_A, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_A)) then
     Gout_A%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -1121,6 +1160,7 @@ subroutine Hloop_AW_Q(ntry, G_A, J_W, Gout_A, n, t)
     end do
     call hol_dealloc_hybrid(G_A)
   end if
+#endif
 #endif
 
 end subroutine Hloop_AW_Q
@@ -1136,8 +1176,10 @@ subroutine Hloop_AQ_W(ntry, G_A, J_Q, Gout_W, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_vert_interface_/**/REALKIND, only: loop_AQ_W
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_AQ_W_qp => loop_AQ_W
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1148,7 +1190,9 @@ subroutine Hloop_AQ_W(ntry, G_A, J_Q, Gout_W, n, t)
   complex(REALKIND)  :: G_add(size(Gout_W%j,1),size(Gout_W%j,2),size(Gout_W%j,3))
   integer :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_W%j,1),size(Gout_W%j,2),size(Gout_W%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_Q, G_A, Gout_W, n, t)
@@ -1161,6 +1205,7 @@ subroutine Hloop_AQ_W(ntry, G_A, J_Q, Gout_W, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_A)) then
     Gout_W%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -1169,6 +1214,7 @@ subroutine Hloop_AQ_W(ntry, G_A, J_Q, Gout_W, n, t)
     end do
     call hol_dealloc_hybrid(G_A)
   end if
+#endif
 #endif
 
 end subroutine Hloop_AQ_W
@@ -1184,8 +1230,10 @@ subroutine Hloop_WA_Q(ntry, G_W, J_A, Gout_A, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_vert_interface_/**/REALKIND, only: loop_WA_Q
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_WA_Q_qp => loop_WA_Q
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1196,7 +1244,9 @@ subroutine Hloop_WA_Q(ntry, G_W, J_A, Gout_A, n, t)
   complex(REALKIND)  :: G_add(size(Gout_A%j,1),size(Gout_A%j,2),size(Gout_A%j,3))
   integer :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_A%j,1),size(Gout_A%j,2),size(Gout_A%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_A, G_W, Gout_A, n, t)
@@ -1209,6 +1259,7 @@ subroutine Hloop_WA_Q(ntry, G_W, J_A, Gout_A, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_W)) then
     Gout_A%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -1217,6 +1268,7 @@ subroutine Hloop_WA_Q(ntry, G_W, J_A, Gout_A, n, t)
     end do
     call hol_dealloc_hybrid(G_W)
   end if
+#endif
 #endif
 
 end subroutine Hloop_WA_Q
@@ -1232,8 +1284,10 @@ subroutine Hloop_QW_A(ntry, G_Q, J_W, Gout_Q, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_vert_interface_/**/REALKIND, only: loop_QW_A
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_QW_A_qp => loop_QW_A
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1244,7 +1298,9 @@ subroutine Hloop_QW_A(ntry, G_Q, J_W, Gout_Q, n, t)
   complex(REALKIND)  :: G_add(size(Gout_Q%j,1),size(Gout_Q%j,2),size(Gout_Q%j,3))
   integer :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_Q%j,1),size(Gout_Q%j,2),size(Gout_Q%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_W, G_Q, Gout_Q, n, t)
@@ -1257,6 +1313,7 @@ subroutine Hloop_QW_A(ntry, G_Q, J_W, Gout_Q, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_Q)) then
     Gout_Q%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -1265,6 +1322,7 @@ subroutine Hloop_QW_A(ntry, G_Q, J_W, Gout_Q, n, t)
     end do
     call hol_dealloc_hybrid(G_Q)
   end if
+#endif
 #endif
 
 end subroutine Hloop_QW_A
@@ -1280,8 +1338,10 @@ subroutine Hloop_QA_W(ntry, G_Q, J_A, Gout_W, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_vert_interface_/**/REALKIND, only: loop_QA_W
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_QA_W_qp => loop_QA_W
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1292,7 +1352,9 @@ subroutine Hloop_QA_W(ntry, G_Q, J_A, Gout_W, n, t)
   complex(REALKIND)  :: G_add(size(Gout_W%j,1),size(Gout_W%j,2),size(Gout_W%j,3))
   integer :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_W%j,1),size(Gout_W%j,2),size(Gout_W%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_A, G_Q, Gout_W, n, t)
@@ -1305,6 +1367,7 @@ subroutine Hloop_QA_W(ntry, G_Q, J_A, Gout_W, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_Q)) then
     Gout_W%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -1313,6 +1376,7 @@ subroutine Hloop_QA_W(ntry, G_Q, J_A, Gout_W, n, t)
     end do
     call hol_dealloc_hybrid(G_Q)
   end if
+#endif
 #endif
 
 end subroutine Hloop_QA_W
@@ -1328,8 +1392,10 @@ subroutine Hloop_WQ_A(ntry, G_W, J_Q, Gout_Q, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_vert_interface_/**/REALKIND, only: loop_WQ_A
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_WQ_A_qp => loop_WQ_A
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1340,7 +1406,9 @@ subroutine Hloop_WQ_A(ntry, G_W, J_Q, Gout_Q, n, t)
   complex(REALKIND)  :: G_add(size(Gout_Q%j,1),size(Gout_Q%j,2),size(Gout_Q%j,3))
   integer :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_Q%j,1),size(Gout_Q%j,2),size(Gout_Q%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_Q, G_W, Gout_Q, n, t)
@@ -1353,6 +1421,7 @@ subroutine Hloop_WQ_A(ntry, G_W, J_Q, Gout_Q, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_W)) then
     Gout_Q%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -1361,6 +1430,7 @@ subroutine Hloop_WQ_A(ntry, G_W, J_Q, Gout_Q, n, t)
     end do
     call hol_dealloc_hybrid(G_W)
   end if
+#endif
 #endif
 
 end subroutine Hloop_WQ_A
@@ -1376,8 +1446,10 @@ subroutine Hloop_AV_Q(ntry, G_A, J_V, Gout_A, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_vert_interface_/**/REALKIND, only: loop_AV_Q
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_AV_Q_qp => loop_AV_Q
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1388,7 +1460,9 @@ subroutine Hloop_AV_Q(ntry, G_A, J_V, Gout_A, n, t)
   complex(REALKIND)  :: G_add(size(Gout_A%j,1),size(Gout_A%j,2),size(Gout_A%j,3))
   integer :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_A%j,1),size(Gout_A%j,2),size(Gout_A%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_V, G_A, Gout_A, n, t)  ! STILL TO BE ADAPTED
@@ -1401,6 +1475,7 @@ subroutine Hloop_AV_Q(ntry, G_A, J_V, Gout_A, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_A)) then
     Gout_A%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -1409,6 +1484,7 @@ subroutine Hloop_AV_Q(ntry, G_A, J_V, Gout_A, n, t)
     end do
     call hol_dealloc_hybrid(G_A)
   end if
+#endif
 #endif
 
 end subroutine Hloop_AV_Q
@@ -1423,8 +1499,10 @@ subroutine Hloop_AQ_V(ntry, G_A, J_Q, Gout_V, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_vert_interface_/**/REALKIND, only: loop_AQ_V
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_AQ_V_qp => loop_AQ_V
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1448,6 +1526,7 @@ subroutine Hloop_AQ_V(ntry, G_A, J_Q, Gout_V, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_A)) then
     Gout_V%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -1456,6 +1535,7 @@ subroutine Hloop_AQ_V(ntry, G_A, J_Q, Gout_V, n, t)
     end do
     call hol_dealloc_hybrid(G_A)
   end if
+#endif
 #endif
 
 end subroutine Hloop_AQ_V
@@ -1471,8 +1551,10 @@ subroutine Hloop_VA_Q(ntry, G_V, J_A, Gout_A, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_vert_interface_/**/REALKIND, only: loop_VA_Q
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_VA_Q_qp => loop_VA_Q
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1483,7 +1565,9 @@ subroutine Hloop_VA_Q(ntry, G_V, J_A, Gout_A, n, t)
   complex(REALKIND)  :: G_add(size(Gout_A%j,1),size(Gout_A%j,2),size(Gout_A%j,3))
   integer :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_A%j,1),size(Gout_A%j,2),size(Gout_A%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_A, G_V, Gout_A, n, t)
@@ -1496,6 +1580,7 @@ subroutine Hloop_VA_Q(ntry, G_V, J_A, Gout_A, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_V)) then
     Gout_A%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -1504,6 +1589,7 @@ subroutine Hloop_VA_Q(ntry, G_V, J_A, Gout_A, n, t)
     end do
     call hol_dealloc_hybrid(G_V)
   end if
+#endif
 #endif
 
 end subroutine Hloop_VA_Q
@@ -1519,8 +1605,10 @@ subroutine Hloop_QV_A(ntry, G_Q, J_V, Gout_Q, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_vert_interface_/**/REALKIND, only: loop_QV_A
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_QV_A_qp => loop_QV_A
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1531,7 +1619,9 @@ subroutine Hloop_QV_A(ntry, G_Q, J_V, Gout_Q, n, t)
   complex(REALKIND)  :: G_add(size(Gout_Q%j,1),size(Gout_Q%j,2),size(Gout_Q%j,3))
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_Q%j,1),size(Gout_Q%j,2),size(Gout_Q%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_V, G_Q, Gout_Q, n, t)
@@ -1544,6 +1634,7 @@ subroutine Hloop_QV_A(ntry, G_Q, J_V, Gout_Q, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_Q)) then
     Gout_Q%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -1552,6 +1643,7 @@ subroutine Hloop_QV_A(ntry, G_Q, J_V, Gout_Q, n, t)
     end do
     call hol_dealloc_hybrid(G_Q)
   end if
+#endif
 #endif
 
 end subroutine Hloop_QV_A
@@ -1567,8 +1659,10 @@ subroutine Hloop_QA_V(ntry, G_Q, J_A, Gout_V, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_vert_interface_/**/REALKIND, only: loop_QA_V
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_QA_V_qp => loop_QA_V
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1579,7 +1673,9 @@ subroutine Hloop_QA_V(ntry, G_Q, J_A, Gout_V, n, t)
   complex(REALKIND)  :: G_add(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
   integer :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_A, G_Q, Gout_V, n, t)  ! STILL TO BE ADAPTED
@@ -1592,6 +1688,7 @@ subroutine Hloop_QA_V(ntry, G_Q, J_A, Gout_V, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_Q)) then
     Gout_V%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -1600,6 +1697,7 @@ subroutine Hloop_QA_V(ntry, G_Q, J_A, Gout_V, n, t)
     end do
     call hol_dealloc_hybrid(G_Q)
   end if
+#endif
 #endif
 
 end subroutine Hloop_QA_V
@@ -1615,8 +1713,10 @@ subroutine Hloop_VQ_A(ntry, G_V, J_Q, Gout_A, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_vert_interface_/**/REALKIND, only: loop_VQ_A
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_VQ_A_qp => loop_VQ_A
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1627,7 +1727,9 @@ subroutine Hloop_VQ_A(ntry, G_V, J_Q, Gout_A, n, t)
   complex(REALKIND)  :: G_add(size(Gout_A%j,1),size(Gout_A%j,2),size(Gout_A%j,3))
   integer :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_A%j,1),size(Gout_A%j,2),size(Gout_A%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_Q, G_V, Gout_A, n, t)  ! STILL TO BE ADAPTED
@@ -1640,6 +1742,7 @@ subroutine Hloop_VQ_A(ntry, G_V, J_Q, Gout_A, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_V)) then
     Gout_A%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -1648,6 +1751,7 @@ subroutine Hloop_VQ_A(ntry, G_V, J_Q, Gout_A, n, t)
     end do
     call hol_dealloc_hybrid(G_V)
   end if
+#endif
 #endif
 
 end subroutine Hloop_VQ_A
@@ -1664,9 +1768,11 @@ subroutine Hloop_UV_W(ntry, Gin_V, moml, J_V, momt, Gout_V, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_UV_W
   use ol_kinematics_/**/REALKIND, only: get_LC_4
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_UV_W_qp => loop_UV_W
   use ol_kinematics_/**/DREALKIND, only: get_LC_4_qp
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1678,7 +1784,9 @@ subroutine Hloop_UV_W(ntry, Gin_V, moml, J_V, momt, Gout_V, n, t)
   complex(REALKIND)  :: G_add(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_V, Gin_V, Gout_V, n, t)  ! STILL TO BE ADAPTED
@@ -1691,6 +1799,7 @@ subroutine Hloop_UV_W(ntry, Gin_V, moml, J_V, momt, Gout_V, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -1700,6 +1809,7 @@ subroutine Hloop_UV_W(ntry, Gin_V, moml, J_V, momt, Gout_V, n, t)
     end do
     call hol_dealloc_hybrid(Gin_V)
   end if
+#endif
 #endif
 
 end subroutine Hloop_UV_W
@@ -1716,9 +1826,11 @@ subroutine Hloop_UW_V(ntry, Gin_V, moml, J_V, momt, Gout_V, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_UW_V
   use ol_kinematics_/**/REALKIND, only: get_LC_4
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_UW_V_qp => loop_UW_V
   use ol_kinematics_/**/DREALKIND, only: get_LC_4_qp
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1730,7 +1842,9 @@ subroutine Hloop_UW_V(ntry, Gin_V, moml, J_V, momt, Gout_V, n, t)
   complex(REALKIND)  :: G_add(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_V, Gin_V, Gout_V, n, t)  ! STILL TO BE ADAPTED
@@ -1743,6 +1857,7 @@ subroutine Hloop_UW_V(ntry, Gin_V, moml, J_V, momt, Gout_V, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -1752,6 +1867,7 @@ subroutine Hloop_UW_V(ntry, Gin_V, moml, J_V, momt, Gout_V, n, t)
     end do
     call hol_dealloc_hybrid(Gin_V)
   end if
+#endif
 #endif
 
 end subroutine Hloop_UW_V
@@ -1767,8 +1883,10 @@ subroutine Hloop_EV_V(ntry, Gin_V, J1, J2, Gout_V, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert4
   use ol_vert_interface_/**/REALKIND, only: loop_EV_V
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_EV_V_qp => loop_EV_V
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1779,7 +1897,9 @@ subroutine Hloop_EV_V(ntry, Gin_V, J1, J2, Gout_V, n, t)
   complex(REALKIND)  :: G_add(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert4(ntry, J1, J2, Gin_V, Gout_V, n, t)  ! STILL TO BE ADAPTED
@@ -1794,6 +1914,7 @@ subroutine Hloop_EV_V(ntry, Gin_V, J1, J2, Gout_V, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
@@ -1803,6 +1924,7 @@ subroutine Hloop_EV_V(ntry, Gin_V, J1, J2, Gout_V, n, t)
     end do
     call hol_dealloc_hybrid(Gin_V)
   end if
+#endif
 #endif
 
 end subroutine Hloop_EV_V
@@ -1817,8 +1939,10 @@ subroutine Hloop_VE_V(ntry, Gin_V, J1, J2, Gout_V, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert4
   use ol_vert_interface_/**/REALKIND, only: loop_VE_V
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_VE_V_qp => loop_VE_V
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1829,7 +1953,9 @@ subroutine Hloop_VE_V(ntry, Gin_V, J1, J2, Gout_V, n, t)
   complex(REALKIND)  :: G_add(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert4(ntry, J1, J2, Gin_V, Gout_V, n, t)  ! STILL TO BE ADAPTED
@@ -1844,6 +1970,7 @@ subroutine Hloop_VE_V(ntry, Gin_V, J1, J2, Gout_V, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
@@ -1853,6 +1980,7 @@ subroutine Hloop_VE_V(ntry, Gin_V, J1, J2, Gout_V, n, t)
     end do
     call hol_dealloc_hybrid(Gin_V)
   end if
+#endif
 #endif
 
 end subroutine Hloop_VE_V
@@ -1867,8 +1995,10 @@ subroutine Hloop_GGG_G_23(ntry, Gin_V, J1, J2, Gout_V, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert4
   use ol_vert_interface_/**/REALKIND, only: loop_GGG_G_23
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_GGG_G_23_qp => loop_GGG_G_23
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1879,7 +2009,9 @@ subroutine Hloop_GGG_G_23(ntry, Gin_V, J1, J2, Gout_V, n, t)
   complex(REALKIND)  :: G_add(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert4(ntry, J1, J2, Gin_V, Gout_V, n, t)  ! STILL TO BE ADAPTED
@@ -1892,6 +2024,7 @@ subroutine Hloop_GGG_G_23(ntry, Gin_V, J1, J2, Gout_V, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
@@ -1901,6 +2034,7 @@ subroutine Hloop_GGG_G_23(ntry, Gin_V, J1, J2, Gout_V, n, t)
     end do
     call hol_dealloc_hybrid(Gin_V)
   end if
+#endif
 #endif
 
 end subroutine Hloop_GGG_G_23
@@ -1916,8 +2050,10 @@ subroutine Hloop_GGG_G_12(ntry, Gin_V, J1, J2, Gout_V, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert4
   use ol_vert_interface_/**/REALKIND, only: loop_GGG_G_12
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_GGG_G_12_qp => loop_GGG_G_12
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1928,7 +2064,9 @@ subroutine Hloop_GGG_G_12(ntry, Gin_V, J1, J2, Gout_V, n, t)
   complex(REALKIND)  :: G_add(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert4(ntry, J1, J2, Gin_V, Gout_V, n, t)  ! STILL TO BE ADAPTED
@@ -1941,6 +2079,7 @@ subroutine Hloop_GGG_G_12(ntry, Gin_V, J1, J2, Gout_V, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
@@ -1950,6 +2089,7 @@ subroutine Hloop_GGG_G_12(ntry, Gin_V, J1, J2, Gout_V, n, t)
     end do
     call hol_dealloc_hybrid(Gin_V)
   end if
+#endif
 #endif
 
 end subroutine Hloop_GGG_G_12
@@ -1967,9 +2107,11 @@ subroutine Hloop_CV_D(ntry, Gin_C, moml, J_V, momt, Gout_C, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_CV_D
   use ol_kinematics_/**/REALKIND, only: get_LC_4
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_CV_D_qp => loop_CV_D
   use ol_kinematics_/**/DREALKIND, only: get_LC_4_qp
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -1981,7 +2123,9 @@ subroutine Hloop_CV_D(ntry, Gin_C, moml, J_V, momt, Gout_C, n, t)
   complex(REALKIND)  :: G_add(size(Gout_C%j,1),size(Gout_C%j,2),size(Gout_C%j,3))
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_C%j,1),size(Gout_C%j,2),size(Gout_C%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_V, Gin_C, Gout_C, n, t)  ! STILL TO BE ADAPTED
@@ -1994,6 +2138,7 @@ subroutine Hloop_CV_D(ntry, Gin_C, moml, J_V, momt, Gout_C, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_C)) then
     Gout_C%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -2003,6 +2148,7 @@ subroutine Hloop_CV_D(ntry, Gin_C, moml, J_V, momt, Gout_C, n, t)
     end do
     call hol_dealloc_hybrid(Gin_C)
   end if
+#endif
 #endif
 
 end subroutine Hloop_CV_D
@@ -2020,9 +2166,11 @@ subroutine Hloop_DV_C(ntry, Gin_D, moml, J_V, Gout_D, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_DV_C
   use ol_kinematics_/**/REALKIND, only: get_LC_4
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_DV_C_qp => loop_DV_C
   use ol_kinematics_/**/DREALKIND, only: get_LC_4_qp
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2034,7 +2182,9 @@ subroutine Hloop_DV_C(ntry, Gin_D, moml, J_V, Gout_D, n, t)
   complex(REALKIND)  :: G_add(size(Gout_D%j,1),size(Gout_D%j,2),size(Gout_D%j,3))
   integer :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_D%j,1),size(Gout_D%j,2),size(Gout_D%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_V, Gin_D, Gout_D, n, t)
@@ -2047,6 +2197,7 @@ subroutine Hloop_DV_C(ntry, Gin_D, moml, J_V, Gout_D, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_D)) then
     Gout_D%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -2056,6 +2207,7 @@ subroutine Hloop_DV_C(ntry, Gin_D, moml, J_V, Gout_D, n, t)
     end do
     call hol_dealloc_hybrid(Gin_D)
   end if
+#endif
 #endif
 
 end subroutine Hloop_DV_C
@@ -2072,9 +2224,11 @@ subroutine Hloop_AS_Q(ntry, G_A, J_S, Gout_A, ng_RL, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_AS_Q
   use ol_parameters_init_/**/REALKIND, only: get_coupling
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_AS_Q_qp => loop_AS_Q
   use ol_parameters_init_/**/QREALKIND, only: get_coupling_qp=>get_coupling
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2086,8 +2240,10 @@ subroutine Hloop_AS_Q(ntry, G_A, J_S, Gout_A, ng_RL, n, t)
   complex(REALKIND) :: g_RL(2)
   integer(intkind2) :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND) :: G_add_qp(size(Gout_A%j,1),size(Gout_A%j,2),size(Gout_A%j,3))
   complex(QREALKIND) :: g_RL_qp(2)
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_S, G_A, Gout_A, n, t)
@@ -2101,6 +2257,7 @@ subroutine Hloop_AS_Q(ntry, G_A, J_S, Gout_A, ng_RL, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_A)) then
     Gout_A%j_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
@@ -2110,6 +2267,7 @@ subroutine Hloop_AS_Q(ntry, G_A, J_S, Gout_A, ng_RL, n, t)
     end do
     call hol_dealloc_hybrid(G_A)
   end if
+#endif
 #endif
 
 end subroutine Hloop_AS_Q
@@ -2126,9 +2284,11 @@ subroutine Hloop_SA_Q(ntry, G_S, J_A, Gout_A, ng_RL, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_SA_Q
   use ol_parameters_init_/**/REALKIND, only: get_coupling
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_SA_Q_qp => loop_SA_Q
   use ol_parameters_init_/**/QREALKIND, only: get_coupling_qp=>get_coupling
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2140,8 +2300,10 @@ subroutine Hloop_SA_Q(ntry, G_S, J_A, Gout_A, ng_RL, n, t)
   complex(REALKIND) :: g_RL(2)
   integer(intkind2) :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND) :: G_add_qp(size(Gout_A%j,1),size(Gout_A%j,2),size(Gout_A%j,3))
   complex(QREALKIND) :: g_RL_qp(2)
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_A, G_S, Gout_A, n, t)
@@ -2155,6 +2317,7 @@ subroutine Hloop_SA_Q(ntry, G_S, J_A, Gout_A, ng_RL, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_S)) then
     Gout_A%j_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
@@ -2164,6 +2327,7 @@ subroutine Hloop_SA_Q(ntry, G_S, J_A, Gout_A, ng_RL, n, t)
     end do
     call hol_dealloc_hybrid(G_S)
   end if
+#endif
 #endif
 
 end subroutine Hloop_SA_Q
@@ -2180,9 +2344,11 @@ subroutine Hloop_QS_A(ntry, G_Q, J_S, Gout_Q, ng_RL, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_QS_A
   use ol_parameters_init_/**/REALKIND, only: get_coupling
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_QS_A_qp => loop_QS_A
   use ol_parameters_init_/**/QREALKIND, only: get_coupling_qp=>get_coupling
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2194,8 +2360,10 @@ subroutine Hloop_QS_A(ntry, G_Q, J_S, Gout_Q, ng_RL, n, t)
   complex(REALKIND) :: g_RL(2)
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND) :: G_add_qp(size(Gout_Q%j,1),size(Gout_Q%j,2),size(Gout_Q%j,3))
   complex(QREALKIND) :: g_RL_qp(2)
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_S, G_Q, Gout_Q, n, t)
@@ -2209,6 +2377,7 @@ subroutine Hloop_QS_A(ntry, G_Q, J_S, Gout_Q, ng_RL, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_Q)) then
     Gout_Q%j_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
@@ -2218,6 +2387,7 @@ subroutine Hloop_QS_A(ntry, G_Q, J_S, Gout_Q, ng_RL, n, t)
     end do
     call hol_dealloc_hybrid(G_Q)
   end if
+#endif
 #endif
 
 end subroutine Hloop_QS_A
@@ -2234,9 +2404,11 @@ subroutine Hloop_SQ_A(ntry, G_S, J_Q, Gout_Q, ng_RL, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_SQ_A
   use ol_parameters_init_/**/REALKIND, only: get_coupling
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_SQ_A_qp => loop_SQ_A
   use ol_parameters_init_/**/QREALKIND, only: get_coupling_qp=>get_coupling
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2248,8 +2420,10 @@ subroutine Hloop_SQ_A(ntry, G_S, J_Q, Gout_Q, ng_RL, n, t)
   complex(REALKIND) :: g_RL(2)
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND) :: G_add_qp(size(Gout_Q%j,1),size(Gout_Q%j,2),size(Gout_Q%j,3))
   complex(QREALKIND) :: g_RL_qp(2)
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_Q, G_S, Gout_Q, n, t)
@@ -2263,6 +2437,7 @@ subroutine Hloop_SQ_A(ntry, G_S, J_Q, Gout_Q, ng_RL, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_S)) then
     Gout_Q%j_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
@@ -2272,6 +2447,7 @@ subroutine Hloop_SQ_A(ntry, G_S, J_Q, Gout_Q, ng_RL, n, t)
     end do
     call hol_dealloc_hybrid(G_S)
   end if
+#endif
 #endif
 
 end subroutine Hloop_SQ_A
@@ -2288,9 +2464,11 @@ subroutine Hloop_QA_S(ntry, G_Q, J_A, Gout_S, ng_RL, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_QA_S
   use ol_parameters_init_/**/REALKIND, only: get_coupling
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_QA_S_qp => loop_QA_S
   use ol_parameters_init_/**/QREALKIND, only: get_coupling_qp=>get_coupling
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2302,8 +2480,10 @@ subroutine Hloop_QA_S(ntry, G_Q, J_A, Gout_S, ng_RL, n, t)
   complex(REALKIND) :: g_RL(2)
   integer(intkind2) :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND) :: G_add_qp(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
   complex(QREALKIND) :: g_RL_qp(2)
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_A, G_Q, Gout_S, n, t)
@@ -2317,6 +2497,7 @@ subroutine Hloop_QA_S(ntry, G_Q, J_A, Gout_S, ng_RL, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_Q)) then
     Gout_S%j_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
@@ -2326,6 +2507,7 @@ subroutine Hloop_QA_S(ntry, G_Q, J_A, Gout_S, ng_RL, n, t)
     end do
     call hol_dealloc_hybrid(G_Q)
   end if
+#endif
 #endif
 
 end subroutine Hloop_QA_S
@@ -2342,9 +2524,11 @@ subroutine Hloop_AQ_S(ntry, G_A, J_Q, Gout_S, ng_RL, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_AQ_S
   use ol_parameters_init_/**/REALKIND, only: get_coupling
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_AQ_S_qp => loop_AQ_S
   use ol_parameters_init_/**/QREALKIND, only: get_coupling_qp=>get_coupling
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2356,8 +2540,10 @@ subroutine Hloop_AQ_S(ntry, G_A, J_Q, Gout_S, ng_RL, n, t)
   complex(REALKIND) :: g_RL(2)
   integer(intkind2) :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND) :: G_add_qp(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
   complex(QREALKIND) :: g_RL_qp(2)
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_Q, G_A, Gout_S, n, t)
@@ -2371,6 +2557,7 @@ subroutine Hloop_AQ_S(ntry, G_A, J_Q, Gout_S, ng_RL, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_A)) then
     Gout_S%j_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
@@ -2380,6 +2567,7 @@ subroutine Hloop_AQ_S(ntry, G_A, J_Q, Gout_S, ng_RL, n, t)
     end do
     call hol_dealloc_hybrid(G_A)
   end if
+#endif
 #endif
 
 end subroutine Hloop_AQ_S
@@ -2395,8 +2583,10 @@ subroutine Hloop_VV_S(ntry, G_V, J_V, Gout_S, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_vert_interface_/**/REALKIND, only: loop_VV_S
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_VV_S_qp => loop_VV_S
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2406,7 +2596,9 @@ subroutine Hloop_VV_S(ntry, G_V, J_V, Gout_S, n, t)
   complex(REALKIND)  :: G_add(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
   integer(intkind2)  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_V, G_V, Gout_S, n, t)
@@ -2419,6 +2611,7 @@ subroutine Hloop_VV_S(ntry, G_V, J_V, Gout_S, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_V)) then
     Gout_S%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -2427,6 +2620,7 @@ subroutine Hloop_VV_S(ntry, G_V, J_V, Gout_S, n, t)
     end do
     call hol_dealloc_hybrid(G_V)
   end if
+#endif
 #endif
 
 end subroutine Hloop_VV_S
@@ -2442,8 +2636,10 @@ subroutine Hloop_VS_V(ntry, G_V, J_S, Gout_V, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_vert_interface_/**/REALKIND, only: loop_VS_V
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_VS_V_qp => loop_VS_V
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2453,7 +2649,9 @@ subroutine Hloop_VS_V(ntry, G_V, J_S, Gout_V, n, t)
   complex(REALKIND)  :: G_add(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
   integer(intkind2)  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_S, G_V, Gout_V, n, t)
@@ -2466,6 +2664,7 @@ subroutine Hloop_VS_V(ntry, G_V, J_S, Gout_V, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -2474,6 +2673,7 @@ subroutine Hloop_VS_V(ntry, G_V, J_S, Gout_V, n, t)
     end do
     call hol_dealloc_hybrid(G_V)
   end if
+#endif
 #endif
 
 end subroutine Hloop_VS_V
@@ -2489,8 +2689,10 @@ subroutine Hloop_SV_V(ntry, G_S, J_V, Gout_V, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_vert_interface_/**/REALKIND, only: loop_SV_V
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_SV_V_qp => loop_SV_V
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2500,7 +2702,9 @@ subroutine Hloop_SV_V(ntry, G_S, J_V, Gout_V, n, t)
   complex(REALKIND)  :: G_add(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
   integer(intkind2)  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_V, G_S, Gout_V, n, t)
@@ -2513,6 +2717,7 @@ subroutine Hloop_SV_V(ntry, G_S, J_V, Gout_V, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_S)) then
     Gout_V%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -2521,6 +2726,7 @@ subroutine Hloop_SV_V(ntry, G_S, J_V, Gout_V, n, t)
     end do
     call hol_dealloc_hybrid(G_S)
   end if
+#endif
 #endif
 
 end subroutine Hloop_SV_V
@@ -2540,9 +2746,11 @@ subroutine Hloop_SV_T(ntry, G_S, moml, J_V, momt, Gout_S, n, t)
   use ol_kinematics_/**/REALKIND, only: get_LC_4
   use ol_vert_interface_/**/REALKIND, only: loop_SV_T
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_SV_T_qp => loop_SV_T
   use ol_kinematics_/**/DREALKIND, only: get_LC_4_qp
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2553,7 +2761,9 @@ subroutine Hloop_SV_T(ntry, G_S, moml, J_V, momt, Gout_S, n, t)
   complex(REALKIND)  :: G_add(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
   integer(intkind2)  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_V, G_S, Gout_S, n, t)
@@ -2569,6 +2779,7 @@ subroutine Hloop_SV_T(ntry, G_S, moml, J_V, momt, Gout_S, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_S)) then
     Gout_S%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -2579,6 +2790,7 @@ subroutine Hloop_SV_T(ntry, G_S, moml, J_V, momt, Gout_S, n, t)
     end do
     call hol_dealloc_hybrid(G_S)
   end if
+#endif
 #endif
 
 end subroutine Hloop_SV_T
@@ -2594,9 +2806,11 @@ subroutine Hloop_TV_S(ntry, G_S, moml, J_V, momt, Gout_S, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_TV_S
   use ol_kinematics_/**/REALKIND, only: get_LC_4
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_TV_S_qp => loop_TV_S
   use ol_kinematics_/**/DREALKIND, only: get_LC_4_qp
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2607,7 +2821,9 @@ subroutine Hloop_TV_S(ntry, G_S, moml, J_V, momt, Gout_S, n, t)
   complex(REALKIND)  :: G_add(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
   integer(intkind2)  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_V, G_S, Gout_S, n, t)
@@ -2622,6 +2838,7 @@ subroutine Hloop_TV_S(ntry, G_S, moml, J_V, momt, Gout_S, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_S)) then
     Gout_S%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -2631,6 +2848,7 @@ subroutine Hloop_TV_S(ntry, G_S, moml, J_V, momt, Gout_S, n, t)
     end do
     call hol_dealloc_hybrid(G_S)
   end if
+#endif
 #endif
 
 end subroutine Hloop_TV_S
@@ -2647,9 +2865,11 @@ subroutine Hloop_VS_T(ntry, G_V, moml, J_S, momt, Gout_S, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_VS_T
   use ol_kinematics_/**/REALKIND, only: get_LC_4
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_VS_T_qp => loop_VS_T
   use ol_kinematics_/**/DREALKIND, only: get_LC_4_qp
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2660,7 +2880,9 @@ subroutine Hloop_VS_T(ntry, G_V, moml, J_S, momt, Gout_S, n, t)
   complex(REALKIND)  :: G_add(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
   integer(intkind2)  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_S, G_V, Gout_S, n, t)
@@ -2675,6 +2897,7 @@ subroutine Hloop_VS_T(ntry, G_V, moml, J_S, momt, Gout_S, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_V)) then
     Gout_S%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -2684,6 +2907,7 @@ subroutine Hloop_VS_T(ntry, G_V, moml, J_S, momt, Gout_S, n, t)
     end do
     call hol_dealloc_hybrid(G_V)
   end if
+#endif
 #endif
 
 end subroutine Hloop_VS_T
@@ -2700,9 +2924,11 @@ subroutine Hloop_VT_S(ntry, G_V, moml, J_S, momt, Gout_S, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_VT_S
   use ol_kinematics_/**/REALKIND, only: get_LC_4
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_VT_S_qp=>loop_VT_S
   use ol_kinematics_/**/DREALKIND, only: get_LC_4_qp
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2713,7 +2939,9 @@ subroutine Hloop_VT_S(ntry, G_V, moml, J_S, momt, Gout_S, n, t)
   complex(REALKIND)  :: G_add(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
   integer(intkind2)  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_S, G_V, Gout_S, n, t)
@@ -2728,6 +2956,7 @@ subroutine Hloop_VT_S(ntry, G_V, moml, J_S, momt, Gout_S, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_V)) then
     Gout_S%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -2737,6 +2966,7 @@ subroutine Hloop_VT_S(ntry, G_V, moml, J_S, momt, Gout_S, n, t)
     end do
     call hol_dealloc_hybrid(G_V)
   end if
+#endif
 #endif
 
 end subroutine Hloop_VT_S
@@ -2753,9 +2983,11 @@ subroutine Hloop_ST_V(ntry, G_S, moml, J_S, momt, Gout_V, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_ST_V
   use ol_kinematics_/**/REALKIND, only: get_LC_4
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_ST_V_qp=>loop_ST_V
   use ol_kinematics_/**/DREALKIND, only: get_LC_4_qp
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2766,7 +2998,9 @@ subroutine Hloop_ST_V(ntry, G_S, moml, J_S, momt, Gout_V, n, t)
   complex(REALKIND)  :: G_add(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
   integer(intkind2)  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_S, G_S, Gout_V, n, t)
@@ -2781,6 +3015,7 @@ subroutine Hloop_ST_V(ntry, G_S, moml, J_S, momt, Gout_V, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_S)) then
     Gout_V%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -2790,6 +3025,7 @@ subroutine Hloop_ST_V(ntry, G_S, moml, J_S, momt, Gout_V, n, t)
     end do
     call hol_dealloc_hybrid(G_S)
   end if
+#endif
 #endif
 
 end subroutine Hloop_ST_V
@@ -2806,9 +3042,11 @@ subroutine Hloop_TS_V(ntry, G_S, moml, J_S, momt, Gout_V, n, t)
   use ol_vert_interface_/**/REALKIND, only: loop_TS_V
   use ol_kinematics_/**/REALKIND, only: get_LC_4
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_TS_V_qp=>loop_TS_V
   use ol_kinematics_/**/DREALKIND, only: get_LC_4_qp
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2819,7 +3057,9 @@ subroutine Hloop_TS_V(ntry, G_S, moml, J_S, momt, Gout_V, n, t)
   complex(REALKIND)  :: G_add(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
   integer(intkind2)  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_S, G_S, Gout_V, n, t)
@@ -2834,6 +3074,7 @@ subroutine Hloop_TS_V(ntry, G_S, moml, J_S, momt, Gout_V, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_S)) then
     Gout_V%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -2843,6 +3084,7 @@ subroutine Hloop_TS_V(ntry, G_S, moml, J_S, momt, Gout_V, n, t)
     end do
     call hol_dealloc_hybrid(G_S)
   end if
+#endif
 #endif
 
 end subroutine Hloop_TS_V
@@ -2858,8 +3100,10 @@ subroutine Hloop_SS_S(ntry, G_S, J_S, Gout_S, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert3
   use ol_vert_interface_/**/REALKIND, only: loop_SS_S
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_SS_S_qp=>loop_SS_S
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2869,7 +3113,9 @@ subroutine Hloop_SS_S(ntry, G_S, J_S, Gout_S, n, t)
   complex(REALKIND)  :: G_add(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
   integer(intkind2)  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_S, G_S, Gout_S, n, t)
@@ -2884,6 +3130,7 @@ subroutine Hloop_SS_S(ntry, G_S, J_S, Gout_S, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(G_S)) then
     Gout_S%j_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
@@ -2892,6 +3139,7 @@ subroutine Hloop_SS_S(ntry, G_S, J_S, Gout_S, n, t)
     end do
     call hol_dealloc_hybrid(G_S)
   end if
+#endif
 #endif
 
 end subroutine Hloop_SS_S
@@ -2907,8 +3155,10 @@ subroutine Hloop_SSS_S(ntry, Gin_S, J_S1, J_S2, Gout_S, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert4
   use ol_vert_interface_/**/REALKIND, only: loop_SSS_S
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_SSS_S_qp=>loop_SSS_S
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2919,7 +3169,9 @@ subroutine Hloop_SSS_S(ntry, Gin_S, J_S1, J_S2, Gout_S, n, t)
   complex(REALKIND)  :: G_add(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert4(ntry, J_S1, J_S2, Gin_S, Gout_S, n, t)  ! STILL TO BE ADAPTED
@@ -2934,6 +3186,7 @@ subroutine Hloop_SSS_S(ntry, Gin_S, J_S1, J_S2, Gout_S, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_S)) then
     Gout_S%j_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
@@ -2944,7 +3197,7 @@ subroutine Hloop_SSS_S(ntry, Gin_S, J_S1, J_S2, Gout_S, n, t)
     call hol_dealloc_hybrid(Gin_S)
   end if
 #endif
-
+#endif
 
 
 end subroutine Hloop_SSS_S
@@ -2960,8 +3213,10 @@ subroutine Hloop_SVV_S(ntry, Gin_S, J_V1, J_V2, Gout_S, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert4
   use ol_vert_interface_/**/REALKIND, only: loop_SVV_S
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_SVV_S_qp=>loop_SVV_S
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -2972,7 +3227,9 @@ subroutine Hloop_SVV_S(ntry, Gin_S, J_V1, J_V2, Gout_S, n, t)
   complex(REALKIND)  :: G_add(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert4(ntry, J_V1, J_V2, Gin_S, Gout_S, n, t)  ! STILL TO BE ADAPTED
@@ -2987,6 +3244,7 @@ subroutine Hloop_SVV_S(ntry, Gin_S, J_V1, J_V2, Gout_S, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_S)) then
     Gout_S%j_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
@@ -2996,6 +3254,7 @@ subroutine Hloop_SVV_S(ntry, Gin_S, J_V1, J_V2, Gout_S, n, t)
     end do
     call hol_dealloc_hybrid(Gin_S)
   end if
+#endif
 #endif
 
 end subroutine Hloop_SVV_S
@@ -3011,8 +3270,10 @@ subroutine Hloop_VSS_V(ntry, Gin_V, J_S1, J_S2, Gout_V, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert4
   use ol_vert_interface_/**/REALKIND, only: loop_VSS_V
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_VSS_V_qp=>loop_VSS_V
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -3023,7 +3284,9 @@ subroutine Hloop_VSS_V(ntry, Gin_V, J_S1, J_S2, Gout_V, n, t)
   complex(REALKIND)  :: G_add(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert4(ntry, J_S1, J_S2, Gin_V, Gout_V, n, t)  ! STILL TO BE ADAPTED
@@ -3038,6 +3301,7 @@ subroutine Hloop_VSS_V(ntry, Gin_V, J_S1, J_S2, Gout_V, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
@@ -3047,6 +3311,7 @@ subroutine Hloop_VSS_V(ntry, Gin_V, J_S1, J_S2, Gout_V, n, t)
     end do
     call hol_dealloc_hybrid(Gin_V)
   end if
+#endif
 #endif
 
 end subroutine Hloop_VSS_V
@@ -3062,8 +3327,10 @@ subroutine Hloop_VVS_S(ntry, Gin_V, J_V, J_S, Gout_S, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert4
   use ol_vert_interface_/**/REALKIND, only: loop_VVS_S
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_VVS_S_qp=>loop_VVS_S
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -3074,7 +3341,9 @@ subroutine Hloop_VVS_S(ntry, Gin_V, J_V, J_S, Gout_S, n, t)
   complex(REALKIND)  :: G_add(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND)  :: G_add_qp(size(Gout_S%j,1),size(Gout_S%j,2),size(Gout_S%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert4(ntry, J_V, J_S, Gin_V, Gout_S, n, t)  ! STILL TO BE ADAPTED
@@ -3089,6 +3358,7 @@ subroutine Hloop_VVS_S(ntry, Gin_V, J_V, J_S, Gout_S, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_V)) then
     Gout_S%j_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
@@ -3098,6 +3368,7 @@ subroutine Hloop_VVS_S(ntry, Gin_V, J_V, J_S, Gout_S, n, t)
     end do
     call hol_dealloc_hybrid(Gin_V)
   end if
+#endif
 #endif
 
 end subroutine Hloop_VVS_S
@@ -3113,8 +3384,10 @@ subroutine Hloop_SSV_V(ntry, Gin_S, J_S, J_V, Gout_V, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert4
   use ol_vert_interface_/**/REALKIND, only: loop_SSV_V
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_SSV_V_qp=>loop_SSV_V
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -3125,7 +3398,9 @@ subroutine Hloop_SSV_V(ntry, Gin_S, J_S, J_V, Gout_V, n, t)
   complex(REALKIND)  :: G_add(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND) :: G_add_qp(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert4(ntry, J_S, J_V, Gin_S, Gout_V, n, t)  ! STILL TO BE ADAPTED
@@ -3140,6 +3415,7 @@ subroutine Hloop_SSV_V(ntry, Gin_S, J_S, J_V, Gout_V, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_S)) then
     Gout_V%j_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
@@ -3149,6 +3425,7 @@ subroutine Hloop_SSV_V(ntry, Gin_S, J_S, J_V, Gout_V, n, t)
     end do
     call hol_dealloc_hybrid(Gin_S)
   end if
+#endif
 #endif
 
 end subroutine Hloop_SSV_V
@@ -3164,8 +3441,10 @@ subroutine Hloop_VWW_V(ntry, Gin_V, J_V1, J_V2, Gout_V, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert4
   use ol_vert_interface_/**/REALKIND, only: loop_VWW_V
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_VWW_V_qp=>loop_VWW_V
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -3176,7 +3455,9 @@ subroutine Hloop_VWW_V(ntry, Gin_V, J_V1, J_V2, Gout_V, n, t)
   complex(REALKIND)  :: G_add(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND) :: G_add_qp(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert4(ntry, J_V1, J_V2, Gin_V, Gout_V, n, t)  ! STILL TO BE ADAPTED
@@ -3191,6 +3472,7 @@ subroutine Hloop_VWW_V(ntry, Gin_V, J_V1, J_V2, Gout_V, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
@@ -3200,6 +3482,7 @@ subroutine Hloop_VWW_V(ntry, Gin_V, J_V1, J_V2, Gout_V, n, t)
     end do
     call hol_dealloc_hybrid(Gin_V)
   end if
+#endif
 #endif
 
 end subroutine Hloop_VWW_V
@@ -3214,8 +3497,10 @@ subroutine Hloop_WWV_V(ntry, Gin_V, J_V1, J_V2, Gout_V, n, t)
   use hel_bookkeeping_/**/REALKIND, only: helbookkeeping_ol_vert4
   use ol_vert_interface_/**/REALKIND, only: loop_WWV_V
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_vert_interface_/**/QREALKIND, only: loop_WWV_V_qp=>loop_WWV_V
   use ol_loop_handling_/**/DREALKIND, only: hol_dealloc_hybrid
+#endif
 #endif
   implicit none
   integer(intkind1), intent(in)    :: ntry
@@ -3226,7 +3511,9 @@ subroutine Hloop_WWV_V(ntry, Gin_V, J_V1, J_V2, Gout_V, n, t)
   complex(REALKIND)  :: G_add(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
   integer  :: h
 #ifdef PRECISION_dp
+#ifdef USE_qp
   complex(QREALKIND) :: G_add_qp(size(Gout_V%j,1),size(Gout_V%j,2),size(Gout_V%j,3))
+#endif
 #endif
 
   if (ntry == 1) call helbookkeeping_ol_vert4(ntry, J_V1, J_V2, Gin_V, Gout_V, n, t)  ! STILL TO BE ADAPTED
@@ -3241,6 +3528,7 @@ subroutine Hloop_WWV_V(ntry, Gin_V, J_V1, J_V2, Gout_V, n, t)
   end do
 
 #ifdef PRECISION_dp
+#ifdef USE_qp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
@@ -3250,6 +3538,7 @@ subroutine Hloop_WWV_V(ntry, Gin_V, J_V1, J_V2, Gout_V, n, t)
     end do
     call hol_dealloc_hybrid(Gin_V)
   end if
+#endif
 #endif
 
 end subroutine Hloop_WWV_V

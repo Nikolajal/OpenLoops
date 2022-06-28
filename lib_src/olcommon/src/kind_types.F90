@@ -33,8 +33,13 @@ module kind_types
   integer, parameter :: ep = selected_real_kind(18)
   complex(ep), parameter :: cI_ep = (0._ep, 1._ep)
 #endif
+#ifdef USE_dp
   integer, parameter :: qp = selected_real_kind(33)
   complex(qp), parameter :: cI_qp = (0._qp, 1._qp)
+#else
+  integer, parameter :: qp = selected_real_kind(15)
+  complex(qp), parameter :: cI_qp = (0._qp, 1._qp)
+#endif
 
   interface cmplx_wp
 #ifdef USE_sp
@@ -44,7 +49,9 @@ module kind_types
 #ifdef USE_ep
     module procedure cmplx_ep
 #endif
+#ifdef USE_qp
     module procedure cmplx_qp
+#endif
   end interface cmplx_wp
   contains
 #ifdef USE_sp
@@ -75,6 +82,7 @@ module kind_types
     if (present(im)) cmplx_ep = cmplx_ep + im * cI_ep
   end function cmplx_ep
 #endif
+#ifdef USE_qp
   function cmplx_qp(re, im)
     implicit none
     real(qp), intent(in) :: re
@@ -83,6 +91,7 @@ module kind_types
     cmplx_qp = re
     if (present(im)) cmplx_qp = cmplx_qp + im * cI_qp
   end function cmplx_qp
+#endif
 end module kind_types
 
 module kind_types_bw

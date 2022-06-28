@@ -2013,7 +2013,7 @@ end subroutine sort_hf_wf
 ! deprecated
 subroutine init_hybrid_exwf(ex)
 ! **********************************************************************
-  use KIND_TYPES, only: QREALKIND
+!  use KIND_TYPES, only: QREALKIND
   use ol_data_types_/**/REALKIND, only: wfun
   use ol_loop_handling_/**/REALKIND, only: hp_switch
   implicit none
@@ -2034,7 +2034,7 @@ end subroutine init_hybrid_exwf
 ! deprecated
 subroutine init_hybrid_wf(wf)
 ! **********************************************************************
-  use KIND_TYPES, only: QREALKIND
+!  use KIND_TYPES, only: QREALKIND
   use ol_data_types_/**/REALKIND, only: wfun
   use ol_loop_handling_/**/REALKIND, only: hp_switch
   implicit none

@@ -20,7 +20,9 @@
 module ol_data_types_/**/REALKIND
   use KIND_TYPES, only: REALKIND, QREALKIND, intkind1, intkind2
 #ifdef PRECISION_dp
+#ifdef USE_qp
   use ol_data_types_/**/QREALKIND, only: basis_qp=>basis, redset4_qp=>redset4
+#endif
 #endif
   type wfun
     ! four complex components for the wave function
@@ -129,8 +131,10 @@ module ol_data_types_/**/REALKIND
     integer :: mom3
     real(REALKIND) :: gd2,gd3
 #ifdef PRECISION_dp
+#ifdef USE_qp
     logical :: qp_computed = .false.
     type(redset4_qp) :: rsqp
+#endif
 #endif
   end type redset4
 
@@ -315,7 +319,7 @@ module ol_parameters_decl_/**/REALKIND
   ! flag for hybrid preset mode
   ! - 0: hp mode disabled
   ! - 1: hp mode for hard regions (default)
-  ! - 2: hp mode for hard regions (default)
+  ! - 2: hp mode for soft regions
   integer, save :: hp_mode = 1
 
   ! flag of hybrid baseline mode
@@ -502,6 +506,7 @@ module ol_parameters_decl_/**/REALKIND
   real(REALKIND),    parameter :: rONE   = 1
   real(REALKIND),    parameter :: rZERO  = 0
   real(REALKIND),    parameter :: rZERO2 = 0
+  real(REALKIND),    parameter :: r12    = 1._/**/REALKIND/2.
   real(REALKIND),    parameter :: pi     = acos(-1._/**/REALKIND)
   real(REALKIND),    parameter :: pi2_6  = (pi**2)/6
   real(REALKIND),    parameter :: sqrt2  = sqrt(2._/**/REALKIND)
@@ -811,8 +816,8 @@ module ol_loop_parameters_decl_/**/REALKIND
   logical, save :: reset_olo = .true.
 
   integer,        save      :: nc    = 3          ! number of colours
-  integer,        save      :: nf = 6, nf_up = 3, nf_down =3 ! number of quarks (total, up-type, down-type)
-  integer,        save      :: nfa= 5             ! fermionic contributions to photon selfenergy
+  integer,        save      :: nf = 6, nf_up = 3, nf_down =3, nf_active = 6 ! number of quarks (total, up-type, down-type, active)
+  integer,        save      :: nfl= 3             ! number of leptons, 1: e, 2: e+mu, 3: e+mu+tau
   integer,        save      :: nq_nondecoupl = 0  ! number of quarks which do not decouple above threshold,
                                                   ! i.e. always contribute to the alpha_s running
   integer,        save      :: N_lf  = 5          ! number of massless quark flavours
@@ -826,7 +831,7 @@ module ol_loop_parameters_decl_/**/REALKIND
   real(REALKIND), save      :: cf    = 4._/**/REALKIND/3 ! fundamental Casimir
   real(REALKIND), save      :: tf    = 0.5_/**/REALKIND  ! generator normalisation
 
-  complex(REALKIND), parameter      :: Qu   = 4._/**/REALKIND/3. ! up-type quark electrical charge squared
+  complex(REALKIND), parameter      :: Qu   = 2._/**/REALKIND/3. ! up-type quark electrical charge squared
   complex(REALKIND), parameter      :: Qd   = -1._/**/REALKIND/3. ! down-type quark electrical charge squared
   complex(REALKIND), parameter      :: Ql   = -1 ! lepton electrical charge squared
 
@@ -949,6 +954,20 @@ module ol_loop_parameters_decl_/**/REALKIND
   complex(REALKIND), save :: ctAGGG(2)
   complex(REALKIND), save :: ctZGGG(2)
   integer,           save :: R2GGGG
+  complex(REALKIND), save :: ctHGGsel
+  complex(REALKIND), save :: ctWWGGqq
+  complex(REALKIND), save :: ctZGGu
+  complex(REALKIND), save :: ctZGGd
+  complex(REALKIND), save :: ctAAGGu
+  complex(REALKIND), save :: ctAZGGu
+  complex(REALKIND), save :: ctZZGGu
+  complex(REALKIND), save :: ctAAGGd
+  complex(REALKIND), save :: ctAZGGd
+  complex(REALKIND), save :: ctZZGGd
+  complex(REALKIND), save :: ctAGGGu(2)
+  complex(REALKIND), save :: ctAGGGd(2)
+  complex(REALKIND), save :: ctZGGGu(2)
+  complex(REALKIND), save :: ctZGGGd(2)
 
   ! Counterterms for HEFT
   real(REALKIND), save :: ctHEFTggh(5)
@@ -991,6 +1010,7 @@ module ol_loop_parameters_decl_/**/REALKIND
   complex(REALKIND), save :: dZmuLEW    = 0 ! L-muon field RC             : idem
   complex(REALKIND), save :: dZmuREW    = 0 ! R-muon field RC             : idem
   complex(REALKIND), save :: dZnLEW     = 0 ! L-neutrino field RC         : idem
+  complex(REALKIND), save :: dZnmLEW    = 0 ! L-muon-neutrino field RC    : idem
   complex(REALKIND), save :: dZnlLEW    = 0 ! L-tau-neutrino field RC     : idem
   complex(REALKIND), save :: dZlLEW     = 0 ! L-tau-lepton field RC       : idem
   complex(REALKIND), save :: dZlREW     = 0 ! R-tau-lepton field RC       : idem
@@ -1007,6 +1027,7 @@ module ol_loop_parameters_decl_/**/REALKIND
   complex(REALKIND), save :: dZmuLEWcc  = 0 ! L-muon field RC             : idem
   complex(REALKIND), save :: dZmuREWcc  = 0 ! R-muon field RC             : idem
   complex(REALKIND), save :: dZnLEWcc   = 0 ! L-neutrino field RC         : idem
+  complex(REALKIND), save :: dZnmLEWcc  = 0 ! L-muon-neutrino field RC    : idem
   complex(REALKIND), save :: dZnlLEWcc  = 0 ! L-tau-neutrino field RC     : idem
   complex(REALKIND), save :: dZlLEWcc   = 0 ! L-tau-lepton field RC       : idem
   complex(REALKIND), save :: dZlREWcc    = 0 ! R-tau-lepton field RC       : idem
@@ -1053,6 +1074,7 @@ module ol_loop_parameters_decl_/**/REALKIND
   complex(REALKIND), save :: EWctmm(4)      = 0
   complex(REALKIND), save :: EWctLL(4)      = 0
   complex(REALKIND), save :: EWctnn(4)      = 0
+  complex(REALKIND), save :: EWctnmnm(4)      = 0
   complex(REALKIND), save :: EWctnlnl(4)      = 0
   !VVVV
   complex(REALKIND), save :: EWctWWWW(2)      = 0
@@ -1138,15 +1160,18 @@ module ol_loop_parameters_decl_/**/REALKIND
   complex(REALKIND), save :: EWctVmm(2)      = 0
   complex(REALKIND), save :: EWctVLL(2)      = 0
   complex(REALKIND), save :: EWctVnn(2)      = 0
+  complex(REALKIND), save :: EWctVnmnm(2)      = 0
   complex(REALKIND), save :: EWctVnlnl(2)      = 0
-  ! Wff
+ ! Wff
   complex(REALKIND), save :: EWctVdu      = 0
   complex(REALKIND), save :: EWctVbt      = 0
   complex(REALKIND), save :: EWctVen      = 0
+  complex(REALKIND), save :: EWctVmn      = 0
   complex(REALKIND), save :: EWctVLn      = 0
   complex(REALKIND), save :: EWctVud      = 0
   complex(REALKIND), save :: EWctVtb      = 0
   complex(REALKIND), save :: EWctVne      = 0
+  complex(REALKIND), save :: EWctVnm      = 0
   complex(REALKIND), save :: EWctVnL      = 0
   ! Gff mixed EW/QCD
   complex(REALKIND), save ::  EWctGuu(2)      = 0
@@ -1170,6 +1195,8 @@ module ol_loop_parameters_decl_/**/REALKIND
   complex(REALKIND), save :: EWctPbt(2)      = 0
   complex(REALKIND), save :: EWctPne(2)      = 0
   complex(REALKIND), save :: EWctPen(2)      = 0
+  complex(REALKIND), save :: EWctPnm(2)      = 0
+  complex(REALKIND), save :: EWctPmn(2)      = 0
   complex(REALKIND), save :: EWctPnL(2)      = 0
   complex(REALKIND), save :: EWctPLn(2)      = 0
   ! VUU
