@@ -33,7 +33,7 @@ module kind_types
   integer, parameter :: ep = selected_real_kind(18)
   complex(ep), parameter :: cI_ep = (0._ep, 1._ep)
 #endif
-#ifdef USE_dp
+#ifdef USE_qp
   integer, parameter :: qp = selected_real_kind(33)
   complex(qp), parameter :: cI_qp = (0._qp, 1._qp)
 #else

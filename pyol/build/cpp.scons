@@ -89,7 +89,7 @@ installpath_split[-1] = installpath_split[-1][:-1]
 installpath_split.append('')
 
 cpp_defs = [cpp_def.split('=', 1) for cpp_def in cpp_defs] + [[kind_parameter, '$PRECISION']]
-if 'qp_rescue' in mp:
+if 'qp' in mp:
     cpp_defs += ['USE_qp']
 if 'qp_checks' in mp:
     cpp_defs += ['USE_CHECK_qp']
