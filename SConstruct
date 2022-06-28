@@ -126,6 +126,10 @@ if platform.processor().startswith("arm"):
     print("and your setup should *NOT* be used for production runs.")
     config['precision'] = ['dp']
     config['process_qp_rescue'] = 0
+    if ('cuttools' in config['compile_libraries']):
+      config['compile_libraries'].remove('cuttools')
+    if ('cuttools' in config['link_libraries']):
+      config['link_libraries'].remove('cuttools')
     print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
 if config['print_python_version']:
@@ -754,7 +758,8 @@ for (loops, process_api, processlib) in process_list:
         process_lib = OLLibrary(name = processlib_name,
                                 target_dir = config['process_lib_dir'],
                                 # need to include oneloop mod dir for ifort
-                                mod_dependencies = ['olcommon', 'openloops', 'oneloop'],
+                                mod_dependencies = sorted(list(set(config['link_libraries'])
+                                & set(['olcommon', 'openloops', 'oneloop']))),
                                 mod_dir = os.path.join(processlib_obj_dir, 'mod'),
                                 mp_src = process_mp_src,
                                 dp_src = process_dp_src,
