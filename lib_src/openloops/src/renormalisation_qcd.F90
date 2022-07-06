@@ -66,6 +66,8 @@ subroutine qcd_renormalisation
     N_lf = count(zeromasses(5:6))
   else if (nf < 0) then
     N_lf = count(zeromasses(abs(nf):abs(nf)))
+  else if (nf == 0) then
+    N_lf = 0
   end if
 
   if (N_lf /= 0 .and. N_lf /= 1 .and. N_lf /= 3 .and. N_lf /= 4 .and. N_lf /= 5 .and. N_lf /= 6) then

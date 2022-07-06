@@ -122,9 +122,17 @@ subroutine construct_l1l2_1(mom1,mom2,alpha,gamma,l1,l2,r1,r2)
     if (signp1p2*signp1xp2 .eq. 1) then
       alpha(1) = L(2,mom1)/L(2,mom2)
       alpha(2) = L(1,mom2)/L(1,mom1)
+      l1 = L(1:4,mom1) - alpha(1)*L(1:4,mom2)
+      l2 = L(1:4,mom2) - alpha(2)*L(1:4,mom1)
+      l1(2) = 0._/**/REALKIND                      ! This is important in order to have exact zeros for the cases in the redset construction
+      l2(1) = 0._/**/REALKIND
     else
       alpha(1) = L(1,mom1)/L(1,mom2)
       alpha(2) = L(2,mom2)/L(2,mom1)
+      l1 = L(1:4,mom1) - alpha(1)*L(1:4,mom2)
+      l2 = L(1:4,mom2) - alpha(2)*L(1:4,mom1)
+      l1(1) = 0._/**/REALKIND
+      l2(2) = 0._/**/REALKIND
     end if
 
     delta = p1xp2**2/p1p2**2/4
@@ -135,9 +143,6 @@ subroutine construct_l1l2_1(mom1,mom2,alpha,gamma,l1,l2,r1,r2)
     end if
 
     one_sqrt_delta = cone + sqrt_delta
-
-    l1 = L(1:4,mom1) - alpha(1)*L(1:4,mom2)
-    l2 = L(1:4,mom2) - alpha(2)*L(1:4,mom1)
 
   ! Case (p_1-p_2)^2 = 0
   else if ((L(5,mom2-mom1) + L(6,mom2-mom1)) .eq. 0) then
