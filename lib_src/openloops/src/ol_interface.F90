@@ -381,6 +381,7 @@ module openloops
     use KIND_TYPES, only: DREALKIND
     use ol_dlfcn, only: dlopen, RTLD_LAZY
     use ol_loop_parameters_decl_/**/DREALKIND, only: maxpoint, maxrank, do_pole_checks
+    use ol_loop_parameters_decl_/**/DREALKIND, only: stability_mode,a_switch,a_switch_rescue,redlib_qp
     implicit none
     character(len=*), intent(in) :: libname
     character(len=*), intent(in) :: proc
@@ -392,7 +393,7 @@ module openloops
     integer, intent(in), optional :: qcd_powers(2)
     integer, intent(in), optional :: replace_loop
     type(c_ptr) :: lib
-    logical :: same_perm, same_pol, same_photon_id, same_replace_loop
+    logical :: same_perm, same_pol, same_photon_id, same_replace_loop, same_stability
     integer :: register_process_lib
     integer :: j, k
     type(process_handle) :: prochandle
@@ -433,10 +434,16 @@ module openloops
           same_replace_loop = (process_handles(k)%replace_loop == replace_loop)
         end if
       end if
+     if (stability_mode == process_handles(k)%stability_mode) then
+       same_stability = .true.
+     else
+        same_stability = .false.
+     end if
       if (same_perm .and. &
         & same_pol .and. &
         & same_photon_id .and. &
         & same_replace_loop .and. &
+        & same_stability .and. &
         & (amptype == process_handles(k)%amplitude_type) ) then
         register_process_lib = k
         return
@@ -1803,7 +1810,7 @@ module openloops
   !   (3) Reassign the lepton generations with a permutation
   !       p1 -> 1, p2 -> 2, p3 -> 3  such that  N[p1] > N[p2] > N[p3] */
     use ol_generic, only: to_string
-    use ol_parameters_decl_/**/DREALKIND, only: rMC, rYC, rMM, rYM, rML, rYL
+    use ol_parameters_decl_/**/DREALKIND, only: rMS, rYS, rMC, rYC, rMM, rYM, rML, rYL
     implicit none
     type(extparticle), intent(inout) :: ext(:)
     integer, optional, intent(in)    :: switch_in
@@ -1841,7 +1848,7 @@ module openloops
       Nlgen = 1
     end if
 
-    if (rMC == 0 .and. rYC == 0) then
+    if (rMC == 0 .and. rYC == 0 .and. rMS == 0 .and. rYS == 0) then
       Nqgen = 2
     else
       Nqgen = 1

@@ -787,6 +787,7 @@ subroutine Hloop_AZ_Q(ntry, G_A, J_Z, Gout_A, ng_RL, n, t)
   if (.not. valid_hol(G_A, Gout_A)) return
 
   Gout_A%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   g_RL = get_coupling(ng_RL)
   do h = 1, n(3)  ! recursion step
     call loop_AZ_Q(G_A%j(:,:,:,h),J_Z(t(1,h))%j,G_add,g_RL)
@@ -796,6 +797,7 @@ subroutine Hloop_AZ_Q(ntry, G_A, J_Z, Gout_A, ng_RL, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_A)) then
     Gout_A%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
     do h = 1, n(3)  ! recursion step
       call loop_AZ_Q_qp(G_A%j_qp(:,:,:,h),cmplx(J_Z(t(1,h))%j,kind=qp),G_add_qp,g_RL_qp)
@@ -841,6 +843,7 @@ subroutine Hloop_AQ_Z(ntry, G_A, J_Q, Gout_Z, ng_RL, n, t)
   if (.not. valid_hol(G_A, Gout_Z)) return
 
   Gout_Z%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   g_RL = get_coupling(ng_RL)
   do h = 1, n(3)  ! recursion step
     call loop_AQ_Z(G_A%j(:,:,:,h),J_Q(t(1,h))%j,G_add,g_RL)
@@ -850,6 +853,7 @@ subroutine Hloop_AQ_Z(ntry, G_A, J_Q, Gout_Z, ng_RL, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_A)) then
     Gout_Z%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
     do h = 1, n(3)  ! recursion step
       call loop_AQ_Z_qp(G_A%j_qp(:,:,:,h),cmplx(J_Q(t(1,h))%j,kind=qp),G_add_qp,g_RL_qp)
@@ -895,6 +899,7 @@ subroutine Hloop_ZA_Q(ntry, G_Z, J_A, Gout_A, ng_RL, n, t)
   if (.not. valid_hol(G_Z, Gout_A)) return
 
   Gout_A%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   g_RL = get_coupling(ng_RL)
   do h = 1, n(3)  ! recursion step
     call loop_ZA_Q(G_Z%j(:,:,:,h),J_A(t(1,h))%j,G_add,g_RL)
@@ -904,6 +909,7 @@ subroutine Hloop_ZA_Q(ntry, G_Z, J_A, Gout_A, ng_RL, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_Z)) then
     Gout_A%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
     do h = 1, n(3)  ! recursion step
       call loop_ZA_Q_qp(G_Z%j_qp(:,:,:,h),cmplx(J_A(t(1,h))%j,kind=qp),G_add_qp,g_RL_qp)
@@ -949,6 +955,7 @@ subroutine Hloop_QZ_A(ntry, G_Q, J_Z, Gout_Q, ng_RL, n, t)
   if (.not. valid_hol(G_Q, Gout_Q)) return
 
   Gout_Q%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   g_RL = get_coupling(ng_RL)
   do h = 1, n(3)  ! recursion step
     call loop_QZ_A(G_Q%j(:,:,:,h),J_Z(t(1,h))%j,G_add,g_RL)
@@ -958,6 +965,7 @@ subroutine Hloop_QZ_A(ntry, G_Q, J_Z, Gout_Q, ng_RL, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_Q)) then
     Gout_Q%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
     do h = 1, n(3)  ! recursion step
       call loop_QZ_A_qp(G_Q%j_qp(:,:,:,h),cmplx(J_Z(t(1,h))%j,kind=qp),G_add_qp,g_RL_qp)
@@ -1003,6 +1011,7 @@ subroutine Hloop_QA_Z(ntry, G_Q, J_A, Gout_Z, ng_RL, n, t)
   if (.not. valid_hol(G_Q, Gout_Z)) return
 
   Gout_Z%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   g_RL = get_coupling(ng_RL)
   do h = 1, n(3)  ! recursion step
     call loop_QA_Z(G_Q%j(:,:,:,h),J_A(t(1,h))%j,G_add,g_RL)
@@ -1012,6 +1021,7 @@ subroutine Hloop_QA_Z(ntry, G_Q, J_A, Gout_Z, ng_RL, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_Q)) then
     Gout_Z%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
     do h = 1, n(3)  ! recursion step
       call loop_QA_Z_qp(G_Q%j_qp(:,:,:,h),cmplx(J_A(t(1,h))%j,kind=qp),G_add_qp,g_RL_qp)
@@ -1057,6 +1067,7 @@ subroutine Hloop_ZQ_A(ntry, G_Z, J_Q, Gout_Q, ng_RL, n, t)
   if (.not. valid_hol(G_Z, Gout_Q)) return
 
   Gout_Q%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   g_RL = get_coupling(ng_RL)
   do h = 1, n(3)  ! recursion step
     call loop_ZQ_A(G_Z%j(:,:,:,h), J_Q(t(1,h))%j,G_add,g_RL)
@@ -1066,6 +1077,7 @@ subroutine Hloop_ZQ_A(ntry, G_Z, J_Q, Gout_Q, ng_RL, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_Z)) then
     Gout_Q%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
     do h = 1, n(3)  ! recursion step
       call loop_ZQ_A_qp(G_Z%j_qp(:,:,:,h), cmplx(J_Q(t(1,h))%j,kind=qp),G_add_qp,g_RL_qp)
@@ -1107,6 +1119,7 @@ subroutine Hloop_AW_Q(ntry, G_A, J_W, Gout_A, n, t)
   if (.not. valid_hol(G_A, Gout_A)) return
 
   Gout_A%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   do h = 1, n(3)  ! recursion step
     call loop_AW_Q(G_A%j(:,:,:,h), J_W(t(1,h))%j, G_add)
     Gout_A%j(:,:,:,t(2,h)) = Gout_A%j(:,:,:,t(2,h)) + G_add
@@ -1115,6 +1128,7 @@ subroutine Hloop_AW_Q(ntry, G_A, J_W, Gout_A, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_A)) then
     Gout_A%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_AW_Q_qp(G_A%j_qp(:,:,:,h), cmplx(J_W(t(1,h))%j,kind=qp), G_add_qp)
       Gout_A%j_qp(:,:,:,t(2,h)) = Gout_A%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -1155,6 +1169,7 @@ subroutine Hloop_AQ_W(ntry, G_A, J_Q, Gout_W, n, t)
   if (.not. valid_hol(G_A, Gout_W)) return
 
   Gout_W%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   do h = 1, n(3)  ! recursion step
     call loop_AQ_W(G_A%j(:,:,:,h), J_Q(t(1,h))%j, G_add)
     Gout_W%j(:,:,:,t(2,h)) = Gout_W%j(:,:,:,t(2,h)) + G_add
@@ -1163,6 +1178,7 @@ subroutine Hloop_AQ_W(ntry, G_A, J_Q, Gout_W, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_A)) then
     Gout_W%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_AQ_W_qp(G_A%j_qp(:,:,:,h), cmplx(J_Q(t(1,h))%j,kind=qp), G_add_qp)
       Gout_W%j_qp(:,:,:,t(2,h)) = Gout_W%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -1203,6 +1219,7 @@ subroutine Hloop_WA_Q(ntry, G_W, J_A, Gout_A, n, t)
   if (.not. valid_hol(G_W, Gout_A)) return
 
   Gout_A%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   do h = 1, n(3)  ! recursion step
     call loop_WA_Q(G_W%j(:,:,:,h), J_A(t(1,h))%j, G_add)
     Gout_A%j(:,:,:,t(2,h)) = Gout_A%j(:,:,:,t(2,h)) + G_add
@@ -1211,6 +1228,7 @@ subroutine Hloop_WA_Q(ntry, G_W, J_A, Gout_A, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_W)) then
     Gout_A%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_WA_Q_qp(G_W%j_qp(:,:,:,h), cmplx(J_A(t(1,h))%j,kind=qp), G_add_qp)
       Gout_A%j_qp(:,:,:,t(2,h)) = Gout_A%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -1251,6 +1269,7 @@ subroutine Hloop_QW_A(ntry, G_Q, J_W, Gout_Q, n, t)
   if (.not. valid_hol(G_Q, Gout_Q)) return
 
   Gout_Q%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   do h = 1, n(3)  ! recursion step
     call loop_QW_A(G_Q%j(:,:,:,h), J_W(t(1,h))%j, G_add)
     Gout_Q%j(:,:,:,t(2,h)) = Gout_Q%j(:,:,:,t(2,h)) + G_add
@@ -1259,6 +1278,7 @@ subroutine Hloop_QW_A(ntry, G_Q, J_W, Gout_Q, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_Q)) then
     Gout_Q%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_QW_A_qp(G_Q%j_qp(:,:,:,h), cmplx(J_W(t(1,h))%j,kind=qp), G_add_qp)
       Gout_Q%j_qp(:,:,:,t(2,h)) = Gout_Q%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -1299,6 +1319,7 @@ subroutine Hloop_QA_W(ntry, G_Q, J_A, Gout_W, n, t)
   if (.not. valid_hol(G_Q, Gout_W)) return
 
   Gout_W%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   do h = 1, n(3)  ! recursion step
     call loop_QA_W(G_Q%j(:,:,:,h), J_A(t(1,h))%j, G_add)
     Gout_W%j(:,:,:,t(2,h)) = Gout_W%j(:,:,:,t(2,h)) + G_add
@@ -1307,6 +1328,7 @@ subroutine Hloop_QA_W(ntry, G_Q, J_A, Gout_W, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_Q)) then
     Gout_W%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_QA_W_qp(G_Q%j_qp(:,:,:,h), cmplx(J_A(t(1,h))%j,kind=qp), G_add_qp)
       Gout_W%j_qp(:,:,:,t(2,h)) = Gout_W%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -1347,6 +1369,7 @@ subroutine Hloop_WQ_A(ntry, G_W, J_Q, Gout_Q, n, t)
   if (.not. valid_hol(G_W, Gout_Q)) return
 
   Gout_Q%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   do h = 1, n(3)  ! recursion step
     call loop_WQ_A(G_W%j(:,:,:,h), J_Q(t(1,h))%j, G_add)
     Gout_Q%j(:,:,:,t(2,h)) = Gout_Q%j(:,:,:,t(2,h)) + G_add
@@ -1355,6 +1378,7 @@ subroutine Hloop_WQ_A(ntry, G_W, J_Q, Gout_Q, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_W)) then
     Gout_Q%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_WQ_A_qp(G_W%j_qp(:,:,:,h), cmplx(J_Q(t(1,h))%j,kind=qp), G_add_qp)
       Gout_Q%j_qp(:,:,:,t(2,h)) = Gout_Q%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -1395,6 +1419,7 @@ subroutine Hloop_AV_Q(ntry, G_A, J_V, Gout_A, n, t)
   if (.not. valid_hol(G_A, Gout_A)) return
 
   Gout_A%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   do h = 1, n(3)  ! recursion step
     call loop_AV_Q(G_A%j(:,:,:,h), J_V(t(1,h))%j, G_add)
     Gout_A%j(:,:,:,t(2,h)) = Gout_A%j(:,:,:,t(2,h)) + G_add
@@ -1403,6 +1428,7 @@ subroutine Hloop_AV_Q(ntry, G_A, J_V, Gout_A, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_A)) then
     Gout_A%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_AV_Q_qp(G_A%j_qp(:,:,:,h), cmplx(J_V(t(1,h))%j,kind=qp), G_add_qp)
       Gout_A%j_qp(:,:,:,t(2,h)) = Gout_A%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -1442,6 +1468,7 @@ subroutine Hloop_AQ_V(ntry, G_A, J_Q, Gout_V, n, t)
   if (.not. valid_hol(G_A, Gout_V)) return
 
   Gout_V%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   do h = 1, n(3)  ! recursion step
     call loop_AQ_V(G_A%j(:,:,:,h), J_Q(t(1,h))%j, G_add)
     Gout_V%j(:,:,:,t(2,h)) = Gout_V%j(:,:,:,t(2,h)) + G_add
@@ -1450,6 +1477,7 @@ subroutine Hloop_AQ_V(ntry, G_A, J_Q, Gout_V, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_A)) then
     Gout_V%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_AQ_V_qp(G_A%j_qp(:,:,:,h), cmplx(J_Q(t(1,h))%j,kind=qp), G_add_qp)
       Gout_V%j_qp(:,:,:,t(2,h)) = Gout_V%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -1490,6 +1518,7 @@ subroutine Hloop_VA_Q(ntry, G_V, J_A, Gout_A, n, t)
   if (.not. valid_hol(G_V, Gout_A)) return
 
   Gout_A%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   do h = 1, n(3)  ! recursion step + helicity summation
     call loop_VA_Q(G_V%j(:,:,:,h), J_A(t(1,h))%j, G_add)
     Gout_A%j(:,:,:,t(2,h)) = Gout_A%j(:,:,:,t(2,h)) + G_add
@@ -1498,6 +1527,7 @@ subroutine Hloop_VA_Q(ntry, G_V, J_A, Gout_A, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_V)) then
     Gout_A%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_VA_Q_qp(G_V%j_qp(:,:,:,h), cmplx(J_A(t(1,h))%j,kind=qp), G_add_qp)
       Gout_A%j_qp(:,:,:,t(2,h)) = Gout_A%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -1538,6 +1568,7 @@ subroutine Hloop_QV_A(ntry, G_Q, J_V, Gout_Q, n, t)
   if (.not. valid_hol(G_Q, Gout_Q)) return
 
   Gout_Q%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   do h = 1, n(3)  ! recursion step
     call loop_QV_A(G_Q%j(:,:,:,h), J_V(t(1,h))%j, G_add)
     Gout_Q%j(:,:,:,t(2,h)) = Gout_Q%j(:,:,:,t(2,h)) + G_add
@@ -1546,6 +1577,7 @@ subroutine Hloop_QV_A(ntry, G_Q, J_V, Gout_Q, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_Q)) then
     Gout_Q%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_QV_A_qp(G_Q%j_qp(:,:,:,h), cmplx(J_V(t(1,h))%j,kind=qp), G_add_qp)
       Gout_Q%j_qp(:,:,:,t(2,h)) = Gout_Q%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -1586,6 +1618,7 @@ subroutine Hloop_QA_V(ntry, G_Q, J_A, Gout_V, n, t)
   if (.not. valid_hol(G_Q, Gout_V)) return
 
   Gout_V%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   do h = 1, n(3)  ! recursion step
     call loop_QA_V(G_Q%j(:,:,:,h), J_A(t(1,h))%j, G_add)
     Gout_V%j(:,:,:,t(2,h)) = Gout_V%j(:,:,:,t(2,h)) + G_add
@@ -1594,6 +1627,7 @@ subroutine Hloop_QA_V(ntry, G_Q, J_A, Gout_V, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_Q)) then
     Gout_V%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_QA_V_qp(G_Q%j_qp(:,:,:,h), cmplx(J_A(t(1,h))%j,kind=qp), G_add_qp)
       Gout_V%j_qp(:,:,:,t(2,h)) = Gout_V%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -1634,6 +1668,7 @@ subroutine Hloop_VQ_A(ntry, G_V, J_Q, Gout_A, n, t)
   if (.not. valid_hol(G_V, Gout_A)) return
 
   Gout_A%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   do h = 1, n(3)  ! recursion step
     call loop_VQ_A(G_V%j(:,:,:,h), J_Q(t(1,h))%j, G_add)
     Gout_A%j(:,:,:,t(2,h)) = Gout_A%j(:,:,:,t(2,h)) + G_add
@@ -1642,6 +1677,7 @@ subroutine Hloop_VQ_A(ntry, G_V, J_Q, Gout_A, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_V)) then
     Gout_A%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_VQ_A_qp(G_V%j_qp(:,:,:,h), cmplx(J_Q(t(1,h))%j,kind=qp), G_add_qp)
       Gout_A%j_qp(:,:,:,t(2,h)) = Gout_A%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -1685,6 +1721,7 @@ subroutine Hloop_UV_W(ntry, Gin_V, moml, J_V, momt, Gout_V, n, t)
   if (.not. valid_hol(Gin_V, Gout_V)) return
 
   Gout_V%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   do h = 1, n(3)  ! recursion step
     call loop_UV_W(Gin_V%j(:,:,:,h), get_LC_4(moml), J_V(t(1,h))%j, get_LC_4(momt), G_add)
     Gout_V%j(:,:,:,t(2,h)) = Gout_V%j(:,:,:,t(2,h)) + G_add
@@ -1693,6 +1730,7 @@ subroutine Hloop_UV_W(ntry, Gin_V, moml, J_V, momt, Gout_V, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_UV_W_qp(Gin_V%j_qp(:,:,:,h), get_LC_4_qp(moml), &
         cmplx(J_V(t(1,h))%j,kind=qp), get_LC_4_qp(momt), G_add_qp)
@@ -1737,6 +1775,7 @@ subroutine Hloop_UW_V(ntry, Gin_V, moml, J_V, momt, Gout_V, n, t)
   if (.not. valid_hol(Gin_V, Gout_V)) return
 
   Gout_V%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   do h = 1, n(3)  ! recursion step
     call loop_UW_V(Gin_V%j(:,:,:,h), get_LC_4(moml), J_V(t(1,h))%j, get_LC_4(momt), G_add)
     Gout_V%j(:,:,:,t(2,h)) = Gout_V%j(:,:,:,t(2,h)) + G_add
@@ -1745,6 +1784,7 @@ subroutine Hloop_UW_V(ntry, Gin_V, moml, J_V, momt, Gout_V, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_UW_V_qp(Gin_V%j_qp(:,:,:,h), get_LC_4_qp(moml), &
         cmplx(J_V(t(1,h))%j,kind=qp), get_LC_4_qp(momt), G_add_qp)
@@ -1796,6 +1836,7 @@ subroutine Hloop_EV_V(ntry, Gin_V, J1, J2, Gout_V, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
       call loop_EV_V_qp(Gin_V%j_qp(:,:,:,h), cmplx(J1(t(1,h))%j,kind=qp), &
         cmplx(J2(t(2,h))%j,kind=qp), G_add_qp)
@@ -1846,6 +1887,7 @@ subroutine Hloop_VE_V(ntry, Gin_V, J1, J2, Gout_V, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
       call loop_VE_V_qp(Gin_V%j_qp(:,:,:,h), cmplx(J1(t(1,h))%j,kind=qp), &
         cmplx(J2(t(2,h))%j,kind=qp), G_add_qp)
@@ -1894,6 +1936,7 @@ subroutine Hloop_GGG_G_23(ntry, Gin_V, J1, J2, Gout_V, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
       call loop_GGG_G_23_qp(Gin_V%j_qp(:,:,:,h), cmplx(J1(t(1,h))%j,kind=qp), &
       cmplx(J2(t(2,h))%j,kind=qp), G_add_qp)
@@ -1943,6 +1986,7 @@ subroutine Hloop_GGG_G_12(ntry, Gin_V, J1, J2, Gout_V, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
       call loop_GGG_G_12_qp(Gin_V%j_qp(:,:,:,h), cmplx(J1(t(1,h))%j,kind=qp), &
         cmplx(J2(t(2,h))%j,kind=qp), G_add_qp)
@@ -1996,6 +2040,7 @@ subroutine Hloop_CV_D(ntry, Gin_C, moml, J_V, momt, Gout_C, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(Gin_C)) then
     Gout_C%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_CV_D_qp(Gin_C%j_qp(:,:,:,h), get_LC_4_qp(moml), &
         cmplx(J_V(t(1,h))%j,kind=qp), get_LC_4_qp(momt), G_add_qp)
@@ -2040,6 +2085,7 @@ subroutine Hloop_DV_C(ntry, Gin_D, moml, J_V, Gout_D, n, t)
   if (ntry == 1) call helbookkeeping_ol_vert3(ntry, J_V, Gin_D, Gout_D, n, t)
   if (.not. valid_hol(Gin_D, Gout_D)) return
 
+  G_add = 0._/**/REALKIND
   Gout_D%j = 0._/**/REALKIND
   do h = 1, n(3)  ! recursion step
     call loop_DV_C(Gin_D%j(:,:,:,h), get_LC_4(moml), J_V(t(1,h))%j, G_add)
@@ -2049,6 +2095,7 @@ subroutine Hloop_DV_C(ntry, Gin_D, moml, J_V, Gout_D, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(Gin_D)) then
     Gout_D%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_DV_C_qp(Gin_D%j_qp(:,:,:,h), get_LC_4_qp(moml), &
         cmplx(J_V(t(1,h))%j,kind=qp), G_add_qp)
@@ -2094,6 +2141,7 @@ subroutine Hloop_AS_Q(ntry, G_A, J_S, Gout_A, ng_RL, n, t)
   if (.not. valid_hol(G_A, Gout_A)) return
 
   Gout_A%j = 0._/**/REALKIND
+  G_add = 0._/**/REALKIND
   g_RL = get_coupling(ng_RL)
   do h = 1, n(3)  ! recursion step
     call loop_AS_Q(G_A%j(:,:,:,h), J_S(t(1,h))%j,G_add,g_RL)
@@ -2104,6 +2152,7 @@ subroutine Hloop_AS_Q(ntry, G_A, J_S, Gout_A, ng_RL, n, t)
   if (req_qp_cmp(G_A)) then
     Gout_A%j_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_AS_Q_qp(G_A%j_qp(:,:,:,h),cmplx(J_S(t(1,h))%j,kind=qp),G_add_qp,g_RL_qp)
       Gout_A%j_qp(:,:,:,t(2,h)) = Gout_A%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -2157,6 +2206,7 @@ subroutine Hloop_SA_Q(ntry, G_S, J_A, Gout_A, ng_RL, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_S)) then
     Gout_A%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
     do h = 1, n(3)  ! recursion step
       call loop_SA_Q_qp(G_S%j_qp(:,:,:,h),cmplx(J_A(t(1,h))%j,kind=qp),G_add_qp,g_RL_qp)
@@ -2211,6 +2261,7 @@ subroutine Hloop_QS_A(ntry, G_Q, J_S, Gout_Q, ng_RL, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_Q)) then
     Gout_Q%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
     do h = 1, n(3)  ! recursion step
       call loop_QS_A_qp(G_Q%j_qp(:,:,:,h),cmplx(J_S(t(1,h))%j,kind=qp),G_add_qp,g_RL_qp)
@@ -2265,6 +2316,7 @@ subroutine Hloop_SQ_A(ntry, G_S, J_Q, Gout_Q, ng_RL, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_S)) then
     Gout_Q%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
     do h = 1, n(3)  ! recursion step
       call loop_SQ_A_qp(G_S%j_qp(:,:,:,h),cmplx(J_Q(t(1,h))%j,kind=qp),G_add_qp,g_RL_qp)
@@ -2319,6 +2371,7 @@ subroutine Hloop_QA_S(ntry, G_Q, J_A, Gout_S, ng_RL, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_Q)) then
     Gout_S%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
     do h = 1, n(3)  ! recursion step
       call loop_QA_S_qp(G_Q%j_qp(:,:,:,h),cmplx(J_A(t(1,h))%j,kind=qp),G_add_qp,g_RL_qp)
@@ -2373,6 +2426,7 @@ subroutine Hloop_AQ_S(ntry, G_A, J_Q, Gout_S, ng_RL, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_A)) then
     Gout_S%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     g_RL_qp = get_coupling_qp(ng_RL)
     do h = 1, n(3)  ! recursion step
       call loop_AQ_S_qp(G_A%j_qp(:,:,:,h),cmplx(J_Q(t(1,h))%j,kind=qp),G_add_qp,g_RL_qp)
@@ -2421,6 +2475,7 @@ subroutine Hloop_VV_S(ntry, G_V, J_V, Gout_S, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_V)) then
     Gout_S%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_VV_S_qp(G_V%j_qp(:,:,:,h), cmplx(J_V(t(1,h))%j,kind=qp), G_add_qp)
     Gout_S%j_qp(:,:,:,t(2,h)) = Gout_S%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -2468,6 +2523,7 @@ subroutine Hloop_VS_V(ntry, G_V, J_S, Gout_V, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_VS_V_qp(G_V%j_qp(:,:,:,h), cmplx(J_S(t(1,h))%j,kind=qp), G_add_qp)
       Gout_V%j_qp(:,:,:,t(2,h)) = Gout_V%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -2515,6 +2571,7 @@ subroutine Hloop_SV_V(ntry, G_S, J_V, Gout_V, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_S)) then
     Gout_V%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_SV_V_qp(G_S%j_qp(:,:,:,h), cmplx(J_V(t(1,h))%j,kind=qp), G_add_qp)
       Gout_V%j_qp(:,:,:,t(2,h)) = Gout_V%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -2571,6 +2628,7 @@ subroutine Hloop_SV_T(ntry, G_S, moml, J_V, momt, Gout_S, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_S)) then
     Gout_S%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_SV_T_qp(G_S%j_qp(:,:,:,h), get_LC_4_qp(moml), &
         cmplx(J_V(t(1,h))%j,kind=qp), &
@@ -2624,6 +2682,7 @@ subroutine Hloop_TV_S(ntry, G_S, moml, J_V, momt, Gout_S, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_S)) then
     Gout_S%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_TV_S_qp(G_S%j_qp(:,:,:,h), get_LC_4_qp(moml), &
         cmplx(J_V(t(1,h))%j,kind=qp), get_LC_4_qp(momt), G_add_qp)
@@ -2677,6 +2736,7 @@ subroutine Hloop_VS_T(ntry, G_V, moml, J_S, momt, Gout_S, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_V)) then
     Gout_S%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_VS_T_qp(G_V%j_qp(:,:,:,h), get_LC_4_qp(moml), &
         cmplx(J_S(t(1,h))%j,kind=qp), get_LC_4_qp(momt), G_add_qp)
@@ -2730,6 +2790,7 @@ subroutine Hloop_VT_S(ntry, G_V, moml, J_S, momt, Gout_S, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_V)) then
     Gout_S%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_VT_S_qp(G_V%j_qp(:,:,:,h), get_LC_4_qp(moml), &
         cmplx(J_S(t(1,h))%j,kind=qp), get_LC_4_qp(momt), G_add_qp)
@@ -2783,6 +2844,7 @@ subroutine Hloop_ST_V(ntry, G_S, moml, J_S, momt, Gout_V, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_S)) then
     Gout_V%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_ST_V_qp(G_S%j_qp(:,:,:,h), get_LC_4_qp(moml), &
         cmplx(J_S(t(1,h))%j,kind=qp), get_LC_4_qp(momt), G_add_qp)
@@ -2836,6 +2898,7 @@ subroutine Hloop_TS_V(ntry, G_S, moml, J_S, momt, Gout_V, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_S)) then
     Gout_V%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_TS_V_qp(G_S%j_qp(:,:,:,h), get_LC_4_qp(moml), &
         cmplx(J_S(t(1,h))%j,kind=qp), get_LC_4_qp(momt), G_add_qp)
@@ -2886,6 +2949,7 @@ subroutine Hloop_SS_S(ntry, G_S, J_S, Gout_S, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(G_S)) then
     Gout_S%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(3)  ! recursion step
       call loop_SS_S_qp(G_S%j_qp(:,:,:,h), cmplx(J_S(t(1,h))%j,kind=qp), G_add_qp)
       Gout_S%j_qp(:,:,:,t(2,h)) = Gout_S%j_qp(:,:,:,t(2,h)) + G_add_qp
@@ -2936,6 +3000,7 @@ subroutine Hloop_SSS_S(ntry, Gin_S, J_S1, J_S2, Gout_S, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(Gin_S)) then
     Gout_S%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
       call loop_SSS_S_qp(Gin_S%j_qp(:,:,:,h), cmplx(J_S1(t(1,h))%j,kind=qp), &
         cmplx(J_S2(t(2,h))%j,kind=qp), G_add_qp)
@@ -2989,6 +3054,7 @@ subroutine Hloop_SVV_S(ntry, Gin_S, J_V1, J_V2, Gout_S, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(Gin_S)) then
     Gout_S%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
       call loop_SVV_S_qp(Gin_S%j_qp(:,:,:,h), cmplx(J_V1(t(1,h))%j,kind=qp), &
         cmplx(J_V2(t(2,h))%j,kind=qp), G_add_qp)
@@ -3040,6 +3106,7 @@ subroutine Hloop_VSS_V(ntry, Gin_V, J_S1, J_S2, Gout_V, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
       call loop_VSS_V_qp(Gin_V%j_qp(:,:,:,h), cmplx(J_S1(t(1,h))%j,kind=qp), &
         cmplx(J_S2(t(2,h))%j,kind=qp), G_add_qp)
@@ -3091,6 +3158,7 @@ subroutine Hloop_VVS_S(ntry, Gin_V, J_V, J_S, Gout_S, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(Gin_V)) then
     Gout_S%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
       call loop_VVS_S_qp(Gin_V%j_qp(:,:,:,h), cmplx(J_V(t(1,h))%j,kind=qp), &
         cmplx(J_S(t(2,h))%j,kind=qp), G_add_qp)
@@ -3142,6 +3210,7 @@ subroutine Hloop_SSV_V(ntry, Gin_S, J_S, J_V, Gout_V, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(Gin_S)) then
     Gout_V%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
       call loop_SSV_V_qp(Gin_S%j_qp(:,:,:,h), cmplx(J_S(t(1,h))%j,kind=qp), &
         cmplx(J_V(t(2,h))%j,kind=qp), G_add_qp)
@@ -3193,6 +3262,7 @@ subroutine Hloop_VWW_V(ntry, Gin_V, J_V1, J_V2, Gout_V, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
       call loop_VWW_V_qp(Gin_V%j_qp(:,:,:,h), cmplx(J_V1(t(1,h))%j,kind=qp), &
         cmplx(J_V2(t(2,h))%j,kind=qp), G_add_qp)
@@ -3243,6 +3313,7 @@ subroutine Hloop_WWV_V(ntry, Gin_V, J_V1, J_V2, Gout_V, n, t)
 #ifdef PRECISION_dp
   if (req_qp_cmp(Gin_V)) then
     Gout_V%j_qp = 0._/**/QREALKIND
+    G_add_qp = 0._/**/QREALKIND
     do h = 1, n(4)  ! recursion step
       call loop_WWV_V_qp(Gin_V%j_qp(:,:,:,h), cmplx(J_V1(t(1,h))%j,kind=qp), &
         cmplx(J_V2(t(2,h))%j,kind=qp), G_add_qp)
