@@ -429,7 +429,7 @@ module ol_parameters_decl_/**/REALKIND
   ! character(len=max_parameter_length) :: install_path = "path"
   include "install_path.inc"
   ! Mode for check_last_[...] in laststep and tensor integral routine in looproutines
-  integer, save :: l_switch = 1, a_switch = 1, a_switch_rescue = 7, redlib_qp = 5
+  integer, save :: l_switch = 1, a_switch = 1, a_switch_rescue = 7, redlib_qp = 5, kloopmax = 1
   ! switcher for helicity improvement in OFR
   logical, save :: hel_mem_opt_switch = .true.
   ! switchers for checking Ward identities at tree/loop level

@@ -175,7 +175,7 @@ subroutine qcd_renormalisation
     dZc   = dZq
     dZb   = dZq
     dZt   = dZq
-    if (nf > 3 .and. MC /= 0) then
+    if (MC /= 0) then
       dZc  = -cf * (deC_UV + 2*deC_IR + 4) ! massive charm-quark
       if (LambdaMC2 == 0) then
         dZMC = -cf * (4 + 3*(de1_UV+log(mu2_UV/MC2))) ! on-shell
@@ -183,14 +183,14 @@ subroutine qcd_renormalisation
         dZMC = -cf * 3*(de1_UV+log(mu2_UV/LambdaMC2)) ! MSbar
       end if
     end if
-    if (nf > 3 .and. YC /=0) then
+    if (YC /=0) then
       if (LambdaYC2 == 0) then
         dZYC = -cf * (4 + 3*(de1_UV+log(mu2_UV/YC2))) ! on-shell
       else
         dZYC = -cf * 3*(de1_UV+log(mu2_UV/LambdaYC2)) ! MSbar
       end if
     end if
-    if (abs(nf) > 4 .and. MB /= 0) then
+    if (MB /= 0) then
       dZb  = -cf * (deB_UV + 2*deB_IR + 4) ! massive bottom-quark
       if (LambdaMB2 == 0) then
         dZMB = -cf * (4 + 3*(de1_UV+log(mu2_UV/MB2))) ! on-shell
@@ -198,7 +198,7 @@ subroutine qcd_renormalisation
         dZMB = -cf * 3*(de1_UV+log(mu2_UV/LambdaMB2)) ! MSbar
       end if
     end if
-    if (abs(nf) > 4 .and. YB /=0) then
+    if (YB /=0) then
       if (LambdaYB2 == 0) then
         dZYB = -cf * (4 + 3*(de1_UV+log(mu2_UV/YB2))) ! on-shell
       else
@@ -208,7 +208,7 @@ subroutine qcd_renormalisation
     ! top-mass renormalisation
     ! on-shell at complex pole p^2 = MT^2: dMT = MT * (-cf * (4 + 3*(de1_UV+log(mu2_UV/MT2))) + dZt)
     ! MSbar:                               dMT = MT * (-cf * (3*(de1_UV+log(mu2_UV/LambdaMT2))) + dZt)
-    if (abs(nf) > 5 .and. MT /= 0) then
+    if (MT /= 0) then
       dZt   = -cf * (deT_UV + 2*deT_IR + 4) ! massive top-quark
       if (LambdaMT2 == 0) then
         dZMT = -cf * (4 + 3*(de1_UV+log(mu2_UV/MT2))) ! on-shell
@@ -216,7 +216,7 @@ subroutine qcd_renormalisation
         dZMT = -cf * 3*(de1_UV+log(mu2_UV/LambdaMT2)) ! MSbar
       end if
     end if
-    if (abs(nf) > 5 .and. YT /= 0) then
+    if (YT /= 0) then
       if (LambdaYT2 == 0) then
         dZYT = -cf * (4 + 3*(de1_UV+log(mu2_UV/YT2))) ! on-shell
       else

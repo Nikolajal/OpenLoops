@@ -1,34 +1,24 @@
 
-! Example  program how to use the native interface of OpenLoops.
-! It calculates the Tree and loop matrix element of the process
-! d dbar -> Z u ubar for a random phase-space point.
 
 program main
   use openloops
   implicit none
   integer :: id, error, k
   real(8) :: m2_tree, m2_loop(0:2), acc
-  real(8) :: p_ex(0:3,5)
-  real(8) :: mZ = 91.2
+  real(8) :: p_ex(0:3,4)
   real(8) :: mu = 100, alpha_s = 0.1, energy=1000
 
-  ! coupling order alpha_ew^1, implies QCD correction for loop process
+
+  call set_parameter("verbose", 1)
+  call set_parameter("no_splash", 1)
+
+  call set_parameter("yuk(3)", 0.)
+  call set_parameter("yuk(4)", 1.)
+  call set_parameter("yuk(5)", 0.)
+
   call set_parameter("order_ew", 1)
 
-  ! set Z mass
-  call set_parameter("mass(23)", mZ)
-
-  ! Increase verbosity level to list loaded libraries
-  call set_parameter("verbose", 1)
-
-  ! register one-loop amplitude for process d dbar -> Z u ubar
-  ! The "ppzjj" process library must be installed before via
-  ! $ ./scons auto=ppzjj
-  !
-  ! second argument of register_process:
-  ! 1 for tree-like matrix elements (tree, color and spin correlations),
-  ! 11 for loop, 12 for loop^2
-  id = register_process("1 -1 -> 23 2 -2", 11)
+  id = register_process("-4 4 -> 21 25", 11)
 
   ! start
   call start()
@@ -37,15 +27,7 @@ program main
     ! generate a random phase space point with rambo
     call phase_space_point(id, energy, p_ex)
 
-    ! set strong coupling
-    call set_parameter("alpha_s", alpha_s)
-    ! set renormalisation scale
-    call set_parameter("mu", mu)
-
     print *
-    print *, "Tree and loop matrix element of the process"
-    print *, "d dbar -> Z u ubar"
-    print *, "for the phase-space point"
     do k = 1, size(p_ex,2)
       print *, 'P[', int(k,1), '] =', p_ex(:,k)
     end do
